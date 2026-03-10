@@ -279,3 +279,40 @@
 - None.
 
 ---
+
+## Sub-Task 8: Winery Profile and Onboarding Setup
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `database/migrations/tenant/2026_03_10_000006_create_winery_profiles_table.php` — Tenant-scoped profile: UUID PK, identity fields (name, dba_name, description, logo, website, phone, email), location (address, city, state, zip, country, timezone), compliance (ttb_permit_number, ttb_registry_number, state_license_number), preferences (unit_system, currency, fiscal_year_start_month, date_format), onboarding_complete flag.
+- `app/Models/WineryProfile.php` — HasUuids, all fields fillable, casts for fiscal_year_start_month (int) and onboarding_complete (bool). Helpers: `usesImperial()`, `usesMetric()`.
+- `app/Http/Controllers/Api/V1/WineryProfileController.php` — `show()`: returns profile for any authenticated user. `update()`: partial updates with validation (unit_system in [imperial, metric], timezone validates IANA, fiscal_year_start_month 1-12). Owner/admin only.
+- `database/seeders/TenantDatabaseSeeder.php` — Updated to auto-create a WineryProfile with the tenant's name on provisioning.
+- `database/seeders/DemoWinerySeeder.php` — Creates "Paso Robles Cellars" tenant with realistic data: Adelaida District address, TTB permits, July fiscal year, 7 demo users (one per role). Idempotent.
+- `database/seeders/DatabaseSeeder.php` — Updated to call DemoWinerySeeder.
+- `routes/api.php` — Added: `GET /winery` (any auth user), `PUT /winery` (owner/admin).
+- `tests/Feature/WineryProfile/WineryProfileTest.php` — 11 tests, 59 assertions.
+
+### Key Decisions
+- **Auto-create profile on tenant provisioning**: TenantDatabaseSeeder creates a default WineryProfile with the tenant's name. This ensures every tenant always has exactly one profile row.
+- **Partial updates via PUT**: The update endpoint uses `sometimes` validation — only submitted fields are validated and updated. This allows the frontend to send incremental onboarding steps.
+- **Fiscal year start month**: Stored as integer 1-12. Affects reporting periods across all modules (TTB reports, financial summaries). July (7) is common for wineries.
+- **Timezone stored per winery**: Used for scheduled jobs (club processing, report generation). Defaults to America/Los_Angeles.
+- **Demo winery is idempotent**: Checks for existing slug before creating. Running `db:seed` twice doesn't duplicate.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **One profile per tenant**: Auto-created by seeder. Controller uses `firstOrFail()` — no need to scope by ID.
+- **Preference-aware modules**: Future modules should check `WineryProfile::first()->usesImperial()` for unit conversions and `fiscal_year_start_month` for reporting boundaries.
+
+### Test Summary
+- `tests/Feature/WineryProfile/WineryProfileTest.php` — 11 tests: auto-creation on provisioning, GET returns profile, unauthenticated rejected, owner can update, partial updates work, unit_system validated, fiscal_year_start_month validated, timezone validated, non-admin cannot update (403), demo seeder creates full winery, demo seeder is idempotent.
+- 67 tests total across all suites, 246 assertions, 22.47s
+
+### Open Questions
+- None.
+
+---
