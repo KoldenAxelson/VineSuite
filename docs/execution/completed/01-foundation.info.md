@@ -79,3 +79,44 @@
 - None.
 
 ---
+
+## Sub-Task 3: Multi-Tenancy Setup with stancl/tenancy
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `config/tenancy.php` — Full tenancy config: schema-per-tenant via PostgreSQLSchemaManager, `central_connection` pointing at default DB connection, tenant prefix `tenant_`, bootstrappers for database/cache/filesystem/queue context switching
+- `app/Models/Tenant.php` — Custom Tenant model extending stancl's base with UUID primary keys. Custom columns: name, slug, plan (starter/growth/pro), stripe_customer_id, stripe_subscription_id, launched_at
+- `database/migrations/0001_01_01_000010_create_tenants_table.php` — Central tenants table with plan enum, stripe fields, JSON data column for stancl extras
+- `database/migrations/0001_01_01_000011_create_domains_table.php` — Central domains table mapping subdomains to tenants, cascading deletes
+- `app/Providers/TenancyServiceProvider.php` — Event-driven tenant lifecycle: TenantCreated triggers CreateDatabase → MigrateDatabase → SeedDatabase pipeline (sync). TenantDeleted triggers DeleteDatabase. Routes tenant.php with domain identification middleware
+- `app/Jobs/CreateTenantJob.php` — Queued job: creates Tenant model (triggers schema + migration + seeding), creates subdomain domain record, logs timing. 1 retry, 30s timeout
+- `database/migrations/tenant/2026_03_10_000001_create_tenant_users_table.php` — Tenant-scoped users table with UUID PK, central_user_id link, role, is_active, invited_by
+- `database/seeders/TenantDatabaseSeeder.php` — Placeholder seeder (will add roles/permissions in Sub-Task 4)
+- `routes/tenant.php` — Tenant-scoped routes with domain identification middleware
+- `routes/api.php` — Central API routes with /api/v1/ prefix
+- `bootstrap/app.php` — Registered TenancyServiceProvider, added API routing
+- `tests/Feature/Tenancy/TenantCreationTest.php` — 5 tests, 20 assertions
+
+### Key Decisions
+- **Schema-per-tenant (not database-per-tenant)**: PostgreSQLSchemaManager creates `tenant_{uuid}` schemas within the same database. Works well up to ~500 tenants per architecture spec.
+- **Sync tenant provisioning in event pipeline**: TenantCreated pipeline runs synchronously. CreateTenantJob wraps it in a queued job for async API usage.
+- **DatabaseMigrations for tenancy tests**: `RefreshDatabase`/`LazilyRefreshDatabase` wrap tests in transactions, which deadlock with PostgreSQL DDL (`CREATE SCHEMA`/`DROP SCHEMA`). Tenancy tests use `DatabaseMigrations` instead. Non-tenancy tests opt in per file — no global trait in Pest.php.
+- **UUID primary keys on Tenant**: Uses HasUuids trait. Schema names are `tenant_{uuid}`, avoiding slug-collision issues.
+
+### Deviations from Spec
+- **API token-based tenant identification** deferred to Sub-Task 4 (Auth). Subdomain identification is wired. Token-based identification requires Sanctum infrastructure.
+
+### Patterns Established
+- **Tenancy test pattern**: `uses(DatabaseMigrations::class)` at file level. `afterEach` drops `tenant_%` schemas. No global RefreshDatabase.
+- **Central vs tenant migrations**: Central in `database/migrations/`, tenant in `database/migrations/tenant/`.
+- **Tenant lifecycle**: All provisioning through stancl's event system. CreateTenantJob calls `Tenant::create()` which fires the pipeline.
+
+### Test Summary
+- `tests/Feature/Tenancy/TenantCreationTest.php` — 5 tests, 20 assertions: schema creation, migration isolation, cross-tenant access prevention, CreateTenantJob, unique slug enforcement
+- All against real PostgreSQL, 0.68s total
+
+### Open Questions
+- None.
+
+---
