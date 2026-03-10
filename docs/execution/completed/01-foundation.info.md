@@ -173,3 +173,40 @@
 - None.
 
 ---
+
+## Sub-Task 5: Team Invitation System
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `app/Models/TeamInvitation.php` — Tenant-scoped model: UUID PK, email, role, 64-char random token, invited_by FK, accepted_at, expires_at (72h). Scopes: `pending()`. Helpers: `isExpired()`, `isAccepted()`, `isValid()`.
+- `database/migrations/tenant/2026_03_10_000004_create_team_invitations_table.php` — Tenant-scoped table with unique token index, email index, invited_by FK to users
+- `app/Http/Controllers/TeamInvitationController.php` — `send()`: validates email/role, blocks duplicates and existing users, creates invitation, sends email. `index()`: lists all invitations with computed status. `cancel()`: deletes pending invitation.
+- `app/Http/Controllers/Auth/AcceptInvitationController.php` — Public endpoint (no auth required). Validates token, checks expiry/accepted state, creates user with invited role, assigns spatie role, marks invitation accepted, returns Sanctum token.
+- `app/Mail/TeamInvitationMail.php` — Markdown mailable with accept URL, tenant name, role, expiry date, inviter name.
+- `resources/views/emails/team-invitation.blade.php` — Markdown email template with accept button
+- `routes/api.php` — Added: `POST /auth/accept-invitation` (public), `POST /team/invite` (owner/admin), `GET /team/invitations` (owner/admin), `DELETE /team/invitations/{invitation}` (owner/admin), `GET /team` (any authenticated user)
+- `tests/Feature/Team/TeamInvitationTest.php` — 11 tests, 44 assertions
+
+### Key Decisions
+- **Owner role cannot be invited**: Validation rejects `owner` in the role field. Owners are only created during tenant registration.
+- **72-hour expiry**: Invitations expire after 72 hours. Expired invitations are not deleted — they remain as a record with `expired` status.
+- **No auth required to accept**: The accept endpoint is public (within the tenant middleware group). The invitation token acts as the authentication. The invitee doesn't have an account yet.
+- **Duplicate prevention**: Blocks sending a new invitation if a pending (not expired, not accepted) invitation already exists for the same email. Also blocks if a user with that email already exists in the tenant.
+- **Immediate token on accept**: When an invitation is accepted, the new user gets a portal Sanctum token immediately so they can start using the app right away.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **Mail::fake() in invitation tests**: All invitation tests fake the mail to avoid actually sending emails and to assert mail was dispatched.
+- **Token-based public endpoints**: Accept invitation follows the pattern of using a cryptographic token for authentication on endpoints where the user doesn't have an account yet.
+
+### Test Summary
+- `tests/Feature/Team/TeamInvitationTest.php` — 11 tests: owner can send invitation (mail sent), duplicate pending blocked, existing user blocked, owner role rejected, non-admin forbidden (403), invitee accepts valid invitation (user created with correct role + token returned), expired invitation rejected, already-accepted rejected, invalid token rejected (404), cancel pending invitation, list invitations with status
+- 31 tests total across all suites, 102 assertions, 9.28s
+
+### Open Questions
+- None.
+
+---
