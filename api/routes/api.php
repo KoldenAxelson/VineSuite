@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\TeamInvitationController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
@@ -68,6 +69,9 @@ Route::middleware([
             Route::get('/invitations', [TeamInvitationController::class, 'index'])->name('team.invitations');
             Route::delete('/invitations/{invitation}', [TeamInvitationController::class, 'cancel'])->name('team.invitations.cancel');
         });
+
+        // Event sync — mobile apps batch-submit events
+        Route::post('/events/sync', EventSyncController::class)->name('events.sync');
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {

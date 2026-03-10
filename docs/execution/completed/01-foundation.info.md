@@ -244,3 +244,38 @@
 - None.
 
 ---
+
+## Sub-Task 7: Event Sync API Endpoint
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `app/Http/Controllers/Api/V1/EventSyncController.php` — `POST /api/v1/events/sync`. Accepts a batch of events (max 100), delegates to EventProcessor, returns per-event status (accepted/skipped/failed) with counts.
+- `app/Http/Requests/EventSyncRequest.php` — Validates batch: events array required (1–100 items), each event requires entity_type, entity_id (UUID), operation_type, payload (array), performed_at (date within last 30 days, not future), idempotency_key (required for sync). Optional device_id.
+- `app/Services/EventProcessor.php` — `processBatch()`: iterates events, wraps each in its own DB transaction. Duplicate idempotency keys are skipped (not errors). Failed events are logged but don't reject the batch. Returns structured results with accepted/skipped/failed counts. Uses EventLogger internally.
+- `routes/api.php` — Added `POST /events/sync` under authenticated tenant routes.
+- `tests/Feature/EventLog/EventSyncTest.php` — 12 tests, 48 assertions.
+
+### Key Decisions
+- **Per-event transactions**: Each event is processed in its own DB transaction. One bad event doesn't reject the entire batch. This matches the spec gotcha exactly.
+- **Idempotency key required for sync**: Unlike EventLogger (which allows null keys), the sync endpoint requires idempotency_key on every event. Mobile clients must generate keys client-side for offline safety.
+- **30-day window for performed_at**: Events older than 30 days are rejected via validation. Future timestamps are also rejected. This prevents stale data injection while allowing reasonable offline sync windows.
+- **Max 100 events per batch**: Prevents oversized payloads. Mobile apps should chunk larger syncs.
+- **EventProcessor delegates to EventLogger**: The processor checks for existing idempotency keys first, then calls EventLogger.log() with `isSynced: true`. This sets synced_at automatically.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **Form Request validation for batch operations**: EventSyncRequest validates the entire events array with per-item rules (`events.*.field`). Custom error messages for date range violations.
+- **Per-event error handling**: Failed events don't break the batch. Results include index, status, and error message for debugging.
+- **Sync endpoint always returns 200**: Even partial failures return 200 with per-event status. Only validation failures return 422 (before processing begins).
+
+### Test Summary
+- `tests/Feature/EventLog/EventSyncTest.php` — 12 tests: batch acceptance with per-event status, synced_at set on all events, events linked to authenticated user, duplicate idempotency keys skipped, mixed new/duplicate in same batch, full idempotency (double-call same result), >30 days rejected, future timestamps rejected, empty array rejected, required fields validated, authentication required, client performed_at preserved.
+- 56 tests total across all suites, 187 assertions, 17.86s
+
+### Open Questions
+- None.
+
+---
