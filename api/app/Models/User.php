@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -36,7 +37,14 @@ class User extends Authenticatable
     use HasFactory;
     use HasRoles;
     use HasUuids;
+    use LogsActivity;
     use Notifiable;
+
+    /**
+     * Fields to exclude from activity logging.
+     * Password and remember_token are always excluded by the trait.
+     */
+    protected array $activityLogExclude = ['updated_at', 'created_at', 'email_verified_at'];
 
     protected $keyType = 'string';
 

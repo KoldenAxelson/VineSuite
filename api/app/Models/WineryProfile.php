@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -40,6 +41,12 @@ use Illuminate\Database\Eloquent\Model;
 class WineryProfile extends Model
 {
     use HasUuids;
+    use LogsActivity;
+
+    /**
+     * Fields to exclude from activity logging.
+     */
+    protected array $activityLogExclude = ['updated_at', 'created_at'];
 
     protected $keyType = 'string';
 

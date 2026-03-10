@@ -353,3 +353,44 @@
 - None.
 
 ---
+
+## Sub-Task 10: Stripe Billing Integration (SaaS Subscriptions)
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `laravel/cashier` v16.4 installed via Composer
+- `app/Models/Tenant.php` — Added `Billable` trait. Billing is per-tenant (not per-user). Added `PLANS` constant, `stripePriceForPlan()`, `hasActiveSubscription()`, `isInGracePeriod()`. Updated `getCustomColumns()` with pm_type, pm_last_four, trial_ends_at.
+- `database/migrations/0001_01_01_000013_create_cashier_tables.php` — Central migration: adds pm_type, pm_last_four, trial_ends_at to tenants table. Creates subscriptions and subscription_items tables in central schema with tenant_id FK.
+- `app/Http/Controllers/BillingController.php` — `checkout()`: creates Stripe Checkout session for a plan. `portal()`: creates Stripe Customer Portal session. `changePlan()`: swaps subscription price and updates tenant plan column. `status()`: returns current billing state.
+- `app/Http/Controllers/WebhookController.php` — Extends Cashier's webhook controller. Handles `customer.subscription.updated` (syncs plan column), `customer.subscription.deleted` (logs grace period start).
+- `app/Listeners/HandleSubscriptionChange.php` — Listens for Cashier `WebhookReceived` events. Handles `invoice.payment_succeeded` and `invoice.payment_failed` with structured logging.
+- `app/Providers/AppServiceProvider.php` — Registers HandleSubscriptionChange listener for WebhookReceived event.
+- `bootstrap/app.php` — Added CSRF exception for `api/v1/stripe/webhook`.
+- `routes/api.php` — Added: `POST /stripe/webhook` (central, no auth), `GET /billing/status`, `POST /billing/checkout`, `POST /billing/portal`, `PUT /billing/plan` (all owner/admin + tenant-scoped).
+- `.env` — Stripe test keys configured, CASHIER_MODEL=App\Models\Tenant.
+- `tests/Feature/Billing/BillingTest.php` — 15 tests, 44 assertions.
+
+### Key Decisions
+- **Tenant is the Billable, not User**: SaaS billing is per-winery. The Tenant model has the Cashier Billable trait. Subscriptions and subscription_items tables reference tenant_id.
+- **Central schema billing**: Cashier tables (subscriptions, subscription_items) live in the central public schema alongside tenants/domains. This is NOT per-tenant Stripe Connect.
+- **Plan price IDs via env vars**: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_PRO` env vars map plans to Stripe price IDs. Products need to be created in Stripe Dashboard.
+- **Webhook extends Cashier controller**: Custom WebhookController extends `CashierWebhookController` to add plan syncing on subscription changes. Cashier handles the core subscription lifecycle automatically.
+- **CSRF exclusion for webhook**: The Stripe webhook endpoint is excluded from CSRF verification in bootstrap/app.php.
+- **Grace period on cancellation**: When a subscription is cancelled, Cashier tracks `ends_at`. The 30-day read-only window is enforced via Cashier's `onGracePeriod()` method.
+
+### Deviations from Spec
+- **Stripe products not yet created**: The test keys are configured but no Stripe products/prices exist yet. Checkout will return 422 until STRIPE_PRICE_* env vars are set. This is expected — products should be created in the Stripe Dashboard.
+
+### Patterns Established
+- **Central billing, tenant-scoped data**: Billing lives in central schema. Winery data lives in tenant schemas. Both are accessed through different routes.
+- **Webhook handling pattern**: Extend Cashier's webhook controller for custom logic. Use the WebhookReceived event listener for invoice-level handling.
+
+### Test Summary
+- `tests/Feature/Billing/BillingTest.php` — 15 tests: Billable trait on Tenant, plan helpers, stripePriceForPlan null without env, billing status for owner, auth required, RBAC enforced, checkout rejects without price config, checkout validates plan, portal rejects without customer, plan change rejects without subscription, plan change validates, webhook route reachable, subscriptions table exists, subscription_items table exists, tenants has Cashier columns.
+- 93 tests total across all suites, 312 assertions, 31.16s
+
+### Open Questions
+- Stripe products (Starter, Growth, Pro) need to be created in the Stripe Dashboard and price IDs added to .env as STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, STRIPE_PRICE_PRO.
+
+---
