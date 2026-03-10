@@ -5,6 +5,7 @@ on:
     branches: ['*']
   pull_request:
     branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -94,7 +95,7 @@ jobs:
 
     env:
       APP_ENV: testing
-      APP_KEY: base64:dGVzdGluZ2tleXRoYXRpczMyY2hhcmFjdGVycyE=
+      APP_KEY: base64:DIwq0EV+i8VgaozYPBudxo/5KSZsnxTDmGjc3DqgU2k=
       DB_CONNECTION: testing
       DB_TEST_HOST: 127.0.0.1
       DB_TEST_PORT: 5432
