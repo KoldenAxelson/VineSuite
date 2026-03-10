@@ -1,8 +1,9 @@
 name: Deploy
 
+# DISABLED: Enable once Forge staging server is provisioned.
+# See docs/guides/forge-deployment.md for setup steps.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
