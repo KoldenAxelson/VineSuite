@@ -95,7 +95,7 @@ jobs:
 
     env:
       APP_ENV: testing
-      APP_KEY: base64:DIwq0EV+i8VgaozYPBudxo/5KSZsnxTDmGjc3DqgU2k=
+      APP_KEY: ${{ secrets.APP_KEY_TESTING }}
       DB_CONNECTION: testing
       DB_TEST_HOST: 127.0.0.1
       DB_TEST_PORT: 5432
