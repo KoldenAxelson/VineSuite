@@ -249,6 +249,18 @@ This is how the context stays manageable as the project grows. Phase 1's 15 INFO
 
 ---
 
+## Ideas Triage (Phase Gate)
+
+Before starting a new phase, triage the ideas backlog. Strategic ideas live in `docs/ideas/` as markdown files — they describe *what* and *why* but not *how*. The triage process converts the right ideas into sub-tasks at the right time.
+
+**When:** At the start of each phase, after the phase recap for the prior phase is complete but before any code is written.
+
+**How:** Follow the process in `docs/ideas/TRIAGE.md`. Each idea gets one of three dispositions: **Absorb** (becomes a sub-task or design constraint), **Defer** (with a target phase), or **Reject** (with a reason). The triage record is appended to `TRIAGE.md` under the relevant phase heading.
+
+**Rule:** Ideas that arrive mid-phase go into `docs/ideas/` but don't enter scope until the next triage checkpoint — unless they reveal a design constraint that affects work already in progress.
+
+---
+
 ## Context Loading Cheat Sheet
 
 Depending on what you're working on, here's what to load:
@@ -257,7 +269,7 @@ Depending on what you're working on, here's what to load:
 |---|---|
 | Starting a new sub-task | TASK file + this module's INFO file + relevant references |
 | Debugging a specific module | INFO file for that module + relevant reference docs |
-| Starting a new phase | Phase recaps for all completed phases + new TASK files |
+| Starting a new phase | Phase recaps for all completed phases + new TASK files + `ideas/TRIAGE.md` |
 | Cross-module work | INFO files for both modules + architecture.md dependency section |
 | Fixing a bug in payments | `references/payments.md` + the payment-related source files |
 | Adding a new event type | `references/event-log.md` + the module's TASK and INFO files |
@@ -283,6 +295,7 @@ Depending on what you're working on, here's what to load:
 1. **Never skip the INFO file.** Code without a completion record is invisible to future sessions.
 2. **Keep references current.** A stale reference doc is worse than no reference doc — it gives the AI confident wrong context.
 3. **Phase recaps are mandatory.** Don't start Phase N+1 without a recap for Phase N.
-4. **Load narrow, not wide.** 3-5 context files per session. If you need more, the reference docs aren't doing their job.
-5. **Decisions are the most valuable artifact.** Code is readable. Tests are verifiable. But the *why behind a choice* is invisible unless someone writes it down.
-6. **INFO files are append-only.** Never edit a prior sub-task's entry. If something changes, add a new entry noting the change.
+4. **Triage ideas at phase boundaries.** Every idea gets a disposition before the new phase begins. See `docs/ideas/TRIAGE.md`.
+5. **Load narrow, not wide.** 3-5 context files per session. If you need more, the reference docs aren't doing their job.
+6. **Decisions are the most valuable artifact.** Code is readable. Tests are verifiable. But the *why behind a choice* is invisible unless someone writes it down.
+7. **INFO files are append-only.** Never edit a prior sub-task's entry. If something changes, add a new entry noting the change.

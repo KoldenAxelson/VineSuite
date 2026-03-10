@@ -15,25 +15,29 @@ You do not need to plan. The planning is done. You need to build, test, and reco
 
 Read these files in this order. Do not skip any of them.
 
-1. `docs/WORKFLOW.md` — The development lifecycle: LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE. This is your operating manual. Follow it exactly.
+1. `docs/WORKFLOW.md` — The development lifecycle: LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE. This is your operating manual. Follow it exactly. Note the **Ideas Triage** phase gate — this has already been completed for Phase 2 (see step 2).
 
-2. `docs/execution/phase-recaps/phase-1-foundation.md` — Compressed context for everything built in Phase 1. Read this instead of the full INFO file. Covers architecture decisions, patterns established, and known debt.
+2. `docs/ideas/TRIAGE.md` — The Phase 2 triage is already done. Three ideas were absorbed: `pricing-and-plan-tiers.md` (PlanFeatureService is a deliverable), `progressive-onboarding.md` (design constraint on Filament UI), `gradual-migration-path.md` (design constraint on API endpoints). Read the absorbed idea docs before building to understand the constraints.
 
-3. `docs/execution/tasks/02-production-core.md` — Task spec for Production Core. 14 sub-tasks: lots, vessels, barrels, work orders, additions, transfers, pressing, filtering, blending, bottling. Work through them top-to-bottom.
+3. `docs/execution/phase-recaps/phase-1-foundation.md` — Compressed context for everything built in Phase 1. Read this instead of the full INFO file. Covers architecture decisions, patterns established, known debt, and **post-Phase 1 amendments** (plan tier rename, free tier, downgrade helpers).
 
-4. `docs/execution/tasks/03-lab-fermentation.md` — Task spec for Lab & Fermentation. 7 sub-tasks. Depends on Production Core (lots, vessels).
+4. `docs/execution/tasks/02-production-core.md` — Task spec for Production Core. 14 sub-tasks: lots, vessels, barrels, work orders, additions, transfers, pressing, filtering, blending, bottling. Work through them top-to-bottom.
 
-5. `docs/execution/tasks/04-inventory.md` — Task spec for Inventory. 11 sub-tasks. Depends on Production Core (bottling creates case goods).
+5. `docs/execution/tasks/03-lab-fermentation.md` — Task spec for Lab & Fermentation. 7 sub-tasks. Depends on Production Core (lots, vessels).
 
-6. `docs/execution/tasks/05-cost-accounting.md` — Task spec for Cost Accounting. 8 sub-tasks. Depends on Inventory and Production Core.
+6. `docs/execution/tasks/04-inventory.md` — Task spec for Inventory. 11 sub-tasks. Depends on Production Core (bottling creates case goods).
 
-7. `docs/guides/testing-and-logging.md` — Testing tiers and logging standards. Every sub-task must follow these.
+7. `docs/execution/tasks/05-cost-accounting.md` — Task spec for Cost Accounting. 8 sub-tasks. Depends on Inventory and Production Core.
+
+8. `docs/guides/testing-and-logging.md` — Testing tiers and logging standards. Every sub-task must follow these.
 
 **Load when relevant (not upfront):**
 - `docs/references/event-log.md` — How EventLogger works. Load for any sub-task that writes events.
 - `docs/references/multi-tenancy.md` — Tenant lifecycle and testing patterns.
-- `docs/references/auth-rbac.md` — Auth, roles, rate limiting.
+- `docs/references/auth-rbac.md` — Auth, roles, rate limiting. Includes the Token Name Contract.
 - `docs/architecture.md` — Full architecture doc. Section 3 (Event Log) and Section 5+ (Production) are most relevant.
+- `docs/ideas/pricing-and-plan-tiers.md` — Tier structure, volume limits, feature gating architecture. Load when building PlanFeatureService or any tier-gated resources.
+- `docs/ideas/progressive-onboarding.md` — Load when building Filament navigation or resource visibility.
 
 ## What Already Exists
 
@@ -47,16 +51,17 @@ Phase 1 delivered:
 - **Activity Logging** — `LogsActivity` trait on User, WineryProfile, TeamInvitation. Immutable `activity_logs` table
 - **Team Invitations** — Full invite/accept/cancel flow
 - **Winery Profile** — Auto-created on tenant provisioning, editable by owner/admin
-- **Stripe Billing** — Cashier on Tenant model, checkout/portal/plan-change endpoints, webhook handler
+- **Stripe Billing** — Cashier on Tenant model, Free/Basic/Pro/Max tiers, checkout/portal/plan-change endpoints, webhook handler. Plan hierarchy helpers: `planRank()`, `isDowngradeTo()`, `hasPlanAtLeast()`. Free tier is the default (no subscription required).
 - **Filament Portal** — `/portal` with 7 navigation groups (Production, Inventory, Compliance, Sales, Club, CRM, Settings), UserResource and ActivityLogResource
 - **API Envelope** — All responses: `{ "data": ..., "meta": {}, "errors": [] }`. ValidationException → 422 with field details. ForceJsonResponse middleware.
 - **Rate Limiting** — Per token type: portal 120/min, mobile 60/min, widget 30/min. `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers.
 - **CI/CD** — GitHub Actions: Pint + PHPStan (level 6) + Pest. Deploy via manual workflow_dispatch.
-- **Demo Winery** — "Paso Robles Cellars" with 7 users (one per role), realistic profile data
+- **Demo Winery** — "Paso Robles Cellars" on `pro` plan with 7 users (one per role), realistic profile data
+- **Ideas Backlog** — 7 strategic docs in `docs/ideas/` covering pricing, onboarding, data portability, resilience, migration paths, support, and grape marketplace. Phase 2 triage completed in `docs/ideas/TRIAGE.md`.
 
 ### Test Suite Status
 ```
-Tests:    135 passed (481 assertions)
+Tests:    141 passed (~500+ assertions)
 PHPStan:  0 errors (level 6)
 Pint:     0 style issues
 ```
@@ -101,6 +106,8 @@ For all other work, you can build and test autonomously.
 6. **The tech stack is locked.** Don't substitute anything.
 7. **Events are the source of truth.** Every winery operation (addition, transfer, blend, etc.) writes an event. Materialized CRUD tables are derived from events.
 8. **Don't break existing tests.** Run the full suite, not just new tests.
+9. **Plan tiers are `free|basic|pro|max`.** Use `$tenant->hasPlanAtLeast('pro')` for feature gating. Never hardcode plan names in conditionals — use the Tenant model helpers.
+10. **New ideas go to `docs/ideas/`, not into scope.** Mid-phase ideas are captured but not acted on until the next triage checkpoint (see `docs/ideas/TRIAGE.md`).
 
 ## Phase 2 Scope
 
