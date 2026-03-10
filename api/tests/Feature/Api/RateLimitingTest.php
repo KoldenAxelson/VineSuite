@@ -18,7 +18,7 @@ function createRateLimitTestTenant(string $slug = 'ratelimit-winery', ?Closure $
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     if ($callback) {

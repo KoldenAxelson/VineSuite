@@ -20,7 +20,7 @@ function createTestTenantForEventLog(string $slug = 'event-winery', ?Closure $ca
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     if ($callback) {

@@ -17,7 +17,7 @@ function createTestTenant(string $slug = 'test-winery', ?Closure $callback = nul
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     if ($callback) {

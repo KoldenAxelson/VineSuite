@@ -59,7 +59,7 @@ it('dashboard page exists and is registered', function () {
     $tenant = Tenant::create([
         'name' => 'Portal Test Winery',
         'slug' => 'portal-test',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -101,7 +101,7 @@ it('owner can access user resource', function () {
     $tenant = Tenant::create([
         'name' => 'Access Test Winery',
         'slug' => 'access-test',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -123,7 +123,7 @@ it('admin can access user resource', function () {
     $tenant = Tenant::create([
         'name' => 'Admin Access Winery',
         'slug' => 'admin-access',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -145,7 +145,7 @@ it('winemaker cannot access user resource', function () {
     $tenant = Tenant::create([
         'name' => 'Winemaker Access Winery',
         'slug' => 'winemaker-access',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -167,7 +167,7 @@ it('read_only user cannot access user resource', function () {
     $tenant = Tenant::create([
         'name' => 'ReadOnly Access Winery',
         'slug' => 'readonly-access',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {

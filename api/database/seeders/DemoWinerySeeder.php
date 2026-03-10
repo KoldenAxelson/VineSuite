@@ -33,7 +33,7 @@ class DemoWinerySeeder extends Seeder
         $tenant = Tenant::create([
             'name' => 'Paso Robles Cellars',
             'slug' => 'paso-robles-cellars',
-            'plan' => 'growth',
+            'plan' => 'pro',
         ]);
 
         // Create domain for subdomain routing

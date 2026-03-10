@@ -18,7 +18,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->enum('plan', ['starter', 'growth', 'pro'])->default('starter');
+            $table->enum('plan', ['free', 'basic', 'pro', 'max'])->default('free');
             $table->string('stripe_customer_id')->nullable()->index();
             $table->string('stripe_subscription_id')->nullable()->index();
             $table->timestamp('launched_at')->nullable();

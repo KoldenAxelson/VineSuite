@@ -106,9 +106,9 @@ class WebhookController extends CashierWebhookController
         }
 
         return match ($priceId) {
-            config('services.stripe.price_starter') => 'starter',
-            config('services.stripe.price_growth') => 'growth',
+            config('services.stripe.price_basic') => 'basic',
             config('services.stripe.price_pro') => 'pro',
+            config('services.stripe.price_max') => 'max',
             default => null,
         };
     }

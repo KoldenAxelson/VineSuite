@@ -18,7 +18,7 @@ function createWineryTestTenant(string $slug = 'profile-winery'): array
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -63,7 +63,7 @@ it('creates a winery profile automatically when tenant is provisioned', function
     $tenant = Tenant::create([
         'name' => 'Auto Profile Winery',
         'slug' => 'auto-profile',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -257,7 +257,7 @@ it('demo seeder creates paso robles cellars with all demo users', function () {
     $tenant = Tenant::where('slug', 'paso-robles-cellars')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->name)->toBe('Paso Robles Cellars');
-    expect($tenant->plan)->toBe('growth');
+    expect($tenant->plan)->toBe('pro');
 
     $tenant->run(function () {
         // Verify profile

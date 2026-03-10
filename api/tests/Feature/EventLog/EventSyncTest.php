@@ -19,7 +19,7 @@ function createSyncTestTenant(string $slug = 'sync-winery'): array
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     // Create owner user inside tenant

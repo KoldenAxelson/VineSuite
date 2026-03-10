@@ -34,7 +34,7 @@ class CreateTenantJob implements ShouldQueue
     public function __construct(
         public readonly string $name,
         public readonly string $slug,
-        public readonly string $plan = 'starter',
+        public readonly string $plan = 'basic',
         public readonly ?string $ownerEmail = null,
     ) {
         $this->onQueue('default');

@@ -18,7 +18,7 @@ function createApiTestTenant(string $slug = 'envelope-winery', ?Closure $callbac
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     if ($callback) {

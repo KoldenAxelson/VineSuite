@@ -28,7 +28,7 @@ it('seeds all 7 roles when a tenant is created', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -50,7 +50,7 @@ it('owner has all permissions', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -66,7 +66,7 @@ it('read_only role has only read permissions', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -84,7 +84,7 @@ it('cellar_hand cannot access admin permissions', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -109,7 +109,7 @@ it('role middleware blocks unauthorized access', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () use ($tenant) {
@@ -144,7 +144,7 @@ it('token abilities scope access per client type', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {

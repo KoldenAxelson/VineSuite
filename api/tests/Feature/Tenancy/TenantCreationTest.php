@@ -34,14 +34,14 @@ it('creates a tenant with its own PostgreSQL schema', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     expect($tenant)->toBeInstanceOf(Tenant::class);
     expect($tenant->id)->not->toBeEmpty();
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe('starter');
+    expect($tenant->plan)->toBe('basic');
 
     // Verify PostgreSQL schema was created
     $schemas = DB::select(
@@ -56,7 +56,7 @@ it('runs tenant migrations in isolation', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     // Verify tenant has its own users table in its schema
@@ -79,13 +79,13 @@ it('prevents cross-tenant data access', function () {
     $tenantA = Tenant::create([
         'name' => 'Winery Alpha',
         'slug' => 'winery-alpha',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenantB = Tenant::create([
         'name' => 'Winery Beta',
         'slug' => 'winery-beta',
-        'plan' => 'growth',
+        'plan' => 'pro',
     ]);
 
     // Insert a user in tenant A
@@ -118,7 +118,7 @@ it('creates a tenant via CreateTenantJob', function () {
     $job = new CreateTenantJob(
         name: 'Test Winery',
         slug: 'test-winery',
-        plan: 'growth',
+        plan: 'pro',
         ownerEmail: 'owner@example.com',
     );
 
@@ -127,7 +127,7 @@ it('creates a tenant via CreateTenantJob', function () {
     expect($tenant)->toBeInstanceOf(Tenant::class);
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe('growth');
+    expect($tenant->plan)->toBe('pro');
 
     // Verify domain was created
     expect($tenant->domains)->toHaveCount(1);
@@ -138,12 +138,12 @@ it('enforces unique slugs', function () {
     Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     expect(fn () => Tenant::create([
         'name' => 'Another Winery',
         'slug' => 'test-winery',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]))->toThrow(\Illuminate\Database\QueryException::class);
 });

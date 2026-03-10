@@ -38,9 +38,9 @@ return [
     ],
 
     'stripe' => [
-        'price_starter' => env('STRIPE_PRICE_STARTER'),
-        'price_growth' => env('STRIPE_PRICE_GROWTH'),
+        'price_basic' => env('STRIPE_PRICE_BASIC'),
         'price_pro' => env('STRIPE_PRICE_PRO'),
+        'price_max' => env('STRIPE_PRICE_MAX'),
     ],
 
 ];

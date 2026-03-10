@@ -26,7 +26,7 @@ class BillingController extends Controller
     public function checkout(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan' => ['required', 'string', 'in:starter,growth,pro'],
+            'plan' => ['required', 'string', 'in:basic,pro,max'],
         ]);
 
         $tenant = tenant();
@@ -98,7 +98,7 @@ class BillingController extends Controller
     public function changePlan(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan' => ['required', 'string', 'in:starter,growth,pro'],
+            'plan' => ['required', 'string', 'in:basic,pro,max'],
         ]);
 
         $tenant = tenant();

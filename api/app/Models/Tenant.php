@@ -20,7 +20,7 @@ use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
  * @property string $id UUID
  * @property string $name Winery display name
  * @property string $slug URL-safe identifier (used in subdomains)
- * @property string $plan starter|growth|pro
+ * @property string $plan free|basic|pro|max
  * @property string|null $stripe_customer_id
  * @property string|null $stripe_subscription_id
  * @property \Carbon\Carbon|null $launched_at When the tenant completed onboarding
@@ -45,19 +45,40 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      * Plan definitions with Stripe price IDs.
      * These will be set to real Stripe price IDs once products are created.
      */
+    /**
+     * Plan hierarchy — higher index = higher tier.
+     * Used by planRank() for upgrade/downgrade comparison.
+     */
+    public const PLAN_HIERARCHY = ['free', 'basic', 'pro', 'max'];
+
     public const PLANS = [
-        'starter' => [
-            'name' => 'Starter',
-            'stripe_price' => null, // Set via STRIPE_PRICE_STARTER env
+        'free' => [
+            'name' => 'Free',
+            'stripe_price' => null, // Free tier — no Stripe subscription required
         ],
-        'growth' => [
-            'name' => 'Growth',
-            'stripe_price' => null, // Set via STRIPE_PRICE_GROWTH env
+        'basic' => [
+            'name' => 'Basic',
+            'stripe_price' => null, // Set via STRIPE_PRICE_BASIC env
         ],
         'pro' => [
             'name' => 'Pro',
             'stripe_price' => null, // Set via STRIPE_PRICE_PRO env
         ],
+        'max' => [
+            'name' => 'Max',
+            'stripe_price' => null, // Set via STRIPE_PRICE_MAX env
+        ],
+    ];
+
+    /**
+     * Default attribute values.
+     * Mirrors the database default so the in-memory model is correct
+     * even before a refresh from the database.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'plan' => 'free',
     ];
 
     /**
@@ -101,13 +122,30 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public static function stripePriceForPlan(string $plan): ?string
     {
         $price = match ($plan) {
-            'starter' => config('services.stripe.price_starter'),
-            'growth' => config('services.stripe.price_growth'),
+            'free' => null,
+            'basic' => config('services.stripe.price_basic'),
             'pro' => config('services.stripe.price_pro'),
+            'max' => config('services.stripe.price_max'),
             default => null,
         };
 
         return is_string($price) ? $price : null;
+    }
+
+    /**
+     * Check if the tenant is on the free plan (no subscription required).
+     */
+    public function isFreePlan(): bool
+    {
+        return $this->plan === 'free';
+    }
+
+    /**
+     * Check if the tenant has an active subscription or is on the free plan.
+     */
+    public function hasActiveAccess(): bool
+    {
+        return $this->isFreePlan() || $this->subscribed('default');
     }
 
     /**
@@ -116,6 +154,38 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function hasActiveSubscription(): bool
     {
         return $this->subscribed('default');
+    }
+
+    /**
+     * Get the numeric rank of the current plan (0=free, 1=basic, 2=pro, 3=max).
+     * Used for upgrade/downgrade comparison.
+     */
+    public function planRank(): int
+    {
+        $index = array_search($this->plan, self::PLAN_HIERARCHY, true);
+
+        return $index !== false ? $index : 0;
+    }
+
+    /**
+     * Check if the given plan would be a downgrade from the current plan.
+     */
+    public function isDowngradeTo(string $plan): bool
+    {
+        $targetIndex = array_search($plan, self::PLAN_HIERARCHY, true);
+
+        return $targetIndex !== false && $targetIndex < $this->planRank();
+    }
+
+    /**
+     * Check if the tenant's plan meets or exceeds the required plan level.
+     * Usage: $tenant->hasPlanAtLeast('pro') returns true for pro and max tenants.
+     */
+    public function hasPlanAtLeast(string $minimumPlan): bool
+    {
+        $minimumIndex = array_search($minimumPlan, self::PLAN_HIERARCHY, true);
+
+        return $minimumIndex !== false && $this->planRank() >= $minimumIndex;
     }
 
     /**

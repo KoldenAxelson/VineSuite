@@ -21,7 +21,7 @@ function createTestTenantForTeam(string $slug = 'test-winery', ?Closure $callbac
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     if ($callback) {

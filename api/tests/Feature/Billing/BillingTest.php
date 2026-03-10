@@ -17,7 +17,7 @@ function createBillingTestTenant(string $slug = 'billing-winery'): array
     $tenant = Tenant::create([
         'name' => ucfirst(str_replace('-', ' ', $slug)),
         'slug' => $slug,
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     $tenant->run(function () {
@@ -62,7 +62,7 @@ it('tenant model has Billable trait', function () {
     $tenant = Tenant::create([
         'name' => 'Billable Test',
         'slug' => 'billable-test',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     // Cashier Billable methods exist on the Tenant model
@@ -77,19 +77,87 @@ it('tenant has plan helper methods', function () {
     $tenant = Tenant::create([
         'name' => 'Plan Helper Test',
         'slug' => 'plan-helper-test',
-        'plan' => 'starter',
+        'plan' => 'basic',
     ]);
 
     expect(method_exists($tenant, 'hasActiveSubscription'))->toBeTrue();
     expect(method_exists($tenant, 'isInGracePeriod'))->toBeTrue();
+    expect(method_exists($tenant, 'isFreePlan'))->toBeTrue();
+    expect(method_exists($tenant, 'hasActiveAccess'))->toBeTrue();
+    expect(method_exists($tenant, 'planRank'))->toBeTrue();
+    expect(method_exists($tenant, 'isDowngradeTo'))->toBeTrue();
+    expect(method_exists($tenant, 'hasPlanAtLeast'))->toBeTrue();
 });
 
 it('stripePriceForPlan returns null when env not set', function () {
     // Without STRIPE_PRICE_* env vars, should return null
-    expect(Tenant::stripePriceForPlan('starter'))->toBeNull();
-    expect(Tenant::stripePriceForPlan('growth'))->toBeNull();
+    expect(Tenant::stripePriceForPlan('free'))->toBeNull();
+    expect(Tenant::stripePriceForPlan('basic'))->toBeNull();
     expect(Tenant::stripePriceForPlan('pro'))->toBeNull();
+    expect(Tenant::stripePriceForPlan('max'))->toBeNull();
     expect(Tenant::stripePriceForPlan('nonexistent'))->toBeNull();
+});
+
+// ─── Free Plan ──────────────────────────────────────────────────
+
+it('new tenants default to free plan', function () {
+    $tenant = Tenant::create([
+        'name' => 'Free Plan Test',
+        'slug' => 'free-plan-test',
+    ]);
+
+    expect($tenant->plan)->toBe('free');
+    expect($tenant->isFreePlan())->toBeTrue();
+    expect($tenant->hasActiveAccess())->toBeTrue();
+});
+
+it('free plan tenant has no stripe subscription', function () {
+    $tenant = Tenant::create([
+        'name' => 'Free No Stripe',
+        'slug' => 'free-no-stripe',
+    ]);
+
+    expect($tenant->isFreePlan())->toBeTrue();
+    expect($tenant->hasActiveSubscription())->toBeFalse();
+    expect($tenant->hasActiveAccess())->toBeTrue();
+});
+
+// ─── Plan Hierarchy ─────────────────────────────────────────────
+
+it('planRank returns correct numeric rank', function () {
+    $free = Tenant::create(['name' => 'Free', 'slug' => 'rank-free', 'plan' => 'free']);
+    $basic = Tenant::create(['name' => 'Basic', 'slug' => 'rank-basic', 'plan' => 'basic']);
+    $pro = Tenant::create(['name' => 'Pro', 'slug' => 'rank-pro', 'plan' => 'pro']);
+    $max = Tenant::create(['name' => 'Max', 'slug' => 'rank-max', 'plan' => 'max']);
+
+    expect($free->planRank())->toBe(0);
+    expect($basic->planRank())->toBe(1);
+    expect($pro->planRank())->toBe(2);
+    expect($max->planRank())->toBe(3);
+});
+
+it('hasPlanAtLeast checks plan hierarchy correctly', function () {
+    $basic = Tenant::create(['name' => 'Basic', 'slug' => 'atleast-basic', 'plan' => 'basic']);
+    $pro = Tenant::create(['name' => 'Pro', 'slug' => 'atleast-pro', 'plan' => 'pro']);
+
+    expect($basic->hasPlanAtLeast('free'))->toBeTrue();
+    expect($basic->hasPlanAtLeast('basic'))->toBeTrue();
+    expect($basic->hasPlanAtLeast('pro'))->toBeFalse();
+    expect($basic->hasPlanAtLeast('max'))->toBeFalse();
+
+    expect($pro->hasPlanAtLeast('free'))->toBeTrue();
+    expect($pro->hasPlanAtLeast('basic'))->toBeTrue();
+    expect($pro->hasPlanAtLeast('pro'))->toBeTrue();
+    expect($pro->hasPlanAtLeast('max'))->toBeFalse();
+});
+
+it('isDowngradeTo detects downgrades correctly', function () {
+    $pro = Tenant::create(['name' => 'Pro', 'slug' => 'downgrade-pro', 'plan' => 'pro']);
+
+    expect($pro->isDowngradeTo('free'))->toBeTrue();
+    expect($pro->isDowngradeTo('basic'))->toBeTrue();
+    expect($pro->isDowngradeTo('pro'))->toBeFalse();
+    expect($pro->isDowngradeTo('max'))->toBeFalse();
 });
 
 // ─── Billing Status Endpoint ────────────────────────────────────
@@ -117,7 +185,7 @@ it('returns billing status for owner', function () {
             'meta',
             'errors',
         ])
-        ->assertJsonPath('data.plan', 'starter')
+        ->assertJsonPath('data.plan', 'basic')
         ->assertJsonPath('data.has_stripe_id', false)
         ->assertJsonPath('data.subscribed', false);
 });
@@ -172,22 +240,37 @@ it('checkout rejects when stripe price not configured', function () {
     [$tenant, $token] = createBillingTestTenant();
 
     $response = $this->postJson('/api/v1/billing/checkout', [
-        'plan' => 'starter',
+        'plan' => 'basic',
     ], [
         'Authorization' => "Bearer {$token}",
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    // Without STRIPE_PRICE_STARTER env, should return 422
+    // Without STRIPE_PRICE_BASIC env, should return 422
     $response->assertStatus(422);
-    expect($response->json('errors.0.message'))->toBe('Stripe price not configured for plan: starter');
+    expect($response->json('errors.0.message'))->toBe('Stripe price not configured for plan: basic');
 });
 
-it('checkout validates plan is one of starter/growth/pro', function () {
+it('checkout validates plan is one of basic/pro/max', function () {
     [$tenant, $token] = createBillingTestTenant();
 
     $response = $this->postJson('/api/v1/billing/checkout', [
         'plan' => 'enterprise',
+    ], [
+        'Authorization' => "Bearer {$token}",
+        'X-Tenant-ID' => $tenant->id,
+    ]);
+
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('plan');
+});
+
+it('checkout rejects free as a plan choice', function () {
+    [$tenant, $token] = createBillingTestTenant();
+
+    $response = $this->postJson('/api/v1/billing/checkout', [
+        'plan' => 'free',
     ], [
         'Authorization' => "Bearer {$token}",
         'X-Tenant-ID' => $tenant->id,
@@ -218,7 +301,7 @@ it('plan change rejects when no active subscription', function () {
     [$tenant, $token] = createBillingTestTenant();
 
     $response = $this->putJson('/api/v1/billing/plan', [
-        'plan' => 'growth',
+        'plan' => 'pro',
     ], [
         'Authorization' => "Bearer {$token}",
         'X-Tenant-ID' => $tenant->id,
