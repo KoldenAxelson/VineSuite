@@ -210,3 +210,37 @@
 - None.
 
 ---
+
+## Sub-Task 6: Event Log Table and Base Service
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `database/migrations/tenant/2026_03_10_000005_create_events_table.php` — Tenant-scoped append-only events table: UUID PK, entity_type, entity_id, operation_type, JSONB payload, performed_by FK, performed_at (client timestamp), synced_at (server receipt, nullable), device_id, idempotency_key (unique, nullable). Includes BRIN index on performed_at for time-series queries, composite index on (entity_type, entity_id), index on operation_type. Database trigger `events_immutability_guard` prevents UPDATE and DELETE at the PostgreSQL level.
+- `app/Models/Event.php` — Eloquent model: HasUuids, UPDATED_AT=null (immutable), casts payload as array, datetime casts for performed_at/synced_at. Scopes: `forEntity()`, `ofType()`, `performedBetween()`. Relationship: `performer()` → User.
+- `app/Services/EventLogger.php` — Single entry point for writing events. `log()`: creates event with all fields, handles idempotency deduplication (returns existing event on duplicate key), sets synced_at for mobile-synced events, structured logging with tenant_id. `getEntityStream()`: chronological event history for an entity. `getByOperationType()`: events filtered by operation type and time range (for TTB reporting).
+- `tests/Feature/EventLog/EventLoggerTest.php` — 13 tests, 37 assertions
+
+### Key Decisions
+- **Database-level immutability**: PostgreSQL trigger function `prevent_event_mutation()` raises an exception on UPDATE or DELETE. This is the strongest possible enforcement — even raw SQL or admin tools can't mutate events without first dropping the trigger.
+- **BRIN index for performed_at**: BRIN indexes are much smaller than B-tree for sequential/time-ordered data. Events are naturally ordered by time, making BRIN ideal for range queries (TTB reporting, date filters).
+- **Idempotency at the service level**: EventLogger checks for existing idempotency_key before INSERT. Returns the existing event silently — no error, no duplicate. Critical for offline mobile sync retries.
+- **No updated_at column**: Event model sets `UPDATED_AT = null`. Since events are immutable, there's no need for an update timestamp.
+- **Nullable idempotency_key**: Server-created events (e.g., system-generated) may not need idempotency. Null keys are allowed and don't conflict with the unique constraint.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **EventLogger as the single write path**: All modules must use `app(EventLogger::class)->log()` to create events. Never use `Event::create()` directly.
+- **JSONB payload querying**: PostgreSQL JSONB operators (`payload->>'key'`) work in Eloquent whereRaw. Demonstrated in tests.
+- **Immutability testing**: Tests verify both UPDATE and DELETE are blocked by the trigger, and that the original data is preserved.
+
+### Test Summary
+- `tests/Feature/EventLog/EventLoggerTest.php` — 13 tests: event creation with all fields, JSONB payload queryable, client-provided performed_at, synced_at for mobile events, synced_at null for local events, performed_by links to user, idempotency key deduplication, null idempotency keys allowed, UPDATE blocked by trigger, DELETE blocked by trigger, entity stream in chronological order, operation type + time range query, cross-tenant isolation
+- 44 tests total across all suites, 139 assertions, 13.77s
+
+### Open Questions
+- None.
+
+---
