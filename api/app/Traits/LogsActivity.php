@@ -59,6 +59,10 @@ trait LogsActivity
 
     /**
      * Write an activity log entry.
+     *
+     * @param  array<string, mixed>|null  $oldValues
+     * @param  array<string, mixed>|null  $newValues
+     * @param  array<int, string>|null  $changedFields
      */
     protected function logActivity(
         string $action,
@@ -75,8 +79,8 @@ trait LogsActivity
                 'old_values' => $oldValues,
                 'new_values' => $newValues,
                 'changed_fields' => $changedFields,
-                'ip_address' => request()?->ip(),
-                'user_agent' => request()?->userAgent(),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
             ]);
         } catch (\Throwable $e) {
             // Don't let activity logging failures break the application
@@ -91,6 +95,8 @@ trait LogsActivity
 
     /**
      * Get attributes suitable for logging, filtered by include/exclude lists.
+     *
+     * @return array<string, mixed>
      */
     protected function getLoggableAttributes(): array
     {
@@ -103,6 +109,9 @@ trait LogsActivity
 
     /**
      * Filter field names through include/exclude lists.
+     *
+     * @param  array<int, string>  $fields
+     * @return array<int, string>
      */
     protected function filterLoggableFields(array $fields): array
     {
@@ -110,15 +119,15 @@ trait LogsActivity
         $alwaysExclude = ['password', 'remember_token'];
 
         // Model-specific exclusions
-        $exclude = property_exists($this, 'activityLogExclude')
-            ? array_merge($alwaysExclude, $this->activityLogExclude)
-            : $alwaysExclude;
+        /** @var array<int, string> $modelExclusions */
+        $modelExclusions = isset($this->activityLogExclude) ? $this->activityLogExclude : [];
+        $exclude = array_merge($alwaysExclude, $modelExclusions);
 
         // If model specifies an "only" list, use it
-        if (property_exists($this, 'activityLogOnly') && ! empty($this->activityLogOnly)) {
+        if (isset($this->activityLogOnly) && ! empty($this->activityLogOnly)) {
             $fields = array_intersect($fields, $this->activityLogOnly);
         }
 
-        return array_diff($fields, $exclude);
+        return array_values(array_diff($fields, $exclude));
     }
 }

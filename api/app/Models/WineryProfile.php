@@ -45,6 +45,8 @@ class WineryProfile extends Model
 
     /**
      * Fields to exclude from activity logging.
+     *
+     * @var array<int, string>
      */
     protected array $activityLogExclude = ['updated_at', 'created_at'];
 

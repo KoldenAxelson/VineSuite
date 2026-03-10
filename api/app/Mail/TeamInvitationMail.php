@@ -42,7 +42,7 @@ class TeamInvitationMail extends Mailable
                 'tenantName' => tenant('name') ?? 'VineSuite',
                 'role' => str_replace('_', ' ', ucfirst($this->invitation->role)),
                 'expiresAt' => $this->invitation->expires_at->format('F j, Y g:i A'),
-                'inviterName' => $this->invitation->inviter?->name ?? 'A team member',
+                'inviterName' => $this->invitation->inviter !== null ? $this->invitation->inviter->name : 'A team member',
             ],
         );
     }

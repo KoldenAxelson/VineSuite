@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
-use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
 class EditUser extends EditRecord
@@ -22,6 +21,7 @@ class EditUser extends EditRecord
     protected function afterSave(): void
     {
         // Sync the spatie role when the role column is changed
+        /** @var \App\Models\User $user */
         $user = $this->record;
         $user->syncRoles([$user->role]);
     }

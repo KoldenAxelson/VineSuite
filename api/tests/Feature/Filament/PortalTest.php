@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\UserResource;
-use App\Filament\Resources\UserResource\Pages\ListUsers;
-use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\WineryProfile;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 

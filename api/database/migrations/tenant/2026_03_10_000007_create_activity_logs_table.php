@@ -49,12 +49,12 @@ return new class extends Migration
             \$\$ LANGUAGE plpgsql;
         ");
 
-        DB::statement("
+        DB::statement('
             CREATE TRIGGER activity_logs_immutability_guard
             BEFORE UPDATE OR DELETE ON activity_logs
             FOR EACH ROW
             EXECUTE FUNCTION prevent_activity_log_mutation();
-        ");
+        ');
     }
 
     public function down(): void

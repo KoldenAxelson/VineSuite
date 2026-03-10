@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Stripe webhook handler — extends Cashier's webhook controller.
@@ -20,10 +21,12 @@ class WebhookController extends CashierWebhookController
      * Handle customer.subscription.updated event.
      *
      * Syncs the plan column on the tenant when the subscription price changes.
+     *
+     * @param  array<string, mixed>  $payload
      */
-    public function handleCustomerSubscriptionUpdated(array $payload): void
+    public function handleCustomerSubscriptionUpdated(array $payload): ?Response
     {
-        parent::handleCustomerSubscriptionUpdated($payload);
+        $response = parent::handleCustomerSubscriptionUpdated($payload);
 
         $stripeSubscription = $payload['data']['object'];
         $stripeCustomerId = $stripeSubscription['customer'];
@@ -35,7 +38,7 @@ class WebhookController extends CashierWebhookController
                 'stripe_customer_id' => $stripeCustomerId,
             ]);
 
-            return;
+            return $response;
         }
 
         // Determine plan from the price ID
@@ -61,6 +64,8 @@ class WebhookController extends CashierWebhookController
                 'current_period_end' => $stripeSubscription['current_period_end'],
             ]);
         }
+
+        return $response;
     }
 
     /**
@@ -68,10 +73,12 @@ class WebhookController extends CashierWebhookController
      *
      * When a subscription is fully deleted (grace period expired),
      * the tenant retains read-only access for 30 days.
+     *
+     * @param  array<string, mixed>  $payload
      */
-    public function handleCustomerSubscriptionDeleted(array $payload): void
+    public function handleCustomerSubscriptionDeleted(array $payload): Response
     {
-        parent::handleCustomerSubscriptionDeleted($payload);
+        $response = parent::handleCustomerSubscriptionDeleted($payload);
 
         $stripeCustomerId = $payload['data']['object']['customer'];
         $tenant = Tenant::where('stripe_customer_id', $stripeCustomerId)->first();
@@ -85,6 +92,8 @@ class WebhookController extends CashierWebhookController
             // Future: trigger read-only mode enforcement
             // The 30-day read-only window is tracked via Cashier's ends_at on the subscription
         }
+
+        return $response;
     }
 
     /**
@@ -97,9 +106,9 @@ class WebhookController extends CashierWebhookController
         }
 
         return match ($priceId) {
-            env('STRIPE_PRICE_STARTER') => 'starter',
-            env('STRIPE_PRICE_GROWTH') => 'growth',
-            env('STRIPE_PRICE_PRO') => 'pro',
+            config('services.stripe.price_starter') => 'starter',
+            config('services.stripe.price_growth') => 'growth',
+            config('services.stripe.price_pro') => 'pro',
             default => null,
         };
     }

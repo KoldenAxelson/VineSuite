@@ -22,6 +22,9 @@ class TenancyServiceProvider extends ServiceProvider
      * 2. MigrateDatabase — runs tenant migrations
      * 3. SeedDatabase — seeds default data (roles, permissions, winery profile)
      */
+    /**
+     * @return array<class-string, array<int, mixed>>
+     */
     public static function events(): array
     {
         return [

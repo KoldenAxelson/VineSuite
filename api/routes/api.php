@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\EventSyncController;
+use App\Http\Controllers\Api\V1\WineryProfileController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Api\V1\EventSyncController;
-use App\Http\Controllers\Api\V1\WineryProfileController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\TeamInvitationController;
 use App\Http\Controllers\WebhookController;
@@ -60,6 +60,7 @@ Route::middleware([
 
         Route::get('/auth/me', function () {
             $user = request()->user();
+
             return response()->json([
                 'id' => $user->id,
                 'name' => $user->name,

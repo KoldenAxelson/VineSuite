@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,7 @@ class TeamInvitation extends Model
     use HasUuids;
     use LogsActivity;
 
+    /** @var array<int, string> */
     protected array $activityLogExclude = ['token', 'updated_at', 'created_at'];
 
     protected $keyType = 'string';
@@ -56,6 +58,8 @@ class TeamInvitation extends Model
 
     /**
      * The user who sent this invitation.
+     *
+     * @return BelongsTo<User, $this>
      */
     public function inviter(): BelongsTo
     {
@@ -88,8 +92,11 @@ class TeamInvitation extends Model
 
     /**
      * Scope: only pending (not accepted, not expired) invitations.
+     *
+     * @param  Builder<TeamInvitation>  $query
+     * @return Builder<TeamInvitation>
      */
-    public function scopePending($query)
+    public function scopePending(Builder $query): Builder
     {
         return $query->whereNull('accepted_at')
             ->where('expires_at', '>', now());

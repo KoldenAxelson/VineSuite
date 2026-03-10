@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Staging
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+
+    steps:
+      - name: Trigger Forge deployment
+        run: |
+          curl -s -X POST \
+            "${{ secrets.FORGE_DEPLOY_WEBHOOK_URL }}" \
+            --fail-with-body \
+            -o /dev/null \
+            -w "HTTP %{http_code}"
+        env:
+          FORGE_DEPLOY_WEBHOOK_URL: ${{ secrets.FORGE_DEPLOY_WEBHOOK_URL }}

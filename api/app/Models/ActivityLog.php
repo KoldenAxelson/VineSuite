@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,9 +21,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $action 'created', 'updated', 'deleted'
  * @property string $model_type Fully qualified model class name
  * @property string $model_id UUID of the affected model
- * @property array|null $old_values Previous values (null for create)
- * @property array|null $new_values New values (null for delete)
- * @property array|null $changed_fields List of field names that changed
+ * @property array<string, mixed>|null $old_values Previous values (null for create)
+ * @property array<string, mixed>|null $new_values New values (null for delete)
+ * @property array<int, string>|null $changed_fields List of field names that changed
  * @property string|null $ip_address Request IP
  * @property string|null $user_agent Browser/device info
  * @property \Carbon\Carbon $created_at
@@ -61,6 +62,8 @@ class ActivityLog extends Model
 
     /**
      * The user who performed this action.
+     *
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {
@@ -69,8 +72,11 @@ class ActivityLog extends Model
 
     /**
      * Scope: logs for a specific model instance.
+     *
+     * @param  Builder<ActivityLog>  $query
+     * @return Builder<ActivityLog>
      */
-    public function scopeForModel($query, string $modelType, string $modelId)
+    public function scopeForModel(Builder $query, string $modelType, string $modelId): Builder
     {
         return $query->where('model_type', $modelType)
             ->where('model_id', $modelId);
@@ -78,16 +84,22 @@ class ActivityLog extends Model
 
     /**
      * Scope: logs by a specific user.
+     *
+     * @param  Builder<ActivityLog>  $query
+     * @return Builder<ActivityLog>
      */
-    public function scopeByUser($query, string $userId)
+    public function scopeByUser(Builder $query, string $userId): Builder
     {
         return $query->where('user_id', $userId);
     }
 
     /**
      * Scope: logs of a specific action type.
+     *
+     * @param  Builder<ActivityLog>  $query
+     * @return Builder<ActivityLog>
      */
-    public function scopeOfAction($query, string $action)
+    public function scopeOfAction(Builder $query, string $action): Builder
     {
         return $query->where('action', $action);
     }

@@ -38,7 +38,7 @@ class EventLogger
      * @param  string  $entityType  Entity type (lot, vessel, barrel, inventory_item, order)
      * @param  string  $entityId  UUID of the entity
      * @param  string  $operationType  Operation type (addition, transfer, rack, bottle, blend, sale, etc.)
-     * @param  array  $payload  Operation-specific data
+     * @param  array<string, mixed>  $payload  Operation-specific data
      * @param  string|null  $performedBy  UUID of the user (null for system events)
      * @param  \DateTimeInterface|string  $performedAt  Client timestamp
      * @param  string|null  $deviceId  Device identifier for conflict detection
@@ -101,9 +101,9 @@ class EventLogger
      *
      * @param  string  $entityType  Entity type
      * @param  string  $entityId  Entity UUID
-     * @return \Illuminate\Database\Eloquent\Collection<Event>
+     * @return \Illuminate\Database\Eloquent\Collection<int, Event>
      */
-    public function getEntityStream(string $entityType, string $entityId)
+    public function getEntityStream(string $entityType, string $entityId): \Illuminate\Database\Eloquent\Collection
     {
         return Event::forEntity($entityType, $entityId)
             ->orderBy('performed_at')
@@ -117,9 +117,9 @@ class EventLogger
      * @param  string  $operationType  Operation type to filter
      * @param  \DateTimeInterface|string  $from  Start of range
      * @param  \DateTimeInterface|string  $to  End of range
-     * @return \Illuminate\Database\Eloquent\Collection<Event>
+     * @return \Illuminate\Database\Eloquent\Collection<int, Event>
      */
-    public function getByOperationType(string $operationType, $from, $to)
+    public function getByOperationType(string $operationType, \DateTimeInterface|string $from, \DateTimeInterface|string $to): \Illuminate\Database\Eloquent\Collection
     {
         return Event::ofType($operationType)
             ->performedBetween($from, $to)

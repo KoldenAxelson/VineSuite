@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-use Stancl\Tenancy\Database\Models\Domain;
-use Stancl\Tenancy\Database\Models\ImpersonationToken;
-
 return [
     'tenant_model' => \App\Models\Tenant::class,
 

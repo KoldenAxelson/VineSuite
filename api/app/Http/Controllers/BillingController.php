@@ -48,8 +48,8 @@ class BillingController extends Controller
 
         $checkoutSession = $tenant->newSubscription('default', $priceId)
             ->checkout([
-                'success_url' => config('app.frontend_url', config('app.url')) . '/billing/success?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => config('app.frontend_url', config('app.url')) . '/billing/cancel',
+                'success_url' => config('app.frontend_url', config('app.url')).'/billing/success?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => config('app.frontend_url', config('app.url')).'/billing/cancel',
                 'metadata' => [
                     'tenant_id' => $tenant->id,
                     'plan' => $validated['plan'],
@@ -85,7 +85,7 @@ class BillingController extends Controller
         }
 
         $portalSession = $tenant->redirectToBillingPortal(
-            config('app.frontend_url', config('app.url')) . '/settings/billing'
+            config('app.frontend_url', config('app.url')).'/settings/billing'
         );
 
         return response()->json([

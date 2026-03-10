@@ -31,9 +31,9 @@ class EventProcessor
      * - 'skipped' — duplicate idempotency_key, existing event returned
      * - 'failed' — error processing event
      *
-     * @param  array  $events  Array of event data from EventSyncRequest
+     * @param  array<int, array<string, mixed>>  $events  Array of event data from EventSyncRequest
      * @param  string  $userId  UUID of the authenticated user
-     * @return array{results: array, accepted: int, skipped: int, failed: int}
+     * @return array{results: array<int, array<string, mixed>>, accepted: int, skipped: int, failed: int}
      */
     public function processBatch(array $events, string $userId): array
     {
@@ -98,6 +98,7 @@ class EventProcessor
     /**
      * Process a single event within its own DB transaction.
      *
+     * @param  array<string, mixed>  $eventData
      * @return array{event: Event, status: string}
      */
     protected function processEvent(array $eventData, string $userId): array

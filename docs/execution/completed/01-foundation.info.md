@@ -394,3 +394,100 @@
 - Stripe products (Starter, Growth, Pro) need to be created in the Stripe Dashboard and price IDs added to .env as STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, STRIPE_PRICE_PRO.
 
 ---
+
+## Sub-Task 11: Activity Logging System
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `database/migrations/tenant/2026_03_10_000007_create_activity_logs_table.php` — Tenant-scoped immutable activity log table: UUID PK, user_id FK (nullable for system), action (created/updated/deleted), model_type, model_id, old_values JSONB, new_values JSONB, changed_fields JSONB, ip_address, user_agent. BRIN index on created_at, composite index on (model_type, model_id). PostgreSQL trigger `activity_logs_immutability_guard` prevents UPDATE and DELETE.
+- `app/Models/ActivityLog.php` — Eloquent model: HasUuids, UPDATED_AT=null (immutable), JSONB casts for old_values/new_values/changed_fields. Scopes: `forModel()`, `byUser()`, `ofAction()`. Relationship: `user()` → User.
+- `app/Traits/LogsActivity.php` — Trait for automatic Eloquent model auditing. Registers created/updated/deleted observers via `bootLogsActivity()`. Captures old values, new values, changed fields, authenticated user, IP address, user agent. Filters sensitive fields (password, remember_token always excluded). Supports `$activityLogExclude` and `$activityLogOnly` property overrides. Skips logging when only excluded fields change. Wrapped in try/catch so logging failures never break the application.
+- `app/Filament/Resources/ActivityLogResource.php` — Read-only Filament resource under Settings group. Table with created_at, user name, action badge (color-coded), model type, model ID. Filters for action type and user. 30-second auto-poll for real-time updates. `canCreate()` returns false. `canAccess()` restricts to owner/admin.
+- `app/Filament/Resources/ActivityLogResource/Pages/ListActivityLogs.php` — List page with no header actions (no create button).
+- `app/Filament/Resources/ActivityLogResource/Pages/ViewActivityLog.php` — View page with Infolist: activity details section (when, who, action, model, record ID, IP, user agent), changed fields section, collapsible old/new values sections with JSON display.
+- `app/Models/User.php` — Added `LogsActivity` trait. Excludes: updated_at, created_at, email_verified_at (password/remember_token always excluded by trait).
+- `app/Models/WineryProfile.php` — Added `LogsActivity` trait. Excludes: updated_at, created_at.
+- `app/Models/TeamInvitation.php` — Added `LogsActivity` trait. Excludes: token, updated_at, created_at.
+- `tests/Feature/ActivityLog/ActivityLogTest.php` — 14 tests, 54 assertions.
+
+### Key Decisions
+- **Database-level immutability**: Same pattern as Event Log (Sub-Task 6). PostgreSQL trigger prevents UPDATE and DELETE on activity_logs. Audit trail cannot be tampered with.
+- **Separate from Event Log**: Activity logs track system-level changes (user edited a profile, changed a setting). Event logs track winery operations (additions, transfers, fermentations). Different concerns, different tables.
+- **Try/catch resilience**: The LogsActivity trait wraps all logging in try/catch. If the activity_logs table is unavailable or logging fails for any reason, the original operation (create/update/delete) still succeeds. Logging is never a blocking concern.
+- **Sensitive field filtering**: Password and remember_token are always excluded regardless of model config. Models can add additional exclusions via `$activityLogExclude` or restrict to specific fields via `$activityLogOnly`.
+- **Applied to three models**: User, WineryProfile, TeamInvitation. Future models should add the trait as they're built.
+- **Read-only Filament resource**: No create/edit/delete actions. Activity logs are for viewing only. Owner and admin roles can access.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **LogsActivity trait on tenant models**: Add `use LogsActivity;` to any tenant-scoped model that should be audited. Configure exclusions via `$activityLogExclude`.
+- **Immutability at DB level**: Both events and activity_logs use PostgreSQL triggers to enforce immutability. This is the project standard for append-only tables.
+- **Filament read-only resources**: Set `canCreate()` to false and remove edit/delete actions for resources that should only be viewed.
+
+### Test Summary
+- `tests/Feature/ActivityLog/ActivityLogTest.php` — 14 tests: immutability trigger (UPDATE and DELETE blocked), JSONB casts, scopes (forModel, byUser, ofAction), auto-log model creation (new_values captured), auto-log model updates (old/new values + changed_fields), auto-log model deletion (old_values captured), sensitive fields excluded (password, remember_token, timestamps), no spurious update logs for excluded-only changes, authenticated user captured in log, WineryProfile update captures field diffs, cross-tenant isolation (no data leakage), Filament resource config (canCreate false, Settings group, label), Filament access control (owner/admin only, winemaker blocked), trait resilience (operations succeed even if logging fails).
+- 107 tests total across all suites, 366 assertions, 36.85s
+
+### Open Questions
+- None.
+
+---
+
+## Sub-Task 12: CI/CD Pipeline Setup
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `.github/workflows/ci.yml` — Three parallel CI jobs triggered on push to any branch and PRs to main:
+  - **Pint (Code Style)** — runs `vendor/bin/pint --test` to enforce Laravel coding standards
+  - **PHPStan (Level 6)** — static analysis via Larastan, scans `app/` directory
+  - **Pest (Tests)** — runs full test suite against a PostgreSQL 16 service container
+  - All jobs cache Composer dependencies via `actions/cache@v4` keyed to `composer.lock`
+- `.github/workflows/deploy.yml` — Deploy to staging: triggers on push to `main`, reuses CI workflow as prerequisite, fires Laravel Forge deploy webhook. Uses `concurrency` group and `staging` environment for secrets.
+- `api/phpstan.neon` — Larastan extension at level 6, scans `app/`, excludes `app/Providers/Filament`.
+- `api/pint.json` — Laravel preset with `declare_strict_types`, `no_unused_imports`, alphabetical imports.
+- `larastan/larastan:^3.0` — Added as dev dependency.
+- `config/services.php` — Added `stripe.price_starter/growth/pro` config entries to replace direct `env()` calls.
+
+### Code Quality Fixes Applied
+- **41 Pint style issues fixed** — `declare_strict_types` on all stock Laravel files, unused imports removed, spacing/concat fixes.
+- **79 PHPStan errors fixed** to reach zero at level 6:
+  - `Builder<Model>` generics on all scope methods (Event, ActivityLog, TeamInvitation)
+  - `BelongsTo<User, $this>` generics on all relationship methods
+  - `@param array<string, mixed>` PHPDoc types on array parameters across services/controllers
+  - WebhookController return types matched to Cashier parent signatures
+  - `env()` calls outside config replaced with `config()` (Tenant, WebhookController)
+  - `@var array<int, string>` on `$activityLogExclude` properties
+  - `@use HasFactory<UserFactory>` on User model
+  - `@return` types on TenancyServiceProvider, Tenant, EventSyncRequest
+  - Nullsafe fixes in LogsActivity and TeamInvitationMail
+
+### Key Decisions
+- **Three parallel CI jobs**: Lint, static analysis, and tests run independently for faster feedback.
+- **PostgreSQL 16 in CI**: Matches production. Tests against real PostgreSQL, never SQLite.
+- **PHPStan level 6**: Strict enough to catch real bugs without generics noise. Filament providers excluded.
+- **Larastan over vanilla PHPStan**: Understands Laravel magic (facades, models, relationships, scopes).
+- **Deploy via Forge webhook**: Simple, reliable. Webhook URL stored as GitHub secret.
+- **env() → config() migration**: `env()` returns null when config is cached. Stripe prices moved to `config/services.php`.
+
+### Deviations from Spec
+- **`pint.json` instead of `.php-cs-fixer.php`** — Pint is Laravel's standard tool (wraps PHP-CS-Fixer).
+- **No PHPStan baseline** — All 79 errors fixed rather than baselined. Clean zero errors.
+
+### Patterns Established
+- **CI on every push**: Catches issues early on feature branches.
+- **Code style enforced by CI**: Pint auto-fixes locally, CI rejects if forgotten.
+- **Static analysis as gate**: PHPStan must pass before merge.
+- **All array parameters typed**: `array<string, mixed>` for associative, `array<int, string>` for lists.
+
+### Test Summary
+- No new tests (infrastructure-only sub-task).
+- All existing tests pass after fixes: 107 tests, 366 assertions, 36.44s.
+
+### Open Questions
+- `FORGE_DEPLOY_WEBHOOK_URL` GitHub secret needs to be configured in the repository's `staging` environment once Forge is set up.
+
+---

@@ -35,6 +35,6 @@ class EnsureUserHasRole
             return $next($request);
         }
 
-        return response()->json(['message' => 'Forbidden. Required role: ' . implode(' or ', $roles)], 403);
+        return response()->json(['message' => 'Forbidden. Required role: '.implode(' or ', $roles)], 403);
     }
 }

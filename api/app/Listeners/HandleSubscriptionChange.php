@@ -30,6 +30,8 @@ class HandleSubscriptionChange
 
     /**
      * Handle successful payment — log for audit trail.
+     *
+     * @param  array<string, mixed>  $payload
      */
     protected function handlePaymentSucceeded(array $payload): void
     {
@@ -50,6 +52,8 @@ class HandleSubscriptionChange
 
     /**
      * Handle failed payment — log warning for follow-up.
+     *
+     * @param  array<string, mixed>  $payload
      */
     protected function handlePaymentFailed(array $payload): void
     {

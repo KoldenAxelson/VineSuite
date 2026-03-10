@@ -23,6 +23,9 @@ class EventSyncRequest extends FormRequest
         return true; // Auth handled by Sanctum middleware
     }
 
+    /**
+     * @return array<string, array<int, mixed>>
+     */
     public function rules(): array
     {
         return [
@@ -31,7 +34,7 @@ class EventSyncRequest extends FormRequest
             'events.*.entity_id' => ['required', 'uuid'],
             'events.*.operation_type' => ['required', 'string', 'max:50'],
             'events.*.payload' => ['required', 'array'],
-            'events.*.performed_at' => ['required', 'date', 'before_or_equal:now', 'after:' . now()->subDays(30)->toIso8601String()],
+            'events.*.performed_at' => ['required', 'date', 'before_or_equal:now', 'after:'.now()->subDays(30)->toIso8601String()],
             'events.*.idempotency_key' => ['required', 'string', 'max:100'],
             'events.*.device_id' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];

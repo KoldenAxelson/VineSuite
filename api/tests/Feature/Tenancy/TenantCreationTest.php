@@ -45,8 +45,8 @@ it('creates a tenant with its own PostgreSQL schema', function () {
 
     // Verify PostgreSQL schema was created
     $schemas = DB::select(
-        "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ?",
-        ['tenant_' . $tenant->id]
+        'SELECT schema_name FROM information_schema.schemata WHERE schema_name = ?',
+        ['tenant_'.$tenant->id]
     );
 
     expect($schemas)->toHaveCount(1);

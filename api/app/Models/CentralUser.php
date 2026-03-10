@@ -28,8 +28,11 @@ class CentralUser extends Authenticatable
     use Notifiable;
 
     protected $connection = 'pgsql'; // Always use central connection
+
     protected $table = 'central_users';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [

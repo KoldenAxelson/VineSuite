@@ -42,10 +42,6 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public $incrementing = false;
 
     /**
-     * Custom columns stored in the tenants table (not in the data JSON column).
-     * stancl/tenancy stores anything not listed here in a JSON `data` column.
-     */
-    /**
      * Plan definitions with Stripe price IDs.
      * These will be set to real Stripe price IDs once products are created.
      */
@@ -64,6 +60,12 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         ],
     ];
 
+    /**
+     * Custom columns stored in the tenants table (not in the data JSON column).
+     * stancl/tenancy stores anything not listed here in a JSON `data` column.
+     *
+     * @return array<int, string>
+     */
     public static function getCustomColumns(): array
     {
         return [
@@ -98,12 +100,14 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public static function stripePriceForPlan(string $plan): ?string
     {
-        return match ($plan) {
-            'starter' => env('STRIPE_PRICE_STARTER'),
-            'growth' => env('STRIPE_PRICE_GROWTH'),
-            'pro' => env('STRIPE_PRICE_PRO'),
+        $price = match ($plan) {
+            'starter' => config('services.stripe.price_starter'),
+            'growth' => config('services.stripe.price_growth'),
+            'pro' => config('services.stripe.price_pro'),
             default => null,
         };
+
+        return is_string($price) ? $price : null;
     }
 
     /**

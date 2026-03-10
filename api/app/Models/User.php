@@ -34,7 +34,10 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasApiTokens;
+
+    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
+
     use HasRoles;
     use HasUuids;
     use LogsActivity;
@@ -43,6 +46,8 @@ class User extends Authenticatable
     /**
      * Fields to exclude from activity logging.
      * Password and remember_token are always excluded by the trait.
+     *
+     * @var array<int, string>
      */
     protected array $activityLogExclude = ['updated_at', 'created_at', 'email_verified_at'];
 

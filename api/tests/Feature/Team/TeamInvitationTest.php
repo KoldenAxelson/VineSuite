@@ -272,7 +272,7 @@ it('rejects expired invitation', function () {
 
     // Create an invitation directly with an expired timestamp
     $token = Str::random(64);
-    $tenant->run(function () use ($owner, $token) {
+    $tenant->run(function () use ($token) {
         TeamInvitation::create([
             'email' => 'expired@example.com',
             'role' => 'winemaker',

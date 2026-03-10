@@ -54,12 +54,12 @@ return new class extends Migration
             \$\$ LANGUAGE plpgsql;
         ");
 
-        DB::statement("
+        DB::statement('
             CREATE TRIGGER events_immutability_guard
             BEFORE UPDATE OR DELETE ON events
             FOR EACH ROW
             EXECUTE FUNCTION prevent_event_mutation();
-        ");
+        ');
     }
 
     public function down(): void
