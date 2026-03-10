@@ -7,12 +7,18 @@ services:
       - "0.0.0.0:8000:80"
     volumes:
       - ./api:/var/www/html
+      - /var/www/html/vendor  # Prevent host overriding vendor if it doesn't exist locally
     depends_on:
-      - postgres
-      - redis
-      - meilisearch
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
     environment:
       - APP_ENV=local
+    networks:
+      - vinesuite
 
   postgres:
     image: postgres:16
@@ -24,11 +30,43 @@ services:
       POSTGRES_PASSWORD: secret
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vinesuite"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vinesuite
+
+  postgres-test:
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: vinesuite_test
+      POSTGRES_USER: vinesuite
+      POSTGRES_PASSWORD: secret
+    tmpfs:
+      - /var/lib/postgresql/data  # RAM-backed for speed; test data is ephemeral
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vinesuite"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vinesuite
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vinesuite
 
   meilisearch:
     image: getmeili/meilisearch:v1
@@ -36,14 +74,19 @@ services:
       - "7700:7700"
     environment:
       - MEILI_NO_ANALYTICS=true
+      - MEILI_MASTER_KEY=vinesuite-dev-key
     volumes:
       - msdata:/meili_data
+    networks:
+      - vinesuite
 
   mailpit:
     image: axllent/mailpit
     ports:
       - "8025:8025"
       - "1025:1025"
+    networks:
+      - vinesuite
 
   horizon:
     build:
@@ -52,10 +95,19 @@ services:
     command: php artisan horizon
     volumes:
       - ./api:/var/www/html
+      - /var/www/html/vendor
     depends_on:
-      - redis
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vinesuite
 
 volumes:
   pgdata:
   msdata:
+
+networks:
+  vinesuite:
+    driver: bridge

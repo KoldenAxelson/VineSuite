@@ -1,7 +1,7 @@
 # VineSuite Development Commands
 # Usage: make <target>
 
-.PHONY: up down restart logs test migrate seed fresh shell horizon help
+.PHONY: up down restart build logs test migrate seed fresh shell horizon ps help
 
 # ─── Docker ───────────────────────────────────────────────────────
 up:                          ## Start all services
@@ -10,8 +10,14 @@ up:                          ## Start all services
 down:                        ## Stop all services
 	docker compose down
 
+build:                       ## Rebuild Docker images
+	docker compose build --no-cache
+
 restart:                     ## Restart all services
 	docker compose down && docker compose up -d
+
+ps:                          ## Show running services and health
+	docker compose ps
 
 logs:                        ## Tail all service logs
 	docker compose logs -f

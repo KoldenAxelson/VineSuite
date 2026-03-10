@@ -1,0 +1,67 @@
+# ─── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ─── IDE ─────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# ─── Laravel (api/) ──────────────────────────────────────────────
+api/vendor/
+api/node_modules/
+api/.env
+api/.env.backup
+api/.env.production
+api/.phpunit.result.cache
+api/storage/*.key
+api/storage/framework/cache/data/*
+api/storage/framework/sessions/*
+api/storage/framework/views/*
+api/storage/logs/*
+api/bootstrap/cache/*
+api/public/hot
+api/public/storage
+api/public/build/
+
+# ─── KMP Shared Core ────────────────────────────────────────────
+shared/.gradle/
+shared/build/
+shared/*/build/
+shared/local.properties
+
+# ─── Mobile Apps ─────────────────────────────────────────────────
+apps/*/build/
+apps/*/.gradle/
+apps/*/local.properties
+apps/cellar/ios/Pods/
+apps/pos/ios/Pods/
+*.xcuserdata
+*.xcworkspace
+
+# ─── Widgets ─────────────────────────────────────────────────────
+widgets/node_modules/
+widgets/dist/
+
+# ─── VineBook ────────────────────────────────────────────────────
+vinebook/node_modules/
+vinebook/dist/
+vinebook/.astro/
+
+# ─── Migration Workbench ─────────────────────────────────────────
+migration-workbench/vendor/
+migration-workbench/node_modules/
+migration-workbench/.env
+
+# ─── Docker ──────────────────────────────────────────────────────
+# Don't ignore docker-compose.yml or Dockerfiles — those are committed
+# Ignore runtime volumes (handled by Docker, not committed)
+
+# ─── Misc ────────────────────────────────────────────────────────
+*.log
+.env
+.env.local
