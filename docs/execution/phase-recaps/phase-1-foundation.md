@@ -11,7 +11,7 @@
 - Schema-per-tenant multi-tenancy where each winery gets complete data isolation in its own PostgreSQL schema, with provisioning under 10 seconds
 - Token-based authentication with 7 winery-specific roles (Owner through Read-Only) and ~55 granular permissions, scoped per client type (portal, cellar app, POS, widget, public API)
 - An immutable, append-only event log — the foundational data structure that all future winery operations will write to, enforced at the PostgreSQL trigger level
-- SaaS billing infrastructure via Stripe (Cashier) with Starter/Growth/Pro plans, webhook handling, and customer portal
+- SaaS billing infrastructure via Stripe (Cashier) with Free/Basic/Pro/Max plans, webhook handling, and customer portal
 - A Filament v3 management portal shell at `/portal` with team member management and activity log viewer
 - Full CI/CD pipeline: Pint + PHPStan (level 6, zero errors) + Pest (135 tests, 481 assertions) on every push
 
@@ -38,12 +38,44 @@
 - **Immutability via DB triggers:** Both `events` and `activity_logs` tables use PostgreSQL triggers to block UPDATE/DELETE. Standard for all append-only tables.
 - **Structured logging:** All auth/tenant events log `tenant_id` and `user_id` with `Log::info('message', ['key' => 'value'])` format.
 
+## Post-Phase 1 Amendments
+
+The following changes were made after Phase 1 was marked complete but before Phase 2 began:
+
+### Plan Tier Rename
+Renamed `starter/growth/pro` → `free/basic/pro/max` across the entire codebase to align with current SaaS tier conventions. Added a `free` tier (no Stripe subscription required) as the default plan for new tenants.
+
+**Files touched:** Tenant model, migration, BillingController, WebhookController, CreateTenantJob, DemoWinerySeeder, `config/services.php`, and all 10+ test files referencing plan names.
+
+### Tenant Model Enhancements
+- Added `PLAN_HIERARCHY` constant and helper methods: `planRank()`, `isDowngradeTo()`, `hasPlanAtLeast()` for upgrade/downgrade comparison
+- Added `isFreePlan()` and `hasActiveAccess()` for free tier support
+- Added `protected $attributes = ['plan' => 'free']` to mirror database default in-memory
+- BillingTest expanded from 15 to 21 tests covering hierarchy, free tier, and downgrade detection
+
+### Bug Fix: WineryProfileController
+Wired the previously unused `$oldValues` variable into the `Log::info()` call in `update()`, capturing both old and new values for audit trail.
+
+### Documentation: Token Name Contract
+Added "Token Name Contract" section to `references/auth-rbac.md` documenting the `client_type|context` format, rationale (avoids Sanctum migration customization), and failure mode (silent fallback to lowest rate limit tier).
+
+### Idea Docs Created
+Seven strategic documents added to `docs/ideas/`:
+- `pricing-and-plan-tiers.md` — Freemium model, tier structure, feature gating architecture
+- `progressive-onboarding.md` — Lessons from competitor onboarding failures
+- `data-portability.md` — Export-first philosophy, migration OUT strategy
+- `harvest-season-resilience.md` — Load testing and offline-first requirements
+- `gradual-migration-path.md` — Module-at-a-time adoption strategy
+- `customer-support-escalation.md` — Tiered AI support system
+- `grape-marketplace.md` — Tenant-to-tenant fruit trading with network effects
+
 ## Known Debt
 1. **MustVerifyEmail not active** — impact: low — affects: any task requiring email verification
 2. **Password reset flow untested** — impact: low — controllers exist but no test coverage yet
 3. **Stripe products not created** — impact: low — checkout returns 422 until `STRIPE_PRICE_*` env vars are set
 4. **Per-origin widget throttling** — impact: low — affects: 14-widgets.md
 5. **Forge deploy webhook not configured** — impact: none for dev — deploy.yml is manual-trigger only until Forge is set up
+6. **PlanFeatureService not built** — impact: none yet — feature gating middleware deferred to Phase 2
 
 ## Reference Docs Updated
 - `references/event-log.md` — created — EventLogger usage, immutability, querying patterns
@@ -55,9 +87,10 @@
 
 ## Metrics
 - Sub-tasks completed: 15/15
-- Test count: 135 (all integration/feature, against real PostgreSQL)
-- Assertions: 481
+- Test count: 141 (all integration/feature, against real PostgreSQL) — 6 added post-Phase 1
+- Assertions: ~500+
 - Files created: ~70 (app, database, tests, config, views, workflows)
 - Migrations created: 14 (7 central, 7 tenant)
 - PHPStan: level 6, zero errors
 - Pint: zero style issues
+- Idea docs: 7 strategic documents in `docs/ideas/`

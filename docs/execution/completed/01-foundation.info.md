@@ -287,9 +287,9 @@
 ### What Was Built
 - `database/migrations/tenant/2026_03_10_000006_create_winery_profiles_table.php` — Tenant-scoped profile: UUID PK, identity fields (name, dba_name, description, logo, website, phone, email), location (address, city, state, zip, country, timezone), compliance (ttb_permit_number, ttb_registry_number, state_license_number), preferences (unit_system, currency, fiscal_year_start_month, date_format), onboarding_complete flag.
 - `app/Models/WineryProfile.php` — HasUuids, all fields fillable, casts for fiscal_year_start_month (int) and onboarding_complete (bool). Helpers: `usesImperial()`, `usesMetric()`.
-- `app/Http/Controllers/Api/V1/WineryProfileController.php` — `show()`: returns profile for any authenticated user. `update()`: partial updates with validation (unit_system in [imperial, metric], timezone validates IANA, fiscal_year_start_month 1-12). Owner/admin only.
+- `app/Http/Controllers/Api/V1/WineryProfileController.php` — `show()`: returns profile for any authenticated user. `update()`: partial updates with validation (unit_system in [imperial, metric], timezone validates IANA, fiscal_year_start_month 1-12). Owner/admin only. Logs old and new values on update. *(Post-Phase 1: wired `$oldValues` into Log::info call.)*
 - `database/seeders/TenantDatabaseSeeder.php` — Updated to auto-create a WineryProfile with the tenant's name on provisioning.
-- `database/seeders/DemoWinerySeeder.php` — Creates "Paso Robles Cellars" tenant with realistic data: Adelaida District address, TTB permits, July fiscal year, 7 demo users (one per role). Idempotent.
+- `database/seeders/DemoWinerySeeder.php` — Creates "Paso Robles Cellars" tenant on `pro` plan with realistic data: Adelaida District address, TTB permits, July fiscal year, 7 demo users (one per role). Idempotent. *(Post-Phase 1: plan changed from 'growth' to 'pro'.)*
 - `database/seeders/DatabaseSeeder.php` — Updated to call DemoWinerySeeder.
 - `routes/api.php` — Added: `GET /winery` (any auth user), `PUT /winery` (owner/admin).
 - `tests/Feature/WineryProfile/WineryProfileTest.php` — 11 tests, 59 assertions.
@@ -374,7 +374,7 @@
 ### Key Decisions
 - **Tenant is the Billable, not User**: SaaS billing is per-winery. The Tenant model has the Cashier Billable trait. Subscriptions and subscription_items tables reference tenant_id.
 - **Central schema billing**: Cashier tables (subscriptions, subscription_items) live in the central public schema alongside tenants/domains. This is NOT per-tenant Stripe Connect.
-- **Plan price IDs via env vars**: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_PRO` env vars map plans to Stripe price IDs. Products need to be created in Stripe Dashboard.
+- **Plan price IDs via env vars**: `STRIPE_PRICE_BASIC`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_MAX` env vars map plans to Stripe price IDs. Products need to be created in Stripe Dashboard. *(Renamed post-Phase 1 from STARTER/GROWTH/PRO.)*
 - **Webhook extends Cashier controller**: Custom WebhookController extends `CashierWebhookController` to add plan syncing on subscription changes. Cashier handles the core subscription lifecycle automatically.
 - **CSRF exclusion for webhook**: The Stripe webhook endpoint is excluded from CSRF verification in bootstrap/app.php.
 - **Grace period on cancellation**: When a subscription is cancelled, Cashier tracks `ends_at`. The 30-day read-only window is enforced via Cashier's `onGracePeriod()` method.
@@ -386,12 +386,17 @@
 - **Central billing, tenant-scoped data**: Billing lives in central schema. Winery data lives in tenant schemas. Both are accessed through different routes.
 - **Webhook handling pattern**: Extend Cashier's webhook controller for custom logic. Use the WebhookReceived event listener for invoice-level handling.
 
+### Post-Phase 1 Amendments
+- **Plan tier rename**: `starter/growth/pro` → `free/basic/pro/max`. Updated migration enum, Tenant model PLANS constant, BillingController validation, WebhookController price mapping, CreateTenantJob default, config/services.php keys, DemoWinerySeeder, and all test files.
+- **Free tier added**: New default plan requiring no Stripe subscription. Added `isFreePlan()`, `hasActiveAccess()`, `protected $attributes = ['plan' => 'free']`.
+- **Downgrade helpers added**: `PLAN_HIERARCHY` constant, `planRank()`, `isDowngradeTo()`, `hasPlanAtLeast()` on Tenant model.
+- **BillingTest expanded**: From 15 to 21 tests — added: free plan defaults, free plan has no subscription, planRank hierarchy, hasPlanAtLeast, isDowngradeTo, checkout rejects free.
+
 ### Test Summary
-- `tests/Feature/Billing/BillingTest.php` — 15 tests: Billable trait on Tenant, plan helpers, stripePriceForPlan null without env, billing status for owner, auth required, RBAC enforced, checkout rejects without price config, checkout validates plan, portal rejects without customer, plan change rejects without subscription, plan change validates, webhook route reachable, subscriptions table exists, subscription_items table exists, tenants has Cashier columns.
-- 93 tests total across all suites, 312 assertions, 31.16s
+- `tests/Feature/Billing/BillingTest.php` — 21 tests (expanded post-Phase 1 from 15).
 
 ### Open Questions
-- Stripe products (Starter, Growth, Pro) need to be created in the Stripe Dashboard and price IDs added to .env as STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, STRIPE_PRICE_PRO.
+- Stripe products (Basic, Pro, Max) need to be created in the Stripe Dashboard and price IDs added to .env as STRIPE_PRICE_BASIC, STRIPE_PRICE_PRO, STRIPE_PRICE_MAX.
 
 ---
 

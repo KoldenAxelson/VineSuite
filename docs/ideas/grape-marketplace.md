@@ -108,12 +108,40 @@ The messaging system should be minimal (think Craigslist reply, not Slack). No r
 
 ### Plan Tier Gating
 
-- **Free**: Can browse listings (read-only). Cannot post or message.
-- **Basic**: Can post up to 3 active listings. Can message. No transaction logging.
+- **Free**: Can browse and post listings (up to 3 active). Can message. No transaction logging. This is intentional — free users posting listings is what populates the marketplace and makes it valuable for everyone. Restricting free users to read-only would starve the network.
+- **Basic**: Up to 10 active listings. Can message. Basic transaction logging (manual confirmation, no compliance auto-fill).
 - **Pro**: Unlimited listings. Full transaction logging with auto-populated compliance records.
 - **Max**: Everything in Pro + marketplace analytics dashboard (your buy/sell history, price trends for your varietals, regional supply signals).
 
 This makes the marketplace a gentle upsell lever — free users can see the value, basic users get a taste, and pro/max users get the full compliance integration that saves real time.
+
+## Monetization Decision: No Transaction Fees
+
+**Decision: The marketplace takes zero cut from trades. This is honey, not a revenue line.**
+
+### Why No Fee
+
+A transaction fee — even 1-2% — changes the psychology. Users start comparing the platform to free alternatives (texting their neighbor), and it creates an incentive to negotiate on-platform but settle off-platform to dodge the fee. Grape trades are big, infrequent, and low-volume (2-5 purchases per winery per year). Even at 2% on a $7,000 transaction, that's ~$140/winery/year — not meaningful revenue, but meaningful annoyance.
+
+### What the Marketplace Generates Instead
+
+The marketplace is a customer acquisition and retention engine, not a profit center:
+
+1. **Free tier population**: Every hobbyist listing surplus grapes makes the marketplace more useful for paying wineries. Free users aren't a cost center — they're inventory. A hobbyist with surplus Zinfandel who lists it for sale is making the platform more valuable for the pro winery who needs to source fruit in a pinch.
+
+2. **Organic upgrade pressure**: A free user lists grapes, gets a buyer, and hits the "confirm trade" button — which would auto-create compliance records if they were on Pro. They're not being upsold with a popup. They're experiencing the friction of *not* having the feature they now want. Fundamentally different dynamic.
+
+3. **Cold start solution**: You don't need to convince 50 wineries to join a marketplace. You need to convince 50 wineries to sign up for free winery software — a much easier pitch. The marketplace populates itself as a side effect.
+
+4. **Retention moat**: The marketplace is a network. The more wineries participate, the harder it is to leave. No transaction fee means no friction discouraging participation.
+
+### Future Exception
+
+If VineSuite eventually builds payment processing into the platform (escrow, invoicing, net-30 terms), a small processing fee is expected and justified — that's a financial service, not a bulletin board tax. But that's Phase 6+ territory and a different product surface entirely.
+
+### Pipeline Consideration
+
+This model benefits from a lightweight onboarding pipeline specifically targeting hobbyists and small growers who may not need full winery software but do have grapes to sell. These users fill the marketplace for free while costing nearly nothing to host (see `pricing-and-plan-tiers.md` — ~$0.03-0.05/month per free tenant). As they grow or start needing compliance features, the upgrade path is already in front of them.
 
 ## Implementation Timing
 

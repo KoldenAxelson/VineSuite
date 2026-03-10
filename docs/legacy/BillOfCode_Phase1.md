@@ -3,7 +3,7 @@
 > Generated: 2026-03-10
 > Author: AI (Claude Opus 4.6)
 > Scope: All files created or significantly modified by AI during Phase 1
-> CI Status: 135 tests passing (481 assertions), PHPStan level 6 (0 errors), Pint (0 issues)
+> CI Status: 141 tests passing (~500+ assertions), PHPStan level 6 (0 errors), Pint (0 issues)
 
 ---
 
@@ -100,11 +100,9 @@ Invokable. Delegates to `EventProcessor::processBatch()`. Returns structured res
 ### `app/Http/Controllers/Api/V1/WineryProfileController.php`
 | Comments | Functions | Polish |
 |----------|-----------|--------|
-| Pass | Note | Pass |
+| Pass | Pass | Pass |
 
-`show()` and `update()` methods. Both use `ApiResponse`.
-
-**Note:** In `update()`, the variable `$oldValues` is captured on line ~64 but never used. This was likely intended for activity logging comparison but the `LogsActivity` trait handles this automatically. No functional impact — the variable is harmless but could be removed for cleanliness.
+`show()` and `update()` methods. Both use `ApiResponse`. The `$oldValues` variable in `update()` is now wired into the `Log::info()` call, capturing both old and new values for the audit trail. *(Fixed post-Phase 1.)*
 
 ### `app/Http/Controllers/BillingController.php`
 | Comments | Functions | Polish |
@@ -175,7 +173,7 @@ Minimal model — exists for future multi-winery switching. Explicitly sets `$co
 |----------|-----------|--------|
 | Pass | Pass | Pass |
 
-Extends stancl's Tenant. `PLANS` constant, `stripePriceForPlan()`, `hasActiveSubscription()`, `isInGracePeriod()`. Billable trait for Cashier. `getCustomColumns()` returns all custom fields. Well-documented.
+Extends stancl's Tenant. `PLANS` constant with `free/basic/pro/max` tiers, `PLAN_HIERARCHY` for rank comparison. Methods: `stripePriceForPlan()`, `hasActiveSubscription()`, `hasActiveAccess()`, `isFreePlan()`, `isInGracePeriod()`, `planRank()`, `isDowngradeTo()`, `hasPlanAtLeast()`. Billable trait for Cashier. `getCustomColumns()` returns all custom fields. Default `$attributes` sets `plan => 'free'`. *(Expanded post-Phase 1 with free tier and downgrade helpers.)*
 
 ### `app/Models/Event.php`
 | Comments | Functions | Polish |
@@ -379,7 +377,7 @@ All 13 AI-generated test files pass review:
 | `EventLog/EventLoggerTest.php` | 13 | Pass | Pass | Pass |
 | `EventLog/EventSyncTest.php` | 12 | Pass | Pass | Pass |
 | `ActivityLog/ActivityLogTest.php` | 14 | Pass | Pass | Pass |
-| `Billing/BillingTest.php` | 15 | Pass | Pass | Pass |
+| `Billing/BillingTest.php` | 21 | Pass | Pass | Pass — expanded with free tier, hierarchy, downgrade tests |
 | `Team/TeamInvitationTest.php` | 11 | Pass | Pass | Pass |
 | `WineryProfile/WineryProfileTest.php` | 11 | Pass | Pass | Pass |
 | `Filament/PortalTest.php` | 11 | Pass | Pass | Pass |
@@ -395,7 +393,7 @@ All 13 AI-generated test files pass review:
 | `routes/tenant.php` | Pass | Pass | Pass |
 | `config/tenancy.php` | Pass | Pass | Pass |
 | `config/database.php` | Pass | Pass | Pass — testing connection added |
-| `config/services.php` | Pass | Pass | Pass — Stripe price config |
+| `config/services.php` | Pass | Pass | Pass — Stripe price config (`price_basic`, `price_pro`, `price_max`) |
 | `config/permission.php` | Pass | Pass | Pass — published from spatie |
 | `.github/workflows/ci.yml` | Pass | Pass | Pass — 3 parallel jobs |
 | `.github/workflows/deploy.yml` | Pass | Pass | Pass — manual trigger |
@@ -412,12 +410,12 @@ All 13 AI-generated test files pass review:
 | Metric | Pass | Note | Flag |
 |--------|------|------|------|
 | **Comments** | 70/70 | 0 | 0 |
-| **Functions** | 68/70 | 2 | 0 |
+| **Functions** | 69/70 | 1 | 0 |
 | **Polish** | 70/70 | 0 | 0 |
 
 ### Notes (non-blocking observations)
 
-1. **`WineryProfileController.php`** — Unused `$oldValues` variable in `update()`. The `LogsActivity` trait handles change tracking automatically, making this capture redundant. Harmless but could be removed.
+1. ~~**`WineryProfileController.php`** — Unused `$oldValues` variable in `update()`.~~ **Resolved:** `$oldValues` is now wired into the `Log::info()` call.
 
 2. **`EventSyncRequest.php`** — The `after:` validation rule evaluates `now()->subDays(30)` at class instantiation, not per-request. Standard Laravel behavior with negligible drift. No action needed.
 
