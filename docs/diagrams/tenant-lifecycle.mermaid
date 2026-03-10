@@ -1,0 +1,27 @@
+stateDiagram-v2
+    [*] --> SignUp: Winery signs up
+    SignUp --> Provisioning: Stripe checkout complete
+
+    state Provisioning {
+        [*] --> CreateSchema: Queued job starts
+        CreateSchema --> RunMigrations
+        RunMigrations --> SeedDefaults: Default data (roles, units, thresholds)
+        SeedDefaults --> SendWelcome: Welcome email
+        SendWelcome --> [*]
+    }
+
+    Provisioning --> Active: Tenant ready (~10 seconds)
+
+    state Active {
+        Starter --> Growth: Upgrade
+        Growth --> Pro: Upgrade
+        Pro --> Growth: Downgrade
+        Growth --> Starter: Downgrade
+    }
+
+    Active --> Paused: Payment failed (grace period)
+    Paused --> Active: Payment recovered
+    Paused --> Suspended: Grace period expired
+    Suspended --> Active: Payment recovered
+    Suspended --> Archived: 90 days suspended
+    Archived --> [*]: Data export available, schema dropped after 30 days

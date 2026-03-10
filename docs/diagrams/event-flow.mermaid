@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant Client as Client (Portal/App)
+    participant API as Laravel API
+    participant EL as Event Log
+    participant Handler as Event Handler
+    participant State as Materialized State
+    participant WS as Reverb (WebSocket)
+
+    Client->>API: POST /api/v1/additions (with idempotency_key)
+    API->>API: Validate request
+    API->>EL: INSERT into events table
+    Note over EL: Immutable. Never UPDATE or DELETE.
+    EL-->>Handler: Event dispatched
+    Handler->>State: Update additions table
+    Handler->>State: Update lot SO2 running total
+    Handler->>State: Deduct from inventory (if linked)
+    Handler->>WS: Broadcast lot.updated
+    API-->>Client: 201 Created (event_id)
+    WS-->>Client: Real-time UI update
+
+    Note over Client,WS: Offline flow (Cellar/POS apps)
+
+    Client->>Client: Write to local SQLite
+    Client->>Client: Queue event in local outbox
+    Note over Client: App works normally offline
+    Client->>API: POST /api/v1/events/sync (batch)
+    API->>API: Check idempotency_key (skip duplicates)
+    API->>EL: INSERT new events
+    EL-->>Handler: Process each event
+    API-->>Client: 200 OK (synced event IDs)
+    Client->>Client: Mark events as synced
+    Client->>API: GET /api/v1/sync/pull (latest state)
+    API-->>Client: Updated materialized state

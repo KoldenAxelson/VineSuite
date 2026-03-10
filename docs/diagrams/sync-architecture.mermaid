@@ -1,0 +1,42 @@
+graph TB
+    subgraph Device["Native App (Cellar or POS)"]
+        UI["Native UI<br/>(Compose / SwiftUI)"]
+        KMP["KMP Shared Core"]
+        SQLite["Local SQLite<br/>(SQLDelight)"]
+        Outbox["Event Outbox<br/>(unsynced events)"]
+        NetMon["Network Monitor<br/>(NWPathMonitor / ConnectivityManager)"]
+    end
+
+    subgraph Server["Laravel API"]
+        SyncEndpoint["/api/v1/events/sync"]
+        PullEndpoint["/api/v1/sync/pull"]
+        IdempotencyCheck["Idempotency Check<br/>(reject duplicate keys)"]
+        VolumeValidator["Volume Validator<br/>(destructive ops only)"]
+        EventLog["Event Log"]
+        StateTable["Materialized State"]
+    end
+
+    UI -->|user action| KMP
+    KMP -->|write immediately| SQLite
+    KMP -->|queue event| Outbox
+
+    NetMon -->|online?| KMP
+
+    KMP -->|"batch POST<br/>(when online)"| SyncEndpoint
+    SyncEndpoint --> IdempotencyCheck
+    IdempotencyCheck -->|new event| VolumeValidator
+    IdempotencyCheck -->|"duplicate → skip"| SyncEndpoint
+    VolumeValidator -->|valid| EventLog
+    VolumeValidator -->|"conflict → 409"| SyncEndpoint
+    EventLog --> StateTable
+
+    SyncEndpoint -->|"200 OK + synced IDs"| KMP
+    KMP -->|mark synced| Outbox
+
+    KMP -->|pull latest| PullEndpoint
+    PullEndpoint --> StateTable
+    StateTable -->|delta since last sync| KMP
+    KMP -->|update local| SQLite
+
+    style Outbox fill:#ff9,stroke:#333
+    style EventLog fill:#9f9,stroke:#333

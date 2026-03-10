@@ -1,0 +1,51 @@
+graph TB
+    subgraph Clients["Client Surfaces"]
+        Portal["Management Portal<br/>(TALL + Filament)"]
+        Cellar["Cellar App<br/>(KMP + Compose/SwiftUI)"]
+        POS["POS App<br/>(KMP + Compose/SwiftUI)"]
+        Widgets["Embeddable Widgets<br/>(Web Components)"]
+        VineBook["VineBook Directory<br/>(Astro)"]
+    end
+
+    subgraph API["Platform API (Laravel 12)"]
+        Routes["REST API<br/>/api/v1/*"]
+        EventLog["Event Log<br/>(append-only)"]
+        State["Materialized State<br/>(CRUD tables)"]
+        Queue["Horizon Queue<br/>(background jobs)"]
+        WS["Reverb<br/>(WebSockets)"]
+    end
+
+    subgraph Data["Data Layer"]
+        PG["PostgreSQL 16<br/>(schema-per-tenant)"]
+        Redis["Redis 7<br/>(cache + queue)"]
+        Meili["Meilisearch<br/>(full-text search)"]
+        R2["Cloudflare R2<br/>(file storage)"]
+    end
+
+    subgraph External["External Services"]
+        Stripe["Stripe<br/>(payments + Terminal)"]
+        Resend["Resend<br/>(email)"]
+        Twilio["Twilio<br/>(SMS)"]
+        QBO["QuickBooks / Xero"]
+        Anthropic["Anthropic API<br/>(AI features)"]
+    end
+
+    Portal -->|Livewire| Routes
+    Cellar -->|Ktor HTTP + sync| Routes
+    POS -->|Ktor HTTP + sync| Routes
+    Widgets -->|fetch| Routes
+    VineBook -->|build-time + islands| Routes
+
+    Routes --> EventLog
+    EventLog -->|handlers| State
+    Routes --> State
+    Routes --> Queue
+    Queue --> External
+
+    EventLog --> PG
+    State --> PG
+    Queue --> Redis
+    Routes --> Meili
+    Routes --> R2
+
+    WS -->|live updates| Portal

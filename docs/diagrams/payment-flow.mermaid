@@ -1,0 +1,46 @@
+graph TB
+    subgraph Sources["Payment Sources"]
+        OnlineCheckout["Online Checkout<br/>(Stripe.js)"]
+        POSCard["POS Card Present<br/>(Stripe Terminal)"]
+        POSCash["POS Cash"]
+        ClubCharge["Club Batch Charge<br/>(stored card)"]
+        WidgetCheckout["Widget Checkout<br/>(Stripe.js)"]
+    end
+
+    subgraph Abstraction["Payment Abstraction Layer"]
+        Interface["PaymentProcessor Interface<br/>charge() / refund() / saveCard()"]
+        StripeImpl["StripeProcessor"]
+        SquareImpl["SquareProcessor<br/>(Growth+)"]
+        BraintreeImpl["BraintreeProcessor<br/>(Growth+)"]
+    end
+
+    subgraph Modes["Payment Modes"]
+        Managed["Mode A: Managed<br/>(Stripe Connect)<br/>Platform fee auto-deducted"]
+        BYO["Mode B: BYO Processor<br/>(Growth + Pro)<br/>Flat SaaS fee only"]
+    end
+
+    subgraph Recording["Recording"]
+        Event["Event Log<br/>payment_captured"]
+        Order["Order + Payment records"]
+        Inventory["Inventory deduction"]
+    end
+
+    OnlineCheckout --> Interface
+    POSCard --> Interface
+    ClubCharge --> Interface
+    WidgetCheckout --> Interface
+    POSCash --> Event
+
+    Interface --> StripeImpl
+    Interface --> SquareImpl
+    Interface --> BraintreeImpl
+
+    StripeImpl --> Managed
+    StripeImpl --> BYO
+    SquareImpl --> BYO
+    BraintreeImpl --> BYO
+
+    Managed --> Event
+    BYO --> Event
+    Event --> Order
+    Order --> Inventory
