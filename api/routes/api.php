@@ -9,7 +9,9 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\TeamInvitationController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -32,6 +34,9 @@ Route::get('/health', function () {
         'timestamp' => now()->toIso8601String(),
     ]);
 });
+
+// Stripe webhook — central, no tenant context, no CSRF
+Route::post('/stripe/webhook', [WebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
 // ─── Tenant-Scoped API Routes ───────────────────────────────────
 // These use InitializeTenancyByRequestData to identify the tenant
@@ -81,6 +86,14 @@ Route::middleware([
 
         // Event sync — mobile apps batch-submit events
         Route::post('/events/sync', EventSyncController::class)->name('events.sync');
+
+        // Billing — owner/admin only
+        Route::middleware('role:owner,admin')->prefix('billing')->group(function () {
+            Route::get('/status', [BillingController::class, 'status'])->name('billing.status');
+            Route::post('/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
+            Route::post('/portal', [BillingController::class, 'portal'])->name('billing.portal');
+            Route::put('/plan', [BillingController::class, 'changePlan'])->name('billing.plan');
+        });
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {

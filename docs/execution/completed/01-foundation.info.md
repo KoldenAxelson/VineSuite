@@ -316,3 +316,40 @@
 - None.
 
 ---
+
+## Sub-Task 9: Filament Management Portal Shell
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `filament/filament` v3.x installed via Composer
+- `app/Providers/Filament/AdminPanelProvider.php` — Panel at `/portal`, ID `portal`, brand "VineSuite", purple primary color. 7 navigation groups (Production, Inventory, Compliance, Sales, Club, CRM, Settings). Tenant-aware via InitializeTenancyByDomain + PreventAccessFromCentralDomains middleware. Session-based auth with Filament's Authenticate middleware. Sidebar collapsible, full-width content.
+- `app/Filament/Pages/Dashboard.php` — Custom dashboard page. Heading shows winery name from WineryProfile. Placeholder for future widgets.
+- `app/Filament/Resources/UserResource.php` — Team member management under Settings group. Table with name, email, role badge, active status, last login. Filters for role and active status. Actions: deactivate (owner can't be deactivated), activate, edit. Form with name, email, role select, active toggle. Access restricted to owner/admin via `canAccess()`.
+- `app/Filament/Resources/UserResource/Pages/ListUsers.php` — List page for team members.
+- `app/Filament/Resources/UserResource/Pages/EditUser.php` — Edit page with spatie role sync on save (`afterSave` syncs the role column to spatie roles).
+- `tests/Feature/Filament/PortalTest.php` — 11 tests, 22 assertions.
+
+### Key Decisions
+- **Panel path `/portal` not `/admin`**: Matches the spec. The panel ID is `portal` to avoid confusion with generic admin panels.
+- **Domain-based tenancy for portal**: Portal uses InitializeTenancyByDomain (subdomain routing) while the API uses InitializeTenancyByRequestData (X-Tenant-ID header). Both patterns coexist.
+- **Session auth for portal, token auth for API**: Filament uses session-based auth (its default). The API continues to use Sanctum tokens. No conflict — they use different middleware stacks.
+- **No delete action on users**: Users are deactivated, never deleted. The deactivate action is hidden for owner-role users to prevent locking out the account.
+- **Role sync on edit save**: When a user's role is changed in the portal, `afterSave()` calls `syncRoles()` to keep the spatie permission role in sync with the role column.
+- **Empty navigation groups**: The 7 navigation groups are registered but most have no resources yet. They serve as the skeleton for future modules.
+
+### Deviations from Spec
+- None.
+
+### Patterns Established
+- **Filament resource access control**: Use `canAccess()` static method to restrict resources by role. Check `auth()->user()->role` directly for speed.
+- **Portal + API coexistence**: Portal routes use session + domain tenancy. API routes use token + header tenancy. Both resolve to the same tenant schemas.
+
+### Test Summary
+- `tests/Feature/Filament/PortalTest.php` — 11 tests: panel at /portal, 7 navigation groups, brand name, dashboard page exists, UserResource in Settings group, label is Team Members, has list+edit pages, owner can access, admin can access, winemaker cannot access, read_only cannot access.
+- 78 tests total across all suites, 268 assertions, 25.46s
+
+### Open Questions
+- None.
+
+---

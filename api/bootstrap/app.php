@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+
+        // Stripe webhook needs to be excluded from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/stripe/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
