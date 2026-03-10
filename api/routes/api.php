@@ -2,22 +2,80 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Auth\AcceptInvitationController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\TeamInvitationController;
 use Illuminate\Support\Facades\Route;
+use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
 |
-| Routes registered here are prefixed with /api/v1/ (configured in
-| bootstrap/app.php). Central (non-tenant) API routes live at the top.
-| Tenant-scoped routes should use the tenant identification middleware.
+| Prefixed with /api/v1/ (configured in bootstrap/app.php).
+|
+| Central routes (no tenant context): health check, etc.
+| Tenant routes: auth, resources — require tenant identification.
 |
 */
 
+// ─── Central (no tenant context) ────────────────────────────────
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
         'timestamp' => now()->toIso8601String(),
     ]);
+});
+
+// ─── Tenant-Scoped API Routes ───────────────────────────────────
+// These use InitializeTenancyByRequestData to identify the tenant
+// via X-Tenant-ID header (for mobile apps and API consumers).
+Route::middleware([
+    InitializeTenancyByRequestData::class,
+])->group(function () {
+
+    // Auth — public (no token required)
+    Route::prefix('auth')->group(function () {
+        Route::post('/register', RegisterController::class)->name('auth.register');
+        Route::post('/login', LoginController::class)->name('auth.login');
+        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->name('auth.forgot-password');
+        Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])->name('auth.reset-password');
+        Route::post('/accept-invitation', AcceptInvitationController::class)->name('auth.accept-invitation');
+    });
+
+    // Auth — requires valid Sanctum token
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/auth/logout', LogoutController::class)->name('auth.logout');
+
+        Route::get('/auth/me', function () {
+            $user = request()->user();
+            return response()->json([
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ]);
+        })->name('auth.me');
+
+        // Team management — requires owner or admin role
+        Route::middleware('role:owner,admin')->prefix('team')->group(function () {
+            Route::post('/invite', [TeamInvitationController::class, 'send'])->name('team.invite');
+            Route::get('/invitations', [TeamInvitationController::class, 'index'])->name('team.invitations');
+            Route::delete('/invitations/{invitation}', [TeamInvitationController::class, 'cancel'])->name('team.invitations.cancel');
+        });
+
+        // Team list — any authenticated user can view team members
+        Route::get('/team', function () {
+            $users = \App\Models\User::select('id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json(['data' => $users]);
+        })->name('team.index');
+    });
 });

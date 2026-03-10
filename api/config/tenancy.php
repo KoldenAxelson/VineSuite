@@ -32,9 +32,11 @@ return [
      * The middleware is configured in TenancyServiceProvider.
      */
     'identification' => [
-        'resolvers' => [
-            // Domain/subdomain resolution is handled by stancl/tenancy middleware
-        ],
+        /**
+         * InitializeTenancyByRequestData looks for tenant ID in these locations.
+         * Used by mobile apps and API consumers to identify the tenant.
+         */
+        'header' => 'X-Tenant-ID',
     ],
 
     /**

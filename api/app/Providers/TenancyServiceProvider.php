@@ -81,8 +81,19 @@ class TenancyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureIdentification();
         $this->bootEvents();
         $this->mapRoutes();
+    }
+
+    /**
+     * Configure tenant identification strategies.
+     * Sets the X-Tenant-ID header for API-based tenant identification.
+     */
+    protected function configureIdentification(): void
+    {
+        Middleware\InitializeTenancyByRequestData::$header = 'X-Tenant-ID';
+        Middleware\InitializeTenancyByRequestData::$queryParameter = null; // Disable query param
     }
 
     protected function bootEvents(): void

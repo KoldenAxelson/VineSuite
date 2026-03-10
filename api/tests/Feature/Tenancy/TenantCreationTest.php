@@ -16,6 +16,11 @@ use Illuminate\Support\Facades\DB;
 uses(DatabaseMigrations::class);
 
 afterEach(function () {
+    // End tenancy to clear dangling tenant connection before next test's migrate:fresh
+    if (function_exists('tenancy') && tenancy()->initialized) {
+        tenancy()->end();
+    }
+
     // Drop any tenant schemas left behind by the test
     $schemas = DB::select(
         "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'"

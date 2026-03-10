@@ -120,3 +120,56 @@
 - None.
 
 ---
+
+## Sub-Task 4: Authentication System (Sanctum + RBAC)
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `app/Models/User.php` — Tenant-scoped User model: UUID PK, HasApiTokens, HasRoles, HasUuids. Token abilities matrix per client type (portal, cellar_app, pos_app, widget, public_api). isAdmin() and hasSimpleRole() helpers
+- `app/Models/CentralUser.php` — Central user model for multi-winery switching, always uses central DB connection
+- `database/migrations/0001_01_01_000012_create_central_users_table.php` — Central users table with UUID PK
+- `database/migrations/tenant/2026_03_10_000002_create_permission_tables.php` — spatie/laravel-permission tables in tenant schema (roles, permissions, model_has_roles, model_has_permissions, role_has_permissions) with UUID morph keys
+- `database/migrations/tenant/2026_03_10_000003_create_personal_access_tokens_table.php` — Sanctum personal_access_tokens in tenant schema with UUID morphs
+- `database/seeders/RolesAndPermissionsSeeder.php` — Seeds 7 roles with full permission matrix (~55 permissions). Owner=all, Admin=all except billing, Winemaker=production+compliance+reporting, Cellar Hand=work orders+additions+transfers+barrels+lab, Tasting Room Staff=POS+customers+reservations, Accountant=reports+COGS+integrations, Read Only=read-only across all resources
+- `database/seeders/TenantDatabaseSeeder.php` — Updated to call RolesAndPermissionsSeeder on tenant creation
+- `app/Http/Controllers/Auth/LoginController.php` — Validates credentials, checks is_active, creates client-scoped Sanctum token, updates last_login_at
+- `app/Http/Controllers/Auth/RegisterController.php` — Creates owner user, assigns owner role, fires Registered event, returns portal token
+- `app/Http/Controllers/Auth/ForgotPasswordController.php` — Password reset link + reset with token revocation
+- `app/Http/Controllers/Auth/LogoutController.php` — Revokes current token
+- `app/Http/Middleware/EnsureUserHasRole.php` — Checks user's role column + spatie roles, returns 403 if unauthorized
+- `routes/api.php` — Auth routes under /api/v1/auth/ (register, login, forgot-password, reset-password, logout, me) with InitializeTenancyByRequestData middleware for X-Tenant-ID header identification
+- `bootstrap/app.php` — Registered role, permission, role_or_permission middleware aliases
+- `app/Providers/TenancyServiceProvider.php` — Added configureIdentification() to set X-Tenant-ID header for InitializeTenancyByRequestData
+- `config/tenancy.php` — Added identification.header config
+- `config/permission.php` — Published spatie config (model_morph_key=model_id, UUID compatible via migration)
+- `config/sanctum.php` — Published Sanctum config
+- `tests/Feature/Auth/AuthenticationTest.php` — 7 tests: register, login, invalid creds, deactivated user, authenticated access, unauthenticated rejection, logout+revocation
+- `tests/Feature/Auth/RbacTest.php` — 6 tests: 7 roles seeded, owner has all perms, read_only has only reads, cellar_hand blocked from admin, role middleware blocks, token abilities scoped
+
+### Key Decisions
+- **MustVerifyEmail deferred**: Removed from User model because it requires verification routes (signed URL generation fails without them). Will re-add when email verification flow is built. The Registered event is still fired in RegisterController — it just doesn't trigger verification email without the interface.
+- **Permission/token tables in tenant schema only**: Deleted the vendor:publish central migrations. Roles, permissions, and Sanctum tokens live exclusively in tenant schemas. Central schema has no permission infrastructure.
+- **Dual role checking**: EnsureUserHasRole middleware checks both the `role` column (fast, no DB query) and spatie's HasRoles (full permission matrix). This lets us use the simple role column for quick checks and spatie for granular permission logic.
+- **Token abilities per client type**: Defined in User::TOKEN_ABILITIES constant. Portal gets `*`, mobile apps get scoped abilities, widget gets minimal read+create. Both token abilities AND role permissions must pass for access.
+- **X-Tenant-ID header**: Configured InitializeTenancyByRequestData to use `X-Tenant-ID` header (not the default `X-Tenant`). Query parameter disabled.
+
+### Deviations from Spec
+- **Password reset flow not tested**: Controllers built and routes defined, but no test coverage yet. Requires email verification route infrastructure. Will test in a dedicated pass.
+- **MustVerifyEmail removed temporarily**: Will be re-added when verification routes are set up.
+
+### Patterns Established
+- **Tenancy test helper**: `createTestTenant()` function creates a tenant + optionally runs setup in its context. Used across auth tests.
+- **afterEach tenancy cleanup**: All tenancy test files must call `tenancy()->end()` then drop `tenant_%` schemas. Prevents dangling connections that break `DatabaseMigrations`.
+- **Auth guard reset**: When testing token revocation, call `app('auth')->forgetGuards()` between logout and verification requests to prevent Sanctum caching.
+- **Structured logging in auth**: All auth events log `user_id` and `tenant_id` per the logging guide.
+
+### Test Summary
+- `tests/Feature/Auth/AuthenticationTest.php` — 7 tests: register returns 201 + token, login returns token with role, invalid creds returns 422, deactivated user returns 422, valid token accesses /me, missing token returns 401, logout revokes token
+- `tests/Feature/Auth/RbacTest.php` — 6 tests: 7 roles seeded on tenant creation, owner has all permissions, read_only has only .read perms, cellar_hand blocked from settings/users/billing, role middleware returns 403, token abilities correctly scoped per client type
+- 13 auth tests total, all against real PostgreSQL
+
+### Open Questions
+- None.
+
+---
