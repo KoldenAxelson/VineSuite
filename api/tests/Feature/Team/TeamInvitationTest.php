@@ -58,7 +58,7 @@ function createOwnerUser(Tenant $tenant): array
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    return [$user, $loginResponse->json('token')];
+    return [$user, $loginResponse->json('data.token')];
 }
 
 afterEach(function () {
@@ -91,11 +91,12 @@ it('owner can send a team invitation', function () {
     ]);
 
     $response->assertStatus(201)
-        ->assertJsonPath('invitation.email', 'newmember@example.com')
-        ->assertJsonPath('invitation.role', 'winemaker')
+        ->assertJsonPath('data.email', 'newmember@example.com')
+        ->assertJsonPath('data.role', 'winemaker')
         ->assertJsonStructure([
-            'message',
-            'invitation' => ['id', 'email', 'role', 'expires_at'],
+            'data' => ['id', 'email', 'role', 'expires_at'],
+            'meta' => ['message'],
+            'errors',
         ]);
 
     Mail::assertSent(TeamInvitationMail::class, function ($mail) {
@@ -126,8 +127,8 @@ it('blocks duplicate pending invitations to the same email', function () {
         'role' => 'cellar_hand',
     ], $headers);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'A pending invitation already exists for this email address.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('A pending invitation already exists for this email address.');
 });
 
 it('blocks invitation if user already exists in tenant', function () {
@@ -154,8 +155,8 @@ it('blocks invitation if user already exists in tenant', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'A user with this email already exists in this winery.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('A user with this email already exists in this winery.');
 });
 
 it('rejects owner role in invitation', function () {
@@ -172,8 +173,9 @@ it('rejects owner role in invitation', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('role');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('role');
 });
 
 it('non-admin users cannot send invitations', function () {
@@ -200,7 +202,7 @@ it('non-admin users cannot send invitations', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $token = $loginResponse->json('token');
+    $token = $loginResponse->json('data.token');
 
     $response = $this->postJson('/api/v1/team/invite', [
         'email' => 'newmember@example.com',
@@ -230,8 +232,8 @@ it('invitee can accept a valid invitation', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    // Get the token from the invitation
-    $invitationId = $inviteResponse->json('invitation.id');
+    // Get the invitation ID from envelope
+    $invitationId = $inviteResponse->json('data.id');
 
     // Retrieve the invitation token from the DB
     $invitationToken = null;
@@ -250,9 +252,9 @@ it('invitee can accept a valid invitation', function () {
     ]);
 
     $acceptResponse->assertStatus(201)
-        ->assertJsonStructure(['token', 'user'])
-        ->assertJsonPath('user.email', 'newmember@example.com')
-        ->assertJsonPath('user.role', 'cellar_hand');
+        ->assertJsonStructure(['data' => ['token', 'user'], 'meta', 'errors'])
+        ->assertJsonPath('data.user.email', 'newmember@example.com')
+        ->assertJsonPath('data.user.role', 'cellar_hand');
 
     // Verify user exists with correct role
     $tenant->run(function () {
@@ -291,8 +293,8 @@ it('rejects expired invitation', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'This invitation has expired. Please ask the team admin to send a new one.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('This invitation has expired. Please ask the team admin to send a new one.');
 });
 
 it('rejects already-accepted invitation', function () {
@@ -310,7 +312,7 @@ it('rejects already-accepted invitation', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $invitationId = $inviteResponse->json('invitation.id');
+    $invitationId = $inviteResponse->json('data.id');
 
     $invitationToken = null;
     $tenant->run(function () use ($invitationId, &$invitationToken) {
@@ -337,8 +339,8 @@ it('rejects already-accepted invitation', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'This invitation has already been accepted.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('This invitation has already been accepted.');
 });
 
 it('rejects invalid invitation token', function () {
@@ -353,8 +355,8 @@ it('rejects invalid invitation token', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(404)
-        ->assertJsonFragment(['message' => 'Invalid invitation token.']);
+    $response->assertStatus(404);
+    expect($response->json('errors.0.message'))->toBe('Invalid invitation token.');
 });
 
 // ─── Cancel Invitation ──────────────────────────────────────────
@@ -376,13 +378,13 @@ it('owner can cancel a pending invitation', function () {
         'role' => 'winemaker',
     ], $headers);
 
-    $invitationId = $inviteResponse->json('invitation.id');
+    $invitationId = $inviteResponse->json('data.id');
 
     // Cancel it
     $cancelResponse = $this->deleteJson("/api/v1/team/invitations/{$invitationId}", [], $headers);
 
     $cancelResponse->assertOk()
-        ->assertJsonFragment(['message' => 'Invitation cancelled successfully.']);
+        ->assertJsonPath('meta.message', 'Invitation cancelled successfully.');
 
     // Verify it's gone
     $tenant->run(function () use ($invitationId) {

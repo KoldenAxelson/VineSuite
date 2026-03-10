@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -43,7 +44,7 @@ class RegisterController extends Controller
 
         // Create a portal token for immediate use
         $token = $user->createToken(
-            name: 'portal',
+            name: 'portal|registration',
             abilities: User::TOKEN_ABILITIES['portal'],
         );
 
@@ -52,7 +53,7 @@ class RegisterController extends Controller
             'tenant_id' => tenant('id'),
         ]);
 
-        return response()->json([
+        return ApiResponse::created([
             'token' => $token->plainTextToken,
             'user' => [
                 'id' => $user->id,
@@ -60,6 +61,6 @@ class RegisterController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
             ],
-        ], 201);
+        ]);
     }
 }

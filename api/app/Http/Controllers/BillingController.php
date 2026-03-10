@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Responses\ApiResponse;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,9 +33,7 @@ class BillingController extends Controller
         $priceId = Tenant::stripePriceForPlan($validated['plan']);
 
         if (! $priceId) {
-            return response()->json([
-                'message' => "Stripe price not configured for plan: {$validated['plan']}",
-            ], 422);
+            return ApiResponse::error("Stripe price not configured for plan: {$validated['plan']}", 422);
         }
 
         // Create or retrieve the Stripe customer
@@ -63,7 +62,7 @@ class BillingController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
-        return response()->json([
+        return ApiResponse::success([
             'checkout_url' => $checkoutSession->url,
             'session_id' => $checkoutSession->id,
         ]);
@@ -79,16 +78,14 @@ class BillingController extends Controller
         $tenant = tenant();
 
         if (! $tenant->hasStripeId()) {
-            return response()->json([
-                'message' => 'No billing account found. Please subscribe to a plan first.',
-            ], 422);
+            return ApiResponse::error('No billing account found. Please subscribe to a plan first.', 422);
         }
 
         $portalSession = $tenant->redirectToBillingPortal(
             config('app.frontend_url', config('app.url')).'/settings/billing'
         );
 
-        return response()->json([
+        return ApiResponse::success([
             'portal_url' => $portalSession->url,
         ]);
     }
@@ -108,17 +105,13 @@ class BillingController extends Controller
         $subscription = $tenant->subscription('default');
 
         if (! $subscription || ! $subscription->active()) {
-            return response()->json([
-                'message' => 'No active subscription found.',
-            ], 422);
+            return ApiResponse::error('No active subscription found.', 422);
         }
 
         $newPriceId = Tenant::stripePriceForPlan($validated['plan']);
 
         if (! $newPriceId) {
-            return response()->json([
-                'message' => "Stripe price not configured for plan: {$validated['plan']}",
-            ], 422);
+            return ApiResponse::error("Stripe price not configured for plan: {$validated['plan']}", 422);
         }
 
         // Swap the subscription to the new price (prorate by default)
@@ -133,10 +126,7 @@ class BillingController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
-        return response()->json([
-            'message' => 'Plan changed successfully.',
-            'plan' => $validated['plan'],
-        ]);
+        return ApiResponse::success(['plan' => $validated['plan']], meta: ['message' => 'Plan changed successfully.']);
     }
 
     /**
@@ -149,7 +139,7 @@ class BillingController extends Controller
         $tenant = tenant();
         $subscription = $tenant->subscription('default');
 
-        return response()->json([
+        return ApiResponse::success([
             'plan' => $tenant->plan,
             'has_stripe_id' => $tenant->hasStripeId(),
             'subscribed' => $tenant->subscribed('default'),

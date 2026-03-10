@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -25,10 +26,10 @@ class ForgotPasswordController extends Controller
         );
 
         if ($status === Password::RESET_LINK_SENT) {
-            return response()->json(['message' => 'Password reset link sent.']);
+            return ApiResponse::message('Password reset link sent.');
         }
 
-        return response()->json(['message' => 'Unable to send reset link.'], 422);
+        return ApiResponse::error('Unable to send reset link.', 422);
     }
 
     /**
@@ -55,9 +56,9 @@ class ForgotPasswordController extends Controller
         );
 
         if ($status === Password::PASSWORD_RESET) {
-            return response()->json(['message' => 'Password has been reset.']);
+            return ApiResponse::message('Password has been reset.');
         }
 
-        return response()->json(['message' => 'Unable to reset password.'], 422);
+        return ApiResponse::error('Unable to reset password.', 422);
     }
 }

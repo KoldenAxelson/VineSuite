@@ -40,7 +40,7 @@ function createBillingTestTenant(string $slug = 'billing-winery'): array
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    return [$tenant, $loginResponse->json('token')];
+    return [$tenant, $loginResponse->json('data.token')];
 }
 
 afterEach(function () {
@@ -104,18 +104,22 @@ it('returns billing status for owner', function () {
 
     $response->assertOk()
         ->assertJsonStructure([
-            'plan',
-            'has_stripe_id',
-            'subscribed',
-            'on_trial',
-            'on_grace_period',
-            'cancelled',
-            'ends_at',
-            'trial_ends_at',
+            'data' => [
+                'plan',
+                'has_stripe_id',
+                'subscribed',
+                'on_trial',
+                'on_grace_period',
+                'cancelled',
+                'ends_at',
+                'trial_ends_at',
+            ],
+            'meta',
+            'errors',
         ])
-        ->assertJsonPath('plan', 'starter')
-        ->assertJsonPath('has_stripe_id', false)
-        ->assertJsonPath('subscribed', false);
+        ->assertJsonPath('data.plan', 'starter')
+        ->assertJsonPath('data.has_stripe_id', false)
+        ->assertJsonPath('data.subscribed', false);
 });
 
 it('billing status requires authentication', function () {
@@ -152,7 +156,7 @@ it('billing status requires owner or admin role', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $winemakerToken = $loginResponse->json('token');
+    $winemakerToken = $loginResponse->json('data.token');
 
     $response = $this->getJson('/api/v1/billing/status', [
         'Authorization' => "Bearer {$winemakerToken}",
@@ -175,8 +179,8 @@ it('checkout rejects when stripe price not configured', function () {
     ]);
 
     // Without STRIPE_PRICE_STARTER env, should return 422
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'Stripe price not configured for plan: starter']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('Stripe price not configured for plan: starter');
 });
 
 it('checkout validates plan is one of starter/growth/pro', function () {
@@ -189,8 +193,9 @@ it('checkout validates plan is one of starter/growth/pro', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('plan');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('plan');
 });
 
 // ─── Portal Endpoint ────────────────────────────────────────────
@@ -203,8 +208,8 @@ it('portal returns error when no stripe customer exists', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'No billing account found. Please subscribe to a plan first.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('No billing account found. Please subscribe to a plan first.');
 });
 
 // ─── Plan Change Endpoint ───────────────────────────────────────
@@ -219,8 +224,8 @@ it('plan change rejects when no active subscription', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonFragment(['message' => 'No active subscription found.']);
+    $response->assertStatus(422);
+    expect($response->json('errors.0.message'))->toBe('No active subscription found.');
 });
 
 it('plan change validates plan name', function () {
@@ -233,8 +238,9 @@ it('plan change validates plan name', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('plan');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('plan');
 });
 
 // ─── Webhook Route ──────────────────────────────────────────────

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -32,28 +33,20 @@ class AcceptInvitationController extends Controller
         $invitation = TeamInvitation::where('token', $validated['token'])->first();
 
         if (! $invitation) {
-            return response()->json([
-                'message' => 'Invalid invitation token.',
-            ], 404);
+            return ApiResponse::error('Invalid invitation token.', 404);
         }
 
         if ($invitation->isAccepted()) {
-            return response()->json([
-                'message' => 'This invitation has already been accepted.',
-            ], 422);
+            return ApiResponse::error('This invitation has already been accepted.', 422);
         }
 
         if ($invitation->isExpired()) {
-            return response()->json([
-                'message' => 'This invitation has expired. Please ask the team admin to send a new one.',
-            ], 422);
+            return ApiResponse::error('This invitation has expired. Please ask the team admin to send a new one.', 422);
         }
 
         // Check if user with this email already exists
         if (User::where('email', $invitation->email)->exists()) {
-            return response()->json([
-                'message' => 'A user with this email already exists.',
-            ], 422);
+            return ApiResponse::error('A user with this email already exists.', 422);
         }
 
         // Create the user with the invited role
@@ -76,7 +69,7 @@ class AcceptInvitationController extends Controller
 
         // Create a portal token for immediate use
         $token = $user->createToken(
-            name: 'portal',
+            name: 'portal|invitation-accept',
             abilities: User::TOKEN_ABILITIES['portal'],
         );
 
@@ -87,7 +80,7 @@ class AcceptInvitationController extends Controller
             'tenant_id' => tenant('id'),
         ]);
 
-        return response()->json([
+        return ApiResponse::created([
             'token' => $token->plainTextToken,
             'user' => [
                 'id' => $user->id,
@@ -95,6 +88,6 @@ class AcceptInvitationController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
             ],
-        ], 201);
+        ]);
     }
 }

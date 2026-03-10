@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\Responses\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,7 +23,7 @@ class EnsureUserHasRole
         $user = $request->user();
 
         if (! $user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return ApiResponse::error('Unauthenticated.', 401);
         }
 
         // Check the user's `role` column directly (fast check)
@@ -35,6 +36,6 @@ class EnsureUserHasRole
             return $next($request);
         }
 
-        return response()->json(['message' => 'Forbidden. Required role: '.implode(' or ', $roles)], 403);
+        return ApiResponse::error('Forbidden. Required role: '.implode(' or ', $roles), 403);
     }
 }

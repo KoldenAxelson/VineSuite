@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use App\Models\WineryProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,9 +27,7 @@ class WineryProfileController extends Controller
     {
         $profile = WineryProfile::firstOrFail();
 
-        return response()->json([
-            'data' => $profile,
-        ]);
+        return ApiResponse::success($profile);
     }
 
     /**
@@ -71,9 +70,6 @@ class WineryProfileController extends Controller
             'tenant_id' => tenant('id'),
         ]);
 
-        return response()->json([
-            'message' => 'Winery profile updated successfully.',
-            'data' => $profile->fresh(),
-        ]);
+        return ApiResponse::success($profile->fresh(), meta: ['message' => 'Winery profile updated successfully.']);
     }
 }

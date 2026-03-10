@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,9 +47,10 @@ class LoginController extends Controller
         // Get abilities for this client type
         $abilities = User::TOKEN_ABILITIES[$validated['client_type']] ?? [];
 
-        // Create the token with client-scoped abilities
+        // Create the token with client-scoped abilities.
+        // Token name is prefixed with client_type for rate limiting identification.
         $token = $user->createToken(
-            name: $validated['device_name'],
+            name: $validated['client_type'].'|'.$validated['device_name'],
             abilities: $abilities,
         );
 
@@ -61,7 +63,7 @@ class LoginController extends Controller
             'client_type' => $validated['client_type'],
         ]);
 
-        return response()->json([
+        return ApiResponse::success([
             'token' => $token->plainTextToken,
             'user' => [
                 'id' => $user->id,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Responses\ApiResponse;
 use App\Mail\TeamInvitationMail;
 use App\Models\TeamInvitation;
 use Illuminate\Http\JsonResponse;
@@ -44,16 +45,12 @@ class TeamInvitationController extends Controller
             ->first();
 
         if ($existing) {
-            return response()->json([
-                'message' => 'A pending invitation already exists for this email address.',
-            ], 422);
+            return ApiResponse::error('A pending invitation already exists for this email address.', 422);
         }
 
         // Block if a user with this email already exists in this tenant
         if (\App\Models\User::where('email', $validated['email'])->exists()) {
-            return response()->json([
-                'message' => 'A user with this email already exists in this winery.',
-            ], 422);
+            return ApiResponse::error('A user with this email already exists in this winery.', 422);
         }
 
         $invitation = TeamInvitation::create([
@@ -74,15 +71,12 @@ class TeamInvitationController extends Controller
             'tenant_id' => tenant('id'),
         ]);
 
-        return response()->json([
-            'message' => 'Invitation sent successfully.',
-            'invitation' => [
-                'id' => $invitation->id,
-                'email' => $invitation->email,
-                'role' => $invitation->role,
-                'expires_at' => $invitation->expires_at->toIso8601String(),
-            ],
-        ], 201);
+        return ApiResponse::created([
+            'id' => $invitation->id,
+            'email' => $invitation->email,
+            'role' => $invitation->role,
+            'expires_at' => $invitation->expires_at->toIso8601String(),
+        ], ['message' => 'Invitation sent successfully.']);
     }
 
     /**
@@ -94,17 +88,15 @@ class TeamInvitationController extends Controller
     {
         $invitations = TeamInvitation::orderByDesc('created_at')->get();
 
-        return response()->json([
-            'data' => $invitations->map(fn (TeamInvitation $inv) => [
-                'id' => $inv->id,
-                'email' => $inv->email,
-                'role' => $inv->role,
-                'invited_by' => $inv->invited_by,
-                'accepted_at' => $inv->accepted_at?->toIso8601String(),
-                'expires_at' => $inv->expires_at->toIso8601String(),
-                'status' => $inv->isAccepted() ? 'accepted' : ($inv->isExpired() ? 'expired' : 'pending'),
-            ]),
-        ]);
+        return ApiResponse::success($invitations->map(fn (TeamInvitation $inv) => [
+            'id' => $inv->id,
+            'email' => $inv->email,
+            'role' => $inv->role,
+            'invited_by' => $inv->invited_by,
+            'accepted_at' => $inv->accepted_at?->toIso8601String(),
+            'expires_at' => $inv->expires_at->toIso8601String(),
+            'status' => $inv->isAccepted() ? 'accepted' : ($inv->isExpired() ? 'expired' : 'pending'),
+        ]));
     }
 
     /**
@@ -115,9 +107,7 @@ class TeamInvitationController extends Controller
     public function cancel(TeamInvitation $invitation): JsonResponse
     {
         if ($invitation->isAccepted()) {
-            return response()->json([
-                'message' => 'This invitation has already been accepted and cannot be cancelled.',
-            ], 422);
+            return ApiResponse::error('This invitation has already been accepted and cannot be cancelled.', 422);
         }
 
         Log::info('Team invitation cancelled', [
@@ -129,8 +119,6 @@ class TeamInvitationController extends Controller
 
         $invitation->delete();
 
-        return response()->json([
-            'message' => 'Invitation cancelled successfully.',
-        ]);
+        return ApiResponse::message('Invitation cancelled successfully.');
     }
 }

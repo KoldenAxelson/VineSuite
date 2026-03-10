@@ -55,11 +55,12 @@ it('registers an owner and returns a Sanctum token', function () {
 
     $response->assertStatus(201)
         ->assertJsonStructure([
-            'token',
-            'user' => ['id', 'name', 'email', 'role'],
+            'data' => ['token', 'user' => ['id', 'name', 'email', 'role']],
+            'meta',
+            'errors',
         ])
-        ->assertJsonPath('user.role', 'owner')
-        ->assertJsonPath('user.name', 'Jane Owner');
+        ->assertJsonPath('data.user.role', 'owner')
+        ->assertJsonPath('data.user.name', 'Jane Owner');
 });
 
 it('logs in with valid credentials and receives a token', function () {
@@ -84,8 +85,8 @@ it('logs in with valid credentials and receives a token', function () {
     ]);
 
     $response->assertOk()
-        ->assertJsonStructure(['token', 'user'])
-        ->assertJsonPath('user.role', 'winemaker');
+        ->assertJsonStructure(['data' => ['token', 'user'], 'meta', 'errors'])
+        ->assertJsonPath('data.user.role', 'winemaker');
 });
 
 it('rejects login with invalid credentials', function () {
@@ -108,8 +109,12 @@ it('rejects login with invalid credentials', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('email');
+    $response->assertStatus(422);
+
+    // Validation errors are now in the envelope errors array
+    $errors = $response->json('errors');
+    $fields = array_column($errors, 'field');
+    expect($fields)->toContain('email');
 });
 
 it('rejects login for deactivated users', function () {
@@ -157,7 +162,7 @@ it('accesses authenticated endpoint with valid token', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $token = $loginResponse->json('token');
+    $token = $loginResponse->json('data.token');
 
     // Access /auth/me with the token
     $meResponse = $this->getJson('/api/v1/auth/me', [
@@ -166,8 +171,8 @@ it('accesses authenticated endpoint with valid token', function () {
     ]);
 
     $meResponse->assertOk()
-        ->assertJsonPath('email', 'test@example.com')
-        ->assertJsonPath('role', 'owner');
+        ->assertJsonPath('data.email', 'test@example.com')
+        ->assertJsonPath('data.role', 'owner');
 });
 
 it('rejects unauthenticated access to protected endpoints', function () {
@@ -202,7 +207,7 @@ it('logs out and revokes the current token', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $token = $loginResponse->json('token');
+    $token = $loginResponse->json('data.token');
 
     // Logout
     $logoutResponse = $this->postJson('/api/v1/auth/logout', [], [

@@ -41,7 +41,7 @@ function createWineryTestTenant(string $slug = 'profile-winery'): array
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    return [$tenant, $loginResponse->json('token')];
+    return [$tenant, $loginResponse->json('data.token')];
 }
 
 afterEach(function () {
@@ -165,8 +165,10 @@ it('validates unit_system is imperial or metric', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('unit_system');
+    $response->assertStatus(422);
+
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('unit_system');
 });
 
 it('validates fiscal_year_start_month is 1-12', function () {
@@ -179,8 +181,10 @@ it('validates fiscal_year_start_month is 1-12', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('fiscal_year_start_month');
+    $response->assertStatus(422);
+
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('fiscal_year_start_month');
 });
 
 it('validates timezone is a valid IANA timezone', function () {
@@ -193,8 +197,10 @@ it('validates timezone is a valid IANA timezone', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('timezone');
+    $response->assertStatus(422);
+
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('timezone');
 });
 
 // ─── RBAC ───────────────────────────────────────────────────────
@@ -223,7 +229,7 @@ it('non-admin users cannot update winery profile', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $winemakerToken = $loginResponse->json('token');
+    $winemakerToken = $loginResponse->json('data.token');
 
     // Winemaker CAN view profile
     $this->getJson('/api/v1/winery', [

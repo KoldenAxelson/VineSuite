@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventSyncRequest;
+use App\Http\Responses\ApiResponse;
 use App\Services\EventProcessor;
 use Illuminate\Http\JsonResponse;
 
@@ -32,12 +33,11 @@ class EventSyncController extends Controller
 
         $result = $this->eventProcessor->processBatch($events, $userId);
 
-        return response()->json([
+        return ApiResponse::success($result['results'], meta: [
             'message' => 'Sync complete.',
             'accepted' => $result['accepted'],
             'skipped' => $result['skipped'],
             'failed' => $result['failed'],
-            'results' => $result['results'],
         ]);
     }
 }

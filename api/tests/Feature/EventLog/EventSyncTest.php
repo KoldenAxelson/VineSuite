@@ -44,7 +44,7 @@ function createSyncTestTenant(string $slug = 'sync-winery'): array
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    return [$tenant, $loginResponse->json('token')];
+    return [$tenant, $loginResponse->json('data.token')];
 }
 
 /*
@@ -95,10 +95,10 @@ it('accepts a batch of events and returns per-event status', function () {
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('accepted', 3)
-        ->assertJsonPath('skipped', 0)
-        ->assertJsonPath('failed', 0)
-        ->assertJsonCount(3, 'results');
+        ->assertJsonPath('meta.accepted', 3)
+        ->assertJsonPath('meta.skipped', 0)
+        ->assertJsonPath('meta.failed', 0)
+        ->assertJsonCount(3, 'data');
 
     // Verify events are in the database
     $tenant->run(function () {
@@ -159,7 +159,7 @@ it('skips events with duplicate idempotency keys', function () {
     // First sync
     $this->postJson('/api/v1/events/sync', [
         'events' => [$event],
-    ], $headers)->assertOk()->assertJsonPath('accepted', 1);
+    ], $headers)->assertOk()->assertJsonPath('meta.accepted', 1);
 
     // Second sync with same idempotency key
     $response = $this->postJson('/api/v1/events/sync', [
@@ -167,8 +167,8 @@ it('skips events with duplicate idempotency keys', function () {
     ], $headers);
 
     $response->assertOk()
-        ->assertJsonPath('accepted', 0)
-        ->assertJsonPath('skipped', 1);
+        ->assertJsonPath('meta.accepted', 0)
+        ->assertJsonPath('meta.skipped', 1);
 
     // Only one event in DB
     $tenant->run(function () {
@@ -199,8 +199,8 @@ it('handles mixed new and duplicate events in same batch', function () {
     ], $headers);
 
     $response->assertOk()
-        ->assertJsonPath('accepted', 1)
-        ->assertJsonPath('skipped', 1);
+        ->assertJsonPath('meta.accepted', 1)
+        ->assertJsonPath('meta.skipped', 1);
 
     $tenant->run(function () {
         expect(Event::count())->toBe(2);
@@ -222,13 +222,13 @@ it('is fully idempotent — calling twice produces same result', function () {
 
     // First call
     $response1 = $this->postJson('/api/v1/events/sync', ['events' => $events], $headers);
-    $response1->assertOk()->assertJsonPath('accepted', 2);
+    $response1->assertOk()->assertJsonPath('meta.accepted', 2);
 
     // Identical second call
     $response2 = $this->postJson('/api/v1/events/sync', ['events' => $events], $headers);
     $response2->assertOk()
-        ->assertJsonPath('accepted', 0)
-        ->assertJsonPath('skipped', 2);
+        ->assertJsonPath('meta.accepted', 0)
+        ->assertJsonPath('meta.skipped', 2);
 
     // Still only 2 events
     $tenant->run(function () {
@@ -250,8 +250,9 @@ it('rejects events with performed_at more than 30 days in the past', function ()
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('events.0.performed_at');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('events.0.performed_at');
 });
 
 it('rejects events with performed_at in the future', function () {
@@ -266,8 +267,9 @@ it('rejects events with performed_at in the future', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('events.0.performed_at');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('events.0.performed_at');
 });
 
 it('rejects empty events array', function () {
@@ -280,8 +282,9 @@ it('rejects empty events array', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('events');
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('events');
 });
 
 it('validates required fields on each event', function () {
@@ -296,14 +299,13 @@ it('validates required fields on each event', function () {
         'X-Tenant-ID' => $tenant->id,
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors([
-            'events.0.entity_id',
-            'events.0.operation_type',
-            'events.0.payload',
-            'events.0.performed_at',
-            'events.0.idempotency_key',
-        ]);
+    $response->assertStatus(422);
+    $fields = array_column($response->json('errors'), 'field');
+    expect($fields)->toContain('events.0.entity_id')
+        ->toContain('events.0.operation_type')
+        ->toContain('events.0.payload')
+        ->toContain('events.0.performed_at')
+        ->toContain('events.0.idempotency_key');
 });
 
 // ─── Authentication ─────────────────────────────────────────────

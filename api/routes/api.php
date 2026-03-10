@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\TeamInvitationController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -29,7 +30,7 @@ use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
 // ─── Central (no tenant context) ────────────────────────────────
 Route::get('/health', function () {
-    return response()->json([
+    return ApiResponse::success([
         'status' => 'ok',
         'timestamp' => now()->toIso8601String(),
     ]);
@@ -41,8 +42,10 @@ Route::post('/stripe/webhook', [WebhookController::class, 'handleWebhook'])->nam
 // ─── Tenant-Scoped API Routes ───────────────────────────────────
 // These use InitializeTenancyByRequestData to identify the tenant
 // via X-Tenant-ID header (for mobile apps and API consumers).
+// Rate limiting is applied per token type (portal/mobile/widget).
 Route::middleware([
     InitializeTenancyByRequestData::class,
+    'throttle.token',
 ])->group(function () {
 
     // Auth — public (no token required)
@@ -61,7 +64,7 @@ Route::middleware([
         Route::get('/auth/me', function () {
             $user = request()->user();
 
-            return response()->json([
+            return ApiResponse::success([
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -102,7 +105,7 @@ Route::middleware([
                 ->orderBy('name')
                 ->get();
 
-            return response()->json(['data' => $users]);
+            return ApiResponse::success($users);
         })->name('team.index');
     });
 });

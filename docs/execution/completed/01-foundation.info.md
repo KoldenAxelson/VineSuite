@@ -491,3 +491,103 @@
 - `FORGE_DEPLOY_WEBHOOK_URL` GitHub secret needs to be configured in the repository's `staging` environment once Forge is set up.
 
 ---
+
+## Sub-Task 13: API Response Envelope and Error Handling
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `app/Http/Responses/ApiResponse.php` — Helper class with static methods: `success()`, `created()`, `message()`, `error()`, `validationError()`, `paginated()`. All return `{ "data": ..., "meta": {}, "errors": [] }` envelope.
+- `app/Http/Middleware/ForceJsonResponse.php` — Sets `Accept: application/json` header on all API requests so Laravel renders JSON errors (not HTML). Registered in the `api` middleware group via `prependToGroup`.
+- `app/Http/Resources/BaseResource.php` — Base JSON resource with `envelope()` and `withResponse()` methods. All future API resources should extend this class.
+- `bootstrap/app.php` — Added ForceJsonResponse to API middleware group. Added 5 exception renderers for API routes:
+  - `ValidationException` → 422 with field-level `[{ "field": "email", "message": "..." }]` errors
+  - `AuthenticationException` → 401 with `[{ "message": "Unauthenticated." }]`
+  - `NotFoundHttpException` → 404 with `[{ "message": "Resource not found." }]`
+  - `HttpExceptionInterface` → status code with `[{ "message": "..." }]`
+  - `\Throwable` → 500 with generic message in production, full debug info in development
+  - All handlers check `$request->is('api/*')` — Filament portal routes unaffected.
+- **All controllers updated** — LoginController, RegisterController, LogoutController, ForgotPasswordController, AcceptInvitationController, WineryProfileController, EventSyncController, BillingController, TeamInvitationController all use `ApiResponse::*` methods.
+- **Middleware updated** — EnsureUserHasRole returns `ApiResponse::error()` for 401/403.
+- **Route closures updated** — Health check, /auth/me, /team list in routes/api.php all use `ApiResponse::success()`.
+- `tests/Feature/Api/ApiResponseEnvelopeTest.php` — 14 tests covering unit and integration tests.
+- **All existing tests updated** for new envelope paths (`json('data.token')`, `json('errors.0.message')`, etc.).
+
+### Key Decisions
+- **ApiResponse helper over middleware wrapping**: Explicit `ApiResponse::success($data)` calls in controllers — no magic auto-wrapping that could interfere with Filament or Cashier.
+- **ForceJsonResponse as first middleware**: Prepended to `api` group so even early middleware failures return JSON.
+- **AuthenticationException handled separately**: Not an `HttpExceptionInterface`, so without a dedicated handler it falls to the `\Throwable` catch and returns 500.
+- **Field-level validation errors**: Flattened to `[{ "field": "email", "message": "..." }]` for mobile/SPA consumption.
+- **No envelope on non-API routes**: All handlers check `$request->is('api/*')` and return `null` for Filament.
+
+### Deviations from Spec
+- **No `app/Exceptions/Handler.php`**: Laravel 12 uses `bootstrap/app.php` for exception rendering (no separate Handler class).
+
+### Patterns Established
+- **`ApiResponse::*` in all controllers**: Every API controller method returns an ApiResponse call.
+- **Envelope assertion pattern in tests**: Use `array_column($response->json('errors'), 'field')` + `expect($fields)->toContain('email')` instead of `assertJsonValidationErrors()`.
+- **Token extraction via login endpoint**: Tests must use the login endpoint to get tokens, not `$tenant->run()` + `createToken()`.
+
+### Test Summary
+- `tests/Feature/Api/ApiResponseEnvelopeTest.php` — 14 tests: success/created/message/error/validation envelopes, health check, validation errors, 404, login, 401, 403, logout, non-API exclusion, forced JSON.
+- All 122 tests passing, 452 assertions.
+
+### Open Questions
+- None.
+
+---
+
+## Sub-Task 14: Rate Limiting and API Versioning
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `app/Http/Middleware/ThrottleByTokenType.php` — Custom rate limiter that reads the client type from the Sanctum token name. Per-type limits: portal=120/min, cellar_app=60/min, pos_app=60/min, widget=30/min, public_api=60/min, unauthenticated=30/min. Returns `X-RateLimit-Limit`, `X-RateLimit-Remaining` headers on every response. Returns 429 with `Retry-After` header and API envelope on limit exhaustion.
+- `bootstrap/app.php` — Registered `throttle.token` middleware alias for ThrottleByTokenType.
+- `routes/api.php` — Applied `throttle.token` middleware to the tenant-scoped route group.
+- `app/Http/Controllers/Auth/LoginController.php` — Updated token name to `client_type|device_name` format for reliable rate limit identification.
+- `app/Http/Controllers/Auth/RegisterController.php` — Token name updated to `portal|registration`.
+- `app/Http/Controllers/Auth/AcceptInvitationController.php` — Token name updated to `portal|invitation-accept`.
+- `tests/Feature/Api/RateLimitingTest.php` — 13 tests covering rate limit constants, headers, per-type limits, 429 responses, API versioning, and token name format.
+
+### Key Decisions
+- **Client type encoded in token name**: Token names use `client_type|device_name` format. The rate limiter extracts the prefix to determine the tier. More reliable than inferring from abilities.
+- **Per-user, per-client-type throttle keys**: Keys are `throttle:{tenant}:{user}:{client_type}`. Separate buckets per client type.
+- **IP-based fallback for unauthenticated**: 30/min per IP address.
+- **API versioning already in place**: `/api/v1/` prefix configured in `bootstrap/app.php` `apiPrefix` during Sub-Task 2.
+- **429 in envelope format**: Uses `ApiResponse::error()` for consistent envelope.
+
+### Deviations from Spec
+- **No separate `RouteServiceProvider`**: Laravel 12 configures API prefix in `bootstrap/app.php`.
+- **No `api_v1.php` route file**: Routes remain in `routes/api.php` with automatic `/api/v1/` prefix.
+- **Per-origin widget throttling deferred**: Per-key is implemented. Per-origin (CORS referer) deferred to widget embedding module.
+
+### Patterns Established
+- **Token name format**: All token creation uses `client_type|context` naming.
+- **Rate limit middleware on route groups**: Applied at tenant route group level.
+
+### Test Summary
+- `tests/Feature/Api/RateLimitingTest.php` — 13 tests: rate limit constants, headers, decrementing count, portal/cellar_app/pos_app/widget/unauthenticated limits, 429 with envelope, API v1 prefix, 404 without v1, 404 for v2, token name format.
+
+### Open Questions
+- Per-origin widget throttling should be added when widget embedding is built.
+
+---
+
+## Sub-Task 15: Demo Seeder with Realistic Winery Data
+**Completed:** 2026-03-10
+**Status:** Done (completed as part of Sub-Task 8)
+
+### What Was Built
+Fully completed during Sub-Task 8. `DemoWinerySeeder.php` creates "Paso Robles Cellars" tenant with realistic data: Adelaida District address, TTB permits, July fiscal year, 7 demo users (one per role). Idempotent. `DatabaseSeeder.php` calls it. Tests verified in Sub-Task 8.
+
+### Key Decisions
+- See Sub-Task 8 for full details.
+
+### Test Summary
+- Covered by `tests/Feature/WineryProfile/WineryProfileTest.php`.
+
+### Open Questions
+- Demo seeder will grow as modules are added.
+
+---
