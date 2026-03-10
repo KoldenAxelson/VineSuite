@@ -66,6 +66,8 @@ class WineryProfileController extends Controller
 
         Log::info('Winery profile updated', [
             'changed_fields' => array_keys($validated),
+            'old_values' => $oldValues,
+            'new_values' => $profile->fresh()->only(array_keys($validated)),
             'user_id' => $request->user()->id,
             'tenant_id' => tenant('id'),
         ]);

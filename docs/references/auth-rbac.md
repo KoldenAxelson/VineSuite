@@ -74,6 +74,13 @@ $token = $user->createToken('portal|registration', User::TOKEN_ABILITIES['portal
 $token = $user->createToken('cellar_app|My iPhone', User::TOKEN_ABILITIES['cellar_app']);
 ```
 
+## Token Name Contract
+Token names **must** follow the format `client_type|context` (e.g. `portal|My MacBook`, `cellar_app|registration`). This is not cosmetic — the `ThrottleByTokenType` middleware splits on `|` and uses the prefix to determine the rate-limit tier.
+
+**Why not a database column?** Adding a `client_type` column to `personal_access_tokens` means customizing Sanctum's migration and potentially its model, creating ongoing maintenance burden when Sanctum updates. Encoding in the name avoids touching vendor-owned schema while keeping extraction fast (string split vs. DB lookup).
+
+**What breaks if you skip it:** The rate limiter falls back silently to the lowest tier (30 req/min) instead of failing loudly. Any new code path that creates tokens — controllers, console commands, seeders — must use this format. Current creation points: `LoginController`, `RegisterController`, `AcceptInvitationController`.
+
 ## Gotchas
 - **Token abilities AND role permissions must both pass.** A cellar_hand user with a portal token (`*` abilities) is still blocked from `settings.update` by their role permissions.
 - **MustVerifyEmail is currently removed** from User model. Will be re-added when verification routes are set up.
