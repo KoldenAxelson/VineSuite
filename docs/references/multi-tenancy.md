@@ -18,7 +18,7 @@ When a tenant is created via `Tenant::create()`, stancl fires a `TenantCreated` 
 
 When a request arrives, tenant identification middleware switches the app context:
 - **Subdomain**: `InitializeTenancyByDomain` middleware matches `winery.vinesuite.com` → looks up domain record → initializes tenancy
-- **API token header**: (Coming in Sub-Task 4) Will use `InitializeTenancyByRequestData` with `X-Tenant-ID` header
+- **API token header**: `InitializeTenancyByRequestData` with `X-Tenant-ID` header (implemented in Sub-Task 4)
 
 Once tenancy is initialized, bootstrappers switch:
 - **Database**: All queries go to `tenant_{uuid}` schema
@@ -85,4 +85,5 @@ $tenantName = tenant('name');
 - The `data` JSON column on tenants table stores any attributes not in `getCustomColumns()` — add new columns there explicitly if they need indexing
 
 ## History
-- 2026-03-10: Initial implementation. Schema-per-tenant with PostgreSQLSchemaManager. Subdomain identification wired. API token identification deferred to Sub-Task 4 (Auth).
+- 2026-03-10: Initial implementation. Schema-per-tenant with PostgreSQLSchemaManager. Subdomain identification wired.
+- 2026-03-10: Sub-Task 4 — API token identification via `X-Tenant-ID` header implemented. Both subdomain and header identification active.

@@ -69,7 +69,9 @@ Route::middleware('permission:lots.create')->...
 
 **Creating scoped tokens:**
 ```php
-$token = $user->createToken('portal', User::TOKEN_ABILITIES['portal']);
+// Token names use client_type|context format for rate limiting identification
+$token = $user->createToken('portal|registration', User::TOKEN_ABILITIES['portal']);
+$token = $user->createToken('cellar_app|My iPhone', User::TOKEN_ABILITIES['cellar_app']);
 ```
 
 ## Gotchas
@@ -79,5 +81,21 @@ $token = $user->createToken('portal', User::TOKEN_ABILITIES['portal']);
 - **Auth guard caching in tests:** After revoking a token, call `app('auth')->forgetGuards()` before testing that the token is actually rejected.
 - **Password reset flow** — controllers exist but are not yet tested. Will test via Mailpit when verification infrastructure is set up.
 
+## Rate Limiting
+Rate limits are enforced per token type by `ThrottleByTokenType` middleware:
+
+| Client Type | Limit |
+|---|---|
+| `portal` | 120 req/min |
+| `cellar_app` | 60 req/min |
+| `pos_app` | 60 req/min |
+| `widget` | 30 req/min |
+| `public_api` | 60 req/min |
+| Unauthenticated | 30 req/min (per IP) |
+
+Responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Exceeding the limit returns 429 with `Retry-After` header in the standard API envelope.
+
 ## History
 - 2026-03-10: Sub-Task 4 complete. Sanctum + spatie/permission installed. 7 roles, ~55 permissions. 13 tests passing (7 auth + 6 RBAC).
+- 2026-03-10: Sub-Task 13 — API response envelope applied to all auth endpoints.
+- 2026-03-10: Sub-Task 14 — Token name format changed to `client_type|device_name`. Rate limiting by token type implemented.

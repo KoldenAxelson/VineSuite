@@ -85,3 +85,5 @@ $events = Event::whereRaw("payload->>'grape_variety' = ?", ['Pinot Noir'])->get(
 
 ## History
 - 2026-03-10: Sub-Task 6 complete. Events table, Event model, EventLogger service. 13 tests passing. Immutability enforced via PostgreSQL trigger.
+- 2026-03-10: Sub-Task 7 complete. Batch sync endpoint `POST /api/v1/events/sync`. Per-event transactions, 100 max batch, 30-day window. 12 tests.
+- 2026-03-10: Sub-Task 13 — Sync endpoint responses wrapped in API envelope format.
