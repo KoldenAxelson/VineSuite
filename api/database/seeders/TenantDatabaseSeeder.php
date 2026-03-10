@@ -15,6 +15,10 @@ class TenantDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);
-        // Sub-Task 7 will add: WineryProfile defaults
+
+        // Create a default winery profile using the tenant's name
+        \App\Models\WineryProfile::create([
+            'name' => tenant('name') ?? 'My Winery',
+        ]);
     }
 }
