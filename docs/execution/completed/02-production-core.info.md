@@ -191,3 +191,49 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 5: Additions Logging with Inventory Auto-Deduct
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100007_create_additions_table.php` — Creates `additions` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), addition_type, product_name, rate/rate_unit (nullable), total_amount/total_unit, reason, performed_by FK to users, performed_at timestamp, nullable inventory_item_id (no FK constraint — inventory module not yet built). Indexed on addition_type, product_name, [lot_id, addition_type] composite, performed_at.
+- `api/app/Models/Addition.php` — Model with ADDITION_TYPES (sulfite, nutrient, fining, acid, enzyme, tannin, other), RATE_UNITS (ppm, g/L, mg/L, g/hL, lb/1000gal, mL/L), TOTAL_UNITS (g, kg, lb, oz, mL, L, gal) constants. Relationships: lot(), vessel(), performer(). Scopes: ofType(), forProduct() (ilike), forLot(), performedBetween(), sulfiteOnly(). Full PHPStan generics on all relationships and scopes.
+- `api/database/factories/AdditionFactory.php` — Realistic product library organized by addition type: 3 sulfite products, 4 nutrients (Fermaid O/K, Go-Ferm, DAP), 4 fining agents, 3 acids, 2 enzymes, 2 tannins. Default rates and units per product. States: sulfite(), nutrient(), fining().
+- `api/app/Services/AdditionService.php` — `createAddition()` creates addition in transaction, writes `addition_made` event on the lot entity with full payload (type, product, rate, amount, unit, vessel). `getSo2RunningTotal()` sums sulfite additions with rate_unit=ppm for a lot. Inventory auto-deduct is stubbed with a comment for 04-inventory.md integration.
+- `api/app/Http/Requests/StoreAdditionRequest.php` — Validates lot_id (required, exists), addition_type (required, in constants), product_name (required), total_amount (required, 0.0001–999999.9999), total_unit (required, in constants), rate/rate_unit (nullable, validated against constants), vessel_id/inventory_item_id (nullable UUIDs).
+- `api/app/Http/Resources/AdditionResource.php` — Returns all addition fields with nested lot (id, name, variety, vintage), vessel (id, name, type, location), and performed_by (id, name) when relationships loaded.
+- `api/app/Http/Controllers/Api/V1/AdditionController.php` — `index()` with filters (lot_id, addition_type, product_name, vessel_id, performed date range), ordered by performed_at DESC. `store()` creates via AdditionService. `show()` with eager-loaded relationships. `so2Total()` returns running SO2 ppm total for a lot.
+- `api/routes/api.php` — GET routes (index, so2-total, show) open to all authenticated. POST gated by `role:owner,admin,winemaker,cellar_hand`.
+- `api/app/Models/Lot.php` — Added `additions()` HasMany relationship.
+- `api/tests/Feature/Production/AdditionTest.php` — 16 tests.
+
+### Key Decisions
+- **Additions are immutable log entries** — no update/delete endpoints. Once logged, an addition cannot be modified. This matches the spec's ADDITIVE offline sync requirement (no last-write-wins).
+- **Cellar hand+ can create additions** — per spec, additions are a cellar operation. The RBAC is `role:owner,admin,winemaker,cellar_hand`, matching the API endpoint table.
+- **SO2 running total via sum query** — `getSo2RunningTotal()` sums `rate` where addition_type=sulfite and rate_unit=ppm. Simple aggregate query, no materialized column needed at this scale.
+- **Inventory auto-deduct stubbed** — `inventory_item_id` column exists but has no FK constraint. The AdditionService has a commented placeholder for `deductInventory()`. Will be wired up in 04-inventory.md.
+- **Static routes before parameterized** — `/additions/so2-total` registered before `/additions/{addition}` to prevent UUID route parameter from catching the static path.
+- **Addition type is constrained enum** — unlike work order operation_type (free-text), addition types are validated against a fixed list (sulfite, nutrient, fining, acid, enzyme, tannin, other). Product names within each type are free-text.
+
+### Deviations from Spec
+- **Addition product library is NOT pre-seeded** — the spec says "pre-seeded with common products and default rates." Instead, the factory contains the product library for testing/demo purposes. A formal ProductLibrary model/seeder was deferred as it's not required for the API to function — the factory data serves as the reference. This can be added in the demo seeder (Sub-Task 14).
+
+### Patterns Extended
+- AdditionService follows Production Service Pattern with EventLogger injection.
+- Addition events written on the lot entity (entity_type='lot') for lot timeline visibility.
+- Cross-tenant test uses direct model access pattern (not HTTP) per established convention.
+
+### Test Summary
+- `tests/Feature/Production/AdditionTest.php` (16 tests)
+  - Tier 1: addition_made event with correct payload, SO2 running total across multiple additions, tenant isolation
+  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
+  - Tier 2: filters (lot_id, addition_type)
+  - Tier 2: validation (missing required fields, invalid addition_type, invalid total_unit)
+  - Tier 2: RBAC (cellar_hand can create, read_only cannot create, read_only can list/view)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.

@@ -135,6 +135,14 @@ class Lot extends Model
             ->orderBy('performed_at');
     }
 
+    /**
+     * @return HasMany<Addition, $this>
+     */
+    public function additions(): HasMany
+    {
+        return $this->hasMany(Addition::class)->orderByDesc('performed_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

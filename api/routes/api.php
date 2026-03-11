@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\LotController;
@@ -145,6 +146,15 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
             Route::put('/work-orders/{workOrder}', [WorkOrderController::class, 'update'])->name('work-orders.update');
             Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete'])->name('work-orders.complete');
+        });
+
+        // ─── Production: Additions ────────────────────────────────
+        Route::get('/additions', [AdditionController::class, 'index'])->name('additions.index');
+        Route::get('/additions/so2-total', [AdditionController::class, 'so2Total'])->name('additions.so2-total');
+        Route::get('/additions/{addition}', [AdditionController::class, 'show'])->name('additions.show');
+
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::post('/additions', [AdditionController::class, 'store'])->name('additions.store');
         });
 
         // Team list — any authenticated user can view team members
