@@ -147,3 +147,47 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 4: Work Order System
+**Completed:** 2026-03-10
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100005_create_work_order_templates_table.php` — Creates `work_order_templates` table with UUID PK, name, operation_type, default_notes text, is_active boolean. Indexed on operation_type and is_active.
+- `api/database/migrations/tenant/2026_03_10_100006_create_work_orders_table.php` — Creates `work_orders` table with UUID PK, operation_type, nullable FKs to lots/vessels/users (assigned_to, completed_by), due_date, status, priority, notes, completed_at, completion_notes, template_id. Composite index on [status, due_date] for calendar queries. User FKs use nullOnDelete.
+- `api/app/Models/WorkOrderTemplate.php` — Model with `DEFAULT_OPERATION_TYPES` constant (12 operations). `active()` scope, `workOrders()` HasMany.
+- `api/app/Models/WorkOrder.php` — STATUSES (pending/in_progress/completed/skipped), PRIORITIES (low/normal/high). Eloquent defaults for status and priority. Relationships: lot(), vessel(), assignedUser(), completedByUser(), template(). Scopes for filtering.
+- `api/database/factories/WorkOrderTemplateFactory.php` and `WorkOrderFactory.php` — Realistic factories with states.
+- `api/app/Services/WorkOrderService.php` — create, createFromTemplate, bulkCreate, completeWorkOrder (dual events), updateWorkOrder.
+- `api/app/Http/Requests/` — StoreWorkOrderRequest, UpdateWorkOrderRequest, BulkStoreWorkOrderRequest.
+- `api/app/Http/Resources/WorkOrderResource.php` — Full resource with nested relationships.
+- `api/app/Http/Controllers/Api/V1/WorkOrderController.php` — index, store, show, update, complete, bulkStore, calendar, templates.
+- `api/routes/api.php` — Work order routes with RBAC split (winemaker+ create, cellar_hand+ update/complete).
+- `api/tests/Feature/Production/WorkOrderTest.php` — 21 tests.
+
+### Key Decisions
+- **Operation types are free-text** — configurable per winery per spec. Templates provide curated list but don't restrict custom values.
+- **Dual event on completion** — writes `work_order_completed` on work order AND domain event on lot (e.g., `pump_over_completed`).
+- **RBAC split** — winemaker+ creates, cellar_hand+ completes. Two middleware groups.
+- **Calendar groups by due_date** — `{ dates: { "2026-03-15": [...] } }` structure.
+- **Bulk targets array** — common fields + per-target lot_id/vessel_id, max 100 targets.
+- **Auth guard reset in multi-user tests** — `app('auth')->forgetGuards()` before switching tokens to prevent Sanctum guard caching.
+
+### Deviations from Spec
+- None.
+
+### Patterns Extended
+- Dual event pattern for operation completion (work order + lot timeline).
+- RBAC test guard reset pattern for multi-user tests.
+
+### Test Summary
+- `tests/Feature/Production/WorkOrderTest.php` (21 tests)
+  - Tier 1: work_order_created event, work_order_completed + lot domain event, tenant isolation
+  - Tier 2: CRUD, filters (status, due date range), bulk creation, templates, calendar, completion flow
+  - Tier 2: validation (missing operation_type, invalid status/priority)
+  - Tier 2: RBAC (cellar_hand complete not create, read_only view only), envelope, unauthenticated
+
+### Open Questions
+- None for this sub-task.

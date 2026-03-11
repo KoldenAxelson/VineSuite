@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
+use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -127,6 +128,23 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/barrels', [BarrelController::class, 'store'])->name('barrels.store');
             Route::put('/barrels/{barrel}', [BarrelController::class, 'update'])->name('barrels.update');
+        });
+
+        // ─── Production: Work Orders ────────────────────────────
+        Route::get('/work-orders', [WorkOrderController::class, 'index'])->name('work-orders.index');
+        Route::get('/work-orders/calendar', [WorkOrderController::class, 'calendar'])->name('work-orders.calendar');
+        Route::get('/work-orders/templates', [WorkOrderController::class, 'templates'])->name('work-orders.templates');
+        Route::get('/work-orders/{workOrder}', [WorkOrderController::class, 'show'])->name('work-orders.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/work-orders', [WorkOrderController::class, 'store'])->name('work-orders.store');
+            Route::post('/work-orders/bulk', [WorkOrderController::class, 'bulkStore'])->name('work-orders.bulk');
+        });
+
+        // Update/complete — cellar_hand+ (spec says cellar_hand+ for update)
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::put('/work-orders/{workOrder}', [WorkOrderController::class, 'update'])->name('work-orders.update');
+            Route::post('/work-orders/{workOrder}/complete', [WorkOrderController::class, 'complete'])->name('work-orders.complete');
         });
 
         // Team list — any authenticated user can view team members
