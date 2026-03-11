@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\EventSyncController;
+use App\Http\Controllers\Api\V1\LotController;
+use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -97,6 +100,33 @@ Route::middleware([
             Route::post('/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
             Route::post('/portal', [BillingController::class, 'portal'])->name('billing.portal');
             Route::put('/plan', [BillingController::class, 'changePlan'])->name('billing.plan');
+        });
+
+        // ─── Production: Lots ─────────────────────────────────────
+        Route::get('/lots', [LotController::class, 'index'])->name('lots.index');
+        Route::get('/lots/{lot}', [LotController::class, 'show'])->name('lots.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/lots', [LotController::class, 'store'])->name('lots.store');
+            Route::put('/lots/{lot}', [LotController::class, 'update'])->name('lots.update');
+        });
+
+        // ─── Production: Vessels ─────────────────────────────────
+        Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
+        Route::get('/vessels/{vessel}', [VesselController::class, 'show'])->name('vessels.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/vessels', [VesselController::class, 'store'])->name('vessels.store');
+            Route::put('/vessels/{vessel}', [VesselController::class, 'update'])->name('vessels.update');
+        });
+
+        // ─── Production: Barrels ────────────────────────────────
+        Route::get('/barrels', [BarrelController::class, 'index'])->name('barrels.index');
+        Route::get('/barrels/{barrel}', [BarrelController::class, 'show'])->name('barrels.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/barrels', [BarrelController::class, 'store'])->name('barrels.store');
+            Route::put('/barrels/{barrel}', [BarrelController::class, 'update'])->name('barrels.update');
         });
 
         // Team list — any authenticated user can view team members
