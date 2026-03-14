@@ -143,6 +143,14 @@ class Lot extends Model
         return $this->hasMany(Addition::class)->orderByDesc('performed_at');
     }
 
+    /**
+     * @return HasMany<Transfer, $this>
+     */
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(Transfer::class)->orderByDesc('performed_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

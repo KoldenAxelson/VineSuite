@@ -1,7 +1,7 @@
 # VineSuite Development Commands
 # Usage: make <target>
 
-.PHONY: up down restart build logs test migrate seed fresh shell horizon ps help
+.PHONY: up down restart build logs test testsuite quicktest migrate seed fresh shell horizon ps help
 
 # ─── Docker ───────────────────────────────────────────────────────
 up:                          ## Start all services
@@ -43,8 +43,8 @@ fresh:                       ## Drop all tables, re-migrate, re-seed
 	docker compose exec app php artisan migrate:fresh --seed
 	docker compose exec app php artisan tenants:migrate --fresh --seed
 
-test:                        ## Run PHP test suite
-	docker compose exec app php artisan test
+test:                        ## Run PHP test suite (use: make test or make test F=Transfer)
+	docker compose exec app ./vendor/bin/pest $(if $(F),--filter="$(F)",)
 
 test-coverage:               ## Run tests with coverage report
 	docker compose exec app php artisan test --coverage
@@ -54,6 +54,45 @@ lint:                        ## Run Laravel Pint (code style)
 
 analyse:                     ## Run PHPStan (static analysis)
 	docker compose exec app ./vendor/bin/phpstan analyse
+
+testsuite:                   ## Full QA: filtered Pest → full Pest → Pint → PHPStan (use: make testsuite F="Transfer Addition")
+	@START=$$(date +%s); PEST_OK=0; PINT_OK=0; STAN_OK=0; \
+	if [ -n "$(F)" ]; then \
+		for filter in $(F); do \
+			echo "══════ PEST (filter: $$filter) ══════"; \
+			docker compose exec app ./vendor/bin/pest --filter="$$filter" || exit 1; \
+			echo ""; \
+		done; \
+	fi; \
+	echo "══════ PEST (full suite) ══════"; \
+	docker compose exec app ./vendor/bin/pest && PEST_OK=1; \
+	echo ""; \
+	echo "══════ PINT ══════"; \
+	docker compose exec app ./vendor/bin/pint && PINT_OK=1; \
+	echo ""; \
+	echo "══════ PHPSTAN ══════"; \
+	docker compose exec app ./vendor/bin/phpstan analyse && STAN_OK=1; \
+	echo ""; \
+	END=$$(date +%s); ELAPSED=$$((END - START)); \
+	echo "┌──────────────────────────────────────┐"; \
+	echo "│         TESTSUITE SUMMARY            │"; \
+	echo "├──────────────────────────────────────┤"; \
+	if [ $$PEST_OK -eq 1 ]; then echo "│  Pest ····················· ✅ PASS  │"; else echo "│  Pest ····················· ❌ FAIL  │"; fi; \
+	if [ $$PINT_OK -eq 1 ]; then echo "│  Pint ····················· ✅ PASS  │"; else echo "│  Pint ····················· ❌ FAIL  │"; fi; \
+	if [ $$STAN_OK -eq 1 ]; then echo "│  PHPStan ·················· ✅ PASS  │"; else echo "│  PHPStan ·················· ❌ FAIL  │"; fi; \
+	echo "├──────────────────────────────────────┤"; \
+	echo "│  Duration: $${ELAPSED}s                       │"; \
+	echo "└──────────────────────────────────────┘"; \
+	if [ $$PEST_OK -eq 0 ] || [ $$PINT_OK -eq 0 ] || [ $$STAN_OK -eq 0 ]; then exit 1; fi
+
+quicktest:                   ## Filtered Pest only, no full suite (use: make quicktest F="Transfer Addition")
+	@if [ -z "$(F)" ]; then echo "Usage: make quicktest F=\"FilterName\""; exit 1; fi
+	@for filter in $(F); do \
+		echo "══════ PEST (filter: $$filter) ══════"; \
+		docker compose exec app ./vendor/bin/pest --filter="$$filter" || exit 1; \
+		echo ""; \
+	done
+	@echo "✅ All filtered tests passed."
 
 # ─── KMP Shared Core ─────────────────────────────────────────────
 test-shared:                 ## Run KMP shared core JVM tests

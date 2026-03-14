@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\LotController;
+use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
@@ -155,6 +156,14 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
             Route::post('/additions', [AdditionController::class, 'store'])->name('additions.store');
+        });
+
+        // ─── Production: Transfers ────────────────────────────────
+        Route::get('/transfers', [TransferController::class, 'index'])->name('transfers.index');
+        Route::get('/transfers/{transfer}', [TransferController::class, 'show'])->name('transfers.show');
+
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::post('/transfers', [TransferController::class, 'store'])->name('transfers.store');
         });
 
         // Team list — any authenticated user can view team members

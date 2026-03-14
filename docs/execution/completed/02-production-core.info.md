@@ -237,3 +237,50 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 6: Transfer and Racking Operations
+**Completed:** 2026-03-14
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100008_create_transfers_table.php` — Creates `transfers` table with UUID PK, FK to lots (cascadeOnDelete), FKs to from_vessel/to_vessel (nullOnDelete), volume_gallons as `decimal(12,4)`, transfer_type, variance_gallons as `decimal(12,4)` default 0, performed_by FK to users (nullOnDelete), performed_at, notes. Indexed on lot_id, [from_vessel_id, performed_at], [to_vessel_id, performed_at].
+- `api/app/Models/Transfer.php` — Model with TRANSFER_TYPES (gravity, pump, filter, press) constant. Default attributes: variance_gallons=0. Relationships: lot(), fromVessel(), toVessel(), performer(). Scopes: forLot(), ofType(), involvingVessel() (OR query matching from or to), performedBetween(). Full PHPStan generics.
+- `api/database/factories/TransferFactory.php` — Realistic factory with volume 50–200 gal, variance 0–2 gal, notes. States: gravity(), pump().
+- `api/app/Services/TransferService.php` — `executeTransfer()` in DB transaction: validates source vessel has enough volume (throws ValidationException if insufficient), logs warning if target overfill, creates Transfer record, updates lot_vessel pivot (decrease source, increase target), writes `transfer_executed` event on lot. `decreaseVesselVolume()` reduces pivot volume, marks emptied_at if zero, updates vessel status to 'empty' if no other active lots. `increaseVesselVolume()` adds to existing pivot or creates new one, sets vessel status to 'in_use'.
+- `api/app/Http/Requests/StoreTransferRequest.php` — Validates lot_id (required, exists), from_vessel_id (required, exists, `different:to_vessel_id`), to_vessel_id (required, exists), volume_gallons (required, 0.0001–999999.9999), transfer_type (required, in constants), variance_gallons (nullable, 0–999999.9999), notes (nullable).
+- `api/app/Http/Resources/TransferResource.php` — Returns all transfer fields with nested lot, from_vessel, to_vessel, and performed_by when relationships loaded.
+- `api/app/Http/Controllers/Api/V1/TransferController.php` — `index()` with filters (lot_id, transfer_type, vessel_id via involvingVessel, performed date range), ordered by performed_at DESC. `store()` via TransferService. `show()` with eager-loaded relationships.
+- `api/routes/api.php` — GET /transfers and GET /transfers/{transfer} open to all authenticated. POST /transfers gated by `role:owner,admin,winemaker,cellar_hand`.
+- `api/app/Models/Lot.php` — Added `transfers()` HasMany relationship.
+- `api/tests/Feature/Production/TransferTest.php` — 16 tests.
+
+### Key Decisions
+- **Volume validation on source vessel** — server rejects transfers exceeding the source vessel's current volume. This is a DESTRUCTIVE operation that must be validated server-side, unlike additions which are ADDITIVE.
+- **Target overfill is a warning, not a hard block** — if transfer would exceed target vessel capacity, it's logged as a warning but allowed. Winemakers may intentionally overfill during active fermentation or use headspace differently.
+- **Variance subtracted from target** — variance_gallons represents loss during transfer. The target receives `volume_gallons - variance_gallons`. Source loses exactly `volume_gallons`.
+- **`different:to_vessel_id` validation** — Laravel's `different` rule prevents transferring from a vessel to itself, a common data entry error.
+- **Transfers are immutable** — no update/delete endpoints. Once logged, a transfer cannot be modified, same pattern as additions.
+- **Cellar hand+ can execute transfers** — per spec, transfers are a cellar operation.
+- **Vessel status auto-managed** — source vessel set to 'empty' when all volume removed (no active lot_vessel pivots). Target vessel set to 'in_use' when volume added.
+
+### Deviations from Spec
+- None. Implementation matches the spec exactly.
+
+### Patterns Extended
+- TransferService follows Production Service Pattern with EventLogger injection and DB transaction.
+- lot_vessel pivot management extracted into reusable decreaseVesselVolume/increaseVesselVolume methods on the service.
+- Transfer events written on the lot entity for lot timeline visibility.
+
+### Test Summary
+- `tests/Feature/Production/TransferTest.php` (16 tests)
+  - Tier 1: transfer_executed event with correct payload, volume validation (reject overdraw), volume updates (source decrease, target increase with variance), empty vessel status change, tenant isolation
+  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
+  - Tier 2: filters (lot_id)
+  - Tier 2: validation (missing required fields, same vessel, invalid transfer_type)
+  - Tier 2: RBAC (cellar_hand can execute, read_only cannot)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.
