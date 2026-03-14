@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\LotController;
+use App\Http\Controllers\Api\V1\PressLogController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
@@ -164,6 +165,14 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
             Route::post('/transfers', [TransferController::class, 'store'])->name('transfers.store');
+        });
+
+        // ─── Production: Press Logs ────────────────────────────────
+        Route::get('/press-logs', [PressLogController::class, 'index'])->name('press-logs.index');
+        Route::get('/press-logs/{pressLog}', [PressLogController::class, 'show'])->name('press-logs.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/press-logs', [PressLogController::class, 'store'])->name('press-logs.store');
         });
 
         // Team list — any authenticated user can view team members

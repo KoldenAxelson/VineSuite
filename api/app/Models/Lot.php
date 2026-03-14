@@ -151,6 +151,14 @@ class Lot extends Model
         return $this->hasMany(Transfer::class)->orderByDesc('performed_at');
     }
 
+    /**
+     * @return HasMany<PressLog, $this>
+     */
+    public function pressLogs(): HasMany
+    {
+        return $this->hasMany(PressLog::class)->orderByDesc('performed_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

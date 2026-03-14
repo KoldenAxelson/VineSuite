@@ -284,3 +284,49 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 7: Pressing Operations
+**Completed:** 2026-03-14
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100009_create_press_logs_table.php` — Creates `press_logs` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), press_type, fruit_weight_kg as `decimal(12,4)`, total_juice_gallons as `decimal(12,4)`, fractions JSONB array, yield_percent as `decimal(8,4)`, pomace_weight_kg/pomace_destination (nullable), performed_by FK, performed_at. Indexed on lot_id, press_type, performed_at.
+- `api/app/Models/PressLog.php` — Model with PRESS_TYPES (basket, bladder, pneumatic, manual), FRACTION_TYPES (free_run, light_press, heavy_press), POMACE_DESTINATIONS (compost, vineyard, disposal, sold) constants. Relationships: lot(), vessel(), performer(). Scopes: ofType(), forLot(), performedBetween(). Full PHPStan generics.
+- `api/database/factories/PressLogFactory.php` — Generates realistic press data with yield calculations. Default 3 fractions (65% free run, 25% light, 10% heavy). States: basket(), pneumatic(), freeRunOnly().
+- `api/app/Services/PressLogService.php` — `logPressing()` in DB transaction: calculates yield_percent from fruit_weight_kg and total_juice_gallons, creates child lots for fractions with `create_child_lot: true` flag, writes `pressing_logged` event on parent lot. `createFractionChildLot()` creates child lot inheriting parent's variety/vintage/source, writes `lot_created` event on child.
+- `api/app/Http/Requests/StorePressLogRequest.php` — Validates lot_id (required, exists), press_type (required, in constants), fruit_weight_kg/total_juice_gallons (required, numeric), fractions array (required, min 1, max 10) with nested fraction/volume_gallons/create_child_lot validation, pomace fields (nullable).
+- `api/app/Http/Resources/PressLogResource.php` — Returns all press log fields with nested lot, vessel, performed_by when loaded. Fractions returned as-is from JSONB.
+- `api/app/Http/Controllers/Api/V1/PressLogController.php` — `index()` with filters (lot_id, press_type, performed date range), ordered by performed_at DESC. `store()` via PressLogService. `show()` with eager-loaded relationships.
+- `api/routes/api.php` — GET /press-logs and GET /press-logs/{pressLog} open to all authenticated. POST /press-logs gated by `role:owner,admin,winemaker`.
+- `api/app/Models/Lot.php` — Added `pressLogs()` HasMany relationship.
+- `api/tests/Feature/Production/PressLogTest.php` — 17 tests.
+
+### Key Decisions
+- **Pressing is winemaker+ only** — unlike additions and transfers (cellar_hand+), pressing is a significant winemaking decision that affects wine quality. RBAC is `role:owner,admin,winemaker`.
+- **Fractions stored as JSONB array** — flexible for 1-3 fractions per pressing. Each fraction has fraction type, volume, and optional child_lot_id. Max 10 fractions per validation rule.
+- **Child lots created on demand** — pass `create_child_lot: true` in a fraction to spawn a child lot. Child inherits parent's variety, vintage, source_type, source_details. Named as "Parent Name — Free Run" etc. Gets its own `lot_created` event for independent tracking.
+- **Yield percent computed and stored** — `(total_juice_gallons / fruit_weight_kg) * 100`. Stored on the record for easy querying/reporting without recomputation.
+- **Pomace tracking is optional** — pomace_weight_kg and pomace_destination are nullable. Not all wineries track pomace disposal, but the fields exist for compliance.
+- **Press logs are immutable** — no update/delete endpoints, same pattern as additions and transfers.
+
+### Deviations from Spec
+- None. Implementation matches the spec exactly.
+
+### Patterns Extended
+- PressLogService follows Production Service Pattern with EventLogger injection and DB transaction.
+- Child lot creation reuses the `lot_created` event type for consistency with LotService.
+- JSONB fractions array with nested validation rules (`fractions.*.fraction`, `fractions.*.volume_gallons`).
+
+### Test Summary
+- `tests/Feature/Production/PressLogTest.php` (17 tests)
+  - Tier 1: pressing_logged event with correct payload, yield percent calculation, child lot creation from fractions (with events), tenant isolation
+  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
+  - Tier 2: filters (lot_id)
+  - Tier 2: validation (missing required fields, invalid press_type, invalid fraction type)
+  - Tier 2: RBAC (winemaker can log, cellar_hand cannot, read_only can list/view)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.
