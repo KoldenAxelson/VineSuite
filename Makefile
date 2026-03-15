@@ -43,8 +43,8 @@ fresh:                       ## Drop all tables, flush sessions, re-migrate, re-
 	docker compose exec redis redis-cli FLUSHDB
 	docker compose exec app php artisan migrate:fresh --seed
 
-test:                        ## Run PHP test suite (use: make test or make test F=Transfer)
-	docker compose exec app ./vendor/bin/pest $(if $(F),--filter="$(F)",)
+test:                        ## Run PHP test suite (use: make test, make test F=Transfer, make test G=lab)
+	docker compose exec app ./vendor/bin/pest $(if $(G),--group="$(G)",) $(if $(F),--filter="$(F)",)
 
 test-coverage:               ## Run tests with coverage report
 	docker compose exec app php artisan test --coverage

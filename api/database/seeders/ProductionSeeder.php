@@ -1121,6 +1121,19 @@ class ProductionSeeder extends Seeder
         ], [80, 82, 83, 82, 78, 75, 74, 74], $cellarHand);
         $roundCount++;
 
+        // 2025 Estate Grenache — FRESH primary fermentation (round 2), just started
+        // Only 3 entries dated relative to "today" so the chart shows a partial curve.
+        // This makes the demo feel like a live operation rather than all-historical data.
+        $grenacheFresh = $this->lots['2025 Estate Grenache'];
+        $freshRound = $this->createFermentationRound(
+            $grenacheFresh, 2, 'primary', now()->subDays(3)->toDateString(),
+            'RC-212', null, 80.0, 'active', $winemaker
+        );
+        $entryCount += $this->createBrixCurve($freshRound, now()->subDays(2)->toDateString(), [
+            24.5, 23.0, 20.5,
+        ], [78, 80, 82], $cellarHand);
+        $roundCount++;
+
         $this->command?->info("  → Created {$roundCount} fermentation rounds with {$entryCount} daily entries.");
     }
 

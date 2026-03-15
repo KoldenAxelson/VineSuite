@@ -60,6 +60,7 @@ echo "127.0.0.1 paso-robles-cellars.localhost" | sudo tee -a /etc/hosts
 make testsuite    # Pest + Pint + PHPStan (full suite)
 make test         # Pest only
 make test F=LabAnalysisTest  # Single test file
+make test G=lab   # Run a test group (lab, production, foundation)
 make analyse      # PHPStan only
 make fresh        # Flush Redis + reset DB + re-seed
 ```
@@ -80,7 +81,7 @@ Running `make fresh` creates a demo winery ("Paso Robles Cellars") with realisti
 
 **Production:** 38 lots across 4 vintages, 67 vessels (24 tanks + 43 barrels), 65+ chemical additions, 18 transfers, 30 work orders, 2 blend trials, 4 bottling runs.
 
-**Lab & Fermentation:** 30+ lab analyses across 6 test types (Brix, pH, TA, VA, free SO2, malic acid), 17 industry-standard alert thresholds including VA at the 27 CFR 4.21 legal limit, 9 fermentation rounds (7 primary + 2 ML) with daily Brix/temperature entries, and 10 sensory tasting notes with 5-point and 100-point scales.
+**Lab & Fermentation:** 30+ lab analyses across 6 test types (Brix, pH, TA, VA, free SO2, malic acid), 17 industry-standard alert thresholds including VA at the 27 CFR 4.21 legal limit, 10 fermentation rounds (8 primary + 2 ML, including one fresh in-progress round with recent entries) with daily Brix/temperature entries, and 10 sensory tasting notes with 5-point and 100-point scales.
 
 Everything writes to a fully consistent immutable event log. Enough to demo to a winemaker.
 
@@ -93,6 +94,9 @@ For development workflow (how tasks move from spec to shipped code): `docs/WORKF
 Key reference docs:
 
 - `docs/references/event-log.md` — How the event log works, all 17 operation types, querying patterns
+- `docs/references/widget-development.md` — Filament widget patterns (Alpine.js + Livewire SPA gotchas)
+- `docs/references/test-groups.md` — Test group convention and Makefile `G=` usage
+- `docs/references/event-source-partitioning.md` — Event source labeling for future partitioning
 - `docs/references/multi-tenancy.md` — Tenant lifecycle, schema isolation, Filament integration gotchas
 - `docs/references/auth-rbac.md` — Token abilities, roles, rate limiting
 - `docs/guides/filament-tenancy.md` — Step-by-step guide for Filament + stancl/tenancy (hard-won knowledge)

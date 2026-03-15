@@ -29,6 +29,9 @@ Read these files in this order. Do not skip any of them.
 
 **Load when relevant (not upfront):**
 - `docs/references/event-log.md` — How EventLogger works. Includes all Phase 2 and Phase 3 event types. Load for any sub-task that writes events.
+- `docs/references/event-source-partitioning.md` — The `event_source` column convention. **Phase 4 Sub-Task 1 should add the migration and auto-resolution logic.** Read this before creating any inventory event types.
+- `docs/references/widget-development.md` — Filament widget patterns (inline Alpine + `@assets`). Load before creating any dashboard widgets or charts.
+- `docs/references/test-groups.md` — Test group convention. **Add `->group('inventory')` to all new Phase 4 test files.**
 - `docs/references/multi-tenancy.md` — Tenant lifecycle, domain records, Filament integration gotchas.
 - `docs/references/auth-rbac.md` — Auth, roles, rate limiting. Includes the Token Name Contract.
 - `docs/guides/filament-tenancy.md` — The 3 critical fixes for Filament + stancl/tenancy. Load before creating any Filament resources.
@@ -127,6 +130,10 @@ When an Addition is recorded, the system should deduct the corresponding RawMate
 
 ### Navigation Group
 Inventory resources should go under an **"Inventory"** navigation group in Filament (new group, after Production).
+
+## Carry-Over Debt from Phase 3
+
+**CSV import partial failure handling** — The two-phase CSV import (preview → commit) currently rolls back the entire batch if any row fails validation on commit. For a winemaker importing 30 lab results from an instrument export, losing the whole batch because row 15 has a bad value is a poor experience. Needs per-row error handling: import the valid rows, return a list of failed rows with reasons, let the user fix and re-import the failures. This should be addressed during Phase 4 or as a standalone debt cleanup task.
 
 ## Deferred Items from Previous Phases (Optional)
 
