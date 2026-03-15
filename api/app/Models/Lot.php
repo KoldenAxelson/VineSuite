@@ -175,6 +175,14 @@ class Lot extends Model
         return $this->hasMany(BottlingRun::class)->orderByDesc('created_at');
     }
 
+    /**
+     * @return HasMany<LabAnalysis, $this>
+     */
+    public function labAnalyses(): HasMany
+    {
+        return $this->hasMany(LabAnalysis::class)->orderByDesc('test_date');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

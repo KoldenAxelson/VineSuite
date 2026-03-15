@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FilterLogController;
+use App\Http\Controllers\Api\V1\LabAnalysisController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PressLogController;
@@ -213,6 +214,14 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/bottling-runs', [BottlingRunController::class, 'store'])->name('bottling-runs.store');
             Route::post('/bottling-runs/{bottlingRun}/complete', [BottlingRunController::class, 'complete'])->name('bottling-runs.complete');
+        });
+
+        // ─── Lab Analyses (per lot) ──────────────────────────────
+        Route::get('/lots/{lotId}/analyses', [LabAnalysisController::class, 'index'])->name('lab-analyses.index');
+        Route::get('/lots/{lotId}/analyses/{analysis}', [LabAnalysisController::class, 'show'])->name('lab-analyses.show');
+
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::post('/lots/{lotId}/analyses', [LabAnalysisController::class, 'store'])->name('lab-analyses.store');
         });
 
         // Team list — any authenticated user can view team members

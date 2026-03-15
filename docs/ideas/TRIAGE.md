@@ -32,3 +32,15 @@ Ideas can also arrive mid-phase. They get written to `docs/ideas/` as usual but 
 | `harvest-season-resilience.md` | **Defer → Phase 5** | Load testing and offline-first stress testing are pre-launch concerns. Premature to address before the cellar app and POS exist. |
 | `customer-support-escalation.md` | **Defer → Post-launch** | Support infrastructure is irrelevant until there are customers. No architecture impact on current work. |
 | `grape-marketplace.md` | **Defer → Phase 4+** | Requires lot management (Phase 3) and plan gating (Phase 2) to exist. Central-schema data model should be sketched during Phase 2 to avoid migration conflicts, but no code is written until Phase 4 at the earliest. |
+
+### Phase 3 — Lab Analysis & Fermentation Tracking
+
+| Idea | Disposition | Rationale |
+|------|-------------|-----------|
+| `gradual-migration-path.md` | **Absorb (as constraint)** | Sub-Task 3 (External Lab CSV Import) must support backdated `performed_at` timestamps for historical lab data import. Wineries running VineSuite alongside InnoVint will want to bring over past lab analyses — the importer can't assume everything happened today. |
+| `data-portability.md` | **Absorb (as constraint)** | Not a sub-task. Design constraint on event payloads: `lab_analysis_entered`, `fermentation_data_entered`, `sensory_note_added` payloads should be self-contained (include lot name, variety alongside foreign keys) so they're readable without joins. Avoids a retrofit when export is built in Phase 4. |
+| `pricing-and-plan-tiers.md` | **Defer** | Lab/fermentation tracking is documented as a Basic-tier feature. No gating implementation needed in Phase 3 — `PlanFeatureService` is a Phase 2 deliverable that hasn't been built yet. Phase 3 just builds the features; gating wraps them later. |
+| `progressive-onboarding.md` | **Defer** | Carried forward as a standing constraint. Phase 3 Filament resources go under sensible navigation groups (Lab, Fermentation) but no new onboarding logic. |
+| `harvest-season-resilience.md` | **Defer → Phase 5** | Fermentation tracking will be the heaviest write-volume feature during harvest, but load testing it is premature without the cellar app to generate real concurrent traffic. |
+| `customer-support-escalation.md` | **Defer → Post-launch** | No overlap with Phase 3. |
+| `grape-marketplace.md` | **Defer → Phase 4+** | No overlap. Lot management prerequisite is now met but compliance (Phase 6) and cross-tenant infrastructure are not. |
