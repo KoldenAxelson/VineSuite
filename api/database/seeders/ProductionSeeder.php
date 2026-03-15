@@ -10,7 +10,11 @@ use App\Models\BlendTrial;
 use App\Models\BlendTrialComponent;
 use App\Models\BottlingComponent;
 use App\Models\BottlingRun;
+use App\Models\FermentationEntry;
+use App\Models\FermentationRound;
+use App\Models\LabAnalysis;
 use App\Models\Lot;
+use App\Models\SensoryNote;
 use App\Models\Transfer;
 use App\Models\User;
 use App\Models\Vessel;
@@ -57,6 +61,9 @@ class ProductionSeeder extends Seeder
         $this->seedWorkOrders();
         $this->seedBlendTrials();
         $this->seedBottlingRuns();
+        $this->seedLabAnalyses();
+        $this->seedFermentationData();
+        $this->seedSensoryNotes();
 
         $this->command?->info('Production data seeded successfully.');
     }
@@ -871,5 +878,447 @@ class ProductionSeeder extends Seeder
         ]);
 
         $this->command?->info('  → Created 4 bottling runs (3 completed, 1 planned).');
+    }
+
+    // ─── Lab Analyses ────────────────────────────────────────────────
+
+    private function seedLabAnalyses(): void
+    {
+        $winemaker = $this->users['winemaker'];
+        $count = 0;
+
+        // Lab analysis histories for key lots — realistic readings over time
+        // 2024 Estate Cab Block A — aging, regular monitoring
+        $cabA = $this->lots['2024 Estate Cabernet Sauvignon - Block A'];
+        $cabAReadings = [
+            ['date' => '2024-10-01', 'tests' => ['pH' => 3.52, 'TA' => 6.8, 'free_SO2' => 8, 'total_SO2' => 22]],
+            ['date' => '2024-10-15', 'tests' => ['pH' => 3.55, 'TA' => 6.5, 'VA' => 0.02, 'free_SO2' => 6]],
+            ['date' => '2024-11-01', 'tests' => ['pH' => 3.58, 'TA' => 6.2, 'VA' => 0.03, 'alcohol' => 14.2, 'residual_sugar' => 0.8]],
+            ['date' => '2024-12-01', 'tests' => ['pH' => 3.60, 'TA' => 6.0, 'VA' => 0.04, 'free_SO2' => 28, 'total_SO2' => 65, 'malic_acid' => 0.02]],
+            ['date' => '2025-02-01', 'tests' => ['pH' => 3.62, 'TA' => 5.9, 'VA' => 0.05, 'free_SO2' => 24, 'total_SO2' => 58]],
+            ['date' => '2025-04-01', 'tests' => ['pH' => 3.63, 'TA' => 5.8, 'VA' => 0.05, 'free_SO2' => 20, 'total_SO2' => 52]],
+        ];
+        $count += $this->createLabHistory($cabA, $cabAReadings, $winemaker, 'manual');
+
+        // 2024 Estate Syrah — aging
+        $syrah = $this->lots['2024 Estate Syrah'];
+        $syrahReadings = [
+            ['date' => '2024-10-05', 'tests' => ['pH' => 3.68, 'TA' => 5.9, 'free_SO2' => 6]],
+            ['date' => '2024-10-20', 'tests' => ['pH' => 3.70, 'TA' => 5.7, 'VA' => 0.03, 'alcohol' => 14.8]],
+            ['date' => '2024-11-15', 'tests' => ['pH' => 3.72, 'TA' => 5.5, 'VA' => 0.04, 'residual_sugar' => 0.5, 'malic_acid' => 0.01]],
+            ['date' => '2025-01-15', 'tests' => ['pH' => 3.73, 'TA' => 5.4, 'VA' => 0.05, 'free_SO2' => 26, 'total_SO2' => 60]],
+            ['date' => '2025-03-15', 'tests' => ['pH' => 3.74, 'TA' => 5.3, 'VA' => 0.06, 'free_SO2' => 22, 'total_SO2' => 54]],
+        ];
+        $count += $this->createLabHistory($syrah, $syrahReadings, $winemaker, 'manual');
+
+        // 2024 Estate Chardonnay — white wine, different profile
+        $chard = $this->lots['2024 Estate Chardonnay'];
+        $chardReadings = [
+            ['date' => '2024-09-20', 'tests' => ['pH' => 3.28, 'TA' => 7.2, 'free_SO2' => 30]],
+            ['date' => '2024-10-10', 'tests' => ['pH' => 3.30, 'TA' => 7.0, 'VA' => 0.01, 'alcohol' => 13.5, 'residual_sugar' => 1.2]],
+            ['date' => '2024-11-15', 'tests' => ['pH' => 3.32, 'TA' => 6.8, 'VA' => 0.02, 'free_SO2' => 35, 'total_SO2' => 85, 'turbidity' => 15.0]],
+            ['date' => '2025-01-15', 'tests' => ['pH' => 3.33, 'TA' => 6.7, 'VA' => 0.02, 'free_SO2' => 30, 'total_SO2' => 78, 'turbidity' => 3.2]],
+        ];
+        $count += $this->createLabHistory($chard, $chardReadings, $winemaker, 'manual');
+
+        // 2025 Estate Cab Block A — in-progress, early readings
+        $cab25A = $this->lots['2025 Estate Cabernet Sauvignon - Block A'];
+        $cab25AReadings = [
+            ['date' => '2025-09-15', 'tests' => ['pH' => 3.45, 'TA' => 7.5]],
+            ['date' => '2025-10-01', 'tests' => ['pH' => 3.50, 'TA' => 7.0, 'VA' => 0.01]],
+        ];
+        $count += $this->createLabHistory($cab25A, $cab25AReadings, $winemaker, 'manual');
+
+        // 2025 Estate Syrah — in-progress
+        $syrah25 = $this->lots['2025 Estate Syrah'];
+        $syrah25Readings = [
+            ['date' => '2025-09-18', 'tests' => ['pH' => 3.60, 'TA' => 6.2]],
+            ['date' => '2025-10-05', 'tests' => ['pH' => 3.65, 'TA' => 5.9, 'VA' => 0.02, 'alcohol' => 14.5]],
+        ];
+        $count += $this->createLabHistory($syrah25, $syrah25Readings, $winemaker, 'manual');
+
+        // 2024 Grenache — ETS Labs source (external lab)
+        $grenache = $this->lots['2024 Estate Grenache'];
+        $grenacheReadings = [
+            ['date' => '2024-10-10', 'tests' => ['pH' => 3.55, 'TA' => 5.5, 'VA' => 0.03, 'alcohol' => 14.0, 'residual_sugar' => 0.6, 'malic_acid' => 0.01]],
+            ['date' => '2025-02-15', 'tests' => ['pH' => 3.58, 'TA' => 5.3, 'VA' => 0.04, 'free_SO2' => 22, 'total_SO2' => 48]],
+        ];
+        $count += $this->createLabHistory($grenache, $grenacheReadings, $winemaker, 'ets_labs');
+
+        // 2024 Petite Sirah — a lot with slightly elevated VA (approaching warning)
+        $ps = $this->lots['2024 Petite Sirah - Willow Creek'];
+        $psReadings = [
+            ['date' => '2024-10-15', 'tests' => ['pH' => 3.75, 'TA' => 5.2, 'VA' => 0.06, 'alcohol' => 15.1]],
+            ['date' => '2024-12-01', 'tests' => ['pH' => 3.78, 'TA' => 5.0, 'VA' => 0.08, 'free_SO2' => 18, 'total_SO2' => 42]],
+            ['date' => '2025-03-01', 'tests' => ['pH' => 3.80, 'TA' => 4.9, 'VA' => 0.09, 'free_SO2' => 15, 'total_SO2' => 38]],
+        ];
+        $count += $this->createLabHistory($ps, $psReadings, $winemaker, 'manual');
+
+        $this->command?->info("  → Created {$count} lab analysis records across multiple lots.");
+    }
+
+    /**
+     * Create a series of lab analysis records for a lot.
+     *
+     * @param  array<int, array{date: string, tests: array<string, float>}>  $readings
+     * @return int Number of records created
+     */
+    private function createLabHistory(Lot $lot, array $readings, User $performer, string $source): int
+    {
+        $count = 0;
+        foreach ($readings as $reading) {
+            foreach ($reading['tests'] as $testType => $value) {
+                LabAnalysis::create([
+                    'lot_id' => $lot->id,
+                    'test_date' => $reading['date'],
+                    'test_type' => $testType,
+                    'value' => $value,
+                    'unit' => LabAnalysis::DEFAULT_UNITS[$testType] ?? '',
+                    'method' => $this->labMethod($testType),
+                    'analyst' => $source === 'ets_labs' ? 'ETS Laboratories' : $performer->name,
+                    'source' => $source,
+                    'performed_by' => $performer->id,
+                ]);
+
+                $this->eventLogger->log(
+                    entityType: 'lot',
+                    entityId: $lot->id,
+                    operationType: 'lab_analysis_entered',
+                    payload: [
+                        'lot_name' => $lot->name,
+                        'lot_variety' => $lot->variety,
+                        'test_type' => $testType,
+                        'value' => $value,
+                        'unit' => LabAnalysis::DEFAULT_UNITS[$testType] ?? '',
+                        'source' => $source,
+                        'test_date' => $reading['date'],
+                    ],
+                    performedBy: $performer->id,
+                    performedAt: Carbon::parse($reading['date']),
+                );
+
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function labMethod(string $testType): string
+    {
+        return match ($testType) {
+            'pH' => 'pH Meter',
+            'TA' => 'Titration (NaOH)',
+            'VA' => 'Cash Still / Titration',
+            'free_SO2' => 'Aeration-Oxidation',
+            'total_SO2' => 'Aeration-Oxidation',
+            'residual_sugar' => 'Clinitest / Enzymatic',
+            'alcohol' => 'Ebulliometer',
+            'malic_acid' => 'Enzymatic',
+            'glucose_fructose' => 'Enzymatic',
+            'turbidity' => 'Nephelometer',
+            'color' => 'Spectrophotometer',
+            default => 'Standard',
+        };
+    }
+
+    // ─── Fermentation Data ───────────────────────────────────────────
+
+    private function seedFermentationData(): void
+    {
+        $winemaker = $this->users['winemaker'];
+        $cellarHand = $this->users['cellar_hand'];
+        $roundCount = 0;
+        $entryCount = 0;
+
+        // 2025 Estate Cab Block A — active primary fermentation with daily Brix curve
+        $cab25A = $this->lots['2025 Estate Cabernet Sauvignon - Block A'];
+        $round = $this->createFermentationRound($cab25A, 1, 'primary', '2025-09-20', 'D-254', null, 82.0, 'active', $winemaker);
+        $entryCount += $this->createBrixCurve($round, '2025-09-21', [
+            25.2, 24.0, 21.5, 18.0, 14.5, 10.0, 6.5, 3.0, 0.5, -0.8,
+        ], [80, 82, 84, 85, 83, 81, 79, 77, 76, 75], $cellarHand);
+        $roundCount++;
+
+        // 2025 Estate Cab Block C — active primary, slightly behind
+        $cab25C = $this->lots['2025 Estate Cabernet Sauvignon - Block C'];
+        $round = $this->createFermentationRound($cab25C, 1, 'primary', '2025-09-22', 'EC-1118', null, 80.0, 'active', $winemaker);
+        $entryCount += $this->createBrixCurve($round, '2025-09-23', [
+            24.8, 23.5, 20.5, 17.0, 13.0, 8.5, 4.0,
+        ], [78, 80, 82, 83, 81, 79, 78], $cellarHand);
+        $roundCount++;
+
+        // 2025 Estate Syrah — active primary
+        $syrah25 = $this->lots['2025 Estate Syrah'];
+        $round = $this->createFermentationRound($syrah25, 1, 'primary', '2025-09-18', 'BM45', null, 85.0, 'active', $winemaker);
+        $entryCount += $this->createBrixCurve($round, '2025-09-19', [
+            26.0, 24.5, 22.0, 18.5, 14.0, 9.5, 5.0, 1.5, -0.5, -1.2,
+        ], [82, 85, 87, 88, 86, 84, 82, 80, 78, 77], $cellarHand);
+        $roundCount++;
+
+        // 2025 Estate Grenache — active primary (shorter fermentation, lighter)
+        $grenache25 = $this->lots['2025 Estate Grenache'];
+        $round = $this->createFermentationRound($grenache25, 1, 'primary', '2025-09-25', 'D-254', null, 78.0, 'active', $winemaker);
+        $entryCount += $this->createBrixCurve($round, '2025-09-26', [
+            23.5, 21.0, 17.5, 13.0, 8.0, 3.5, -0.5,
+        ], [76, 78, 80, 79, 77, 76, 75], $cellarHand);
+        $roundCount++;
+
+        // 2024 Estate Cab Block A — COMPLETED primary + COMPLETED ML
+        $cab24A = $this->lots['2024 Estate Cabernet Sauvignon - Block A'];
+        $primaryRound = $this->createFermentationRound($cab24A, 1, 'primary', '2024-09-15', 'EC-1118', null, 82.0, 'completed', $winemaker);
+        $primaryRound->update(['completion_date' => '2024-10-05']);
+        $entryCount += $this->createBrixCurve($primaryRound, '2024-09-16', [
+            25.5, 24.0, 21.0, 17.5, 13.5, 9.0, 5.0, 1.5, -0.5, -1.0, -1.2,
+        ], [80, 82, 84, 86, 85, 83, 81, 79, 78, 77, 76], $cellarHand);
+        $roundCount++;
+
+        // ML fermentation for 2024 Cab
+        $mlRound = $this->createFermentationRound($cab24A, 2, 'malolactic', '2024-10-10', null, 'VP41', 68.0, 'completed', $winemaker);
+        $mlRound->update(['completion_date' => '2024-11-25', 'confirmation_date' => '2024-11-28']);
+        // ML entries track temperature only (malic acid tracked via lab analyses)
+        $mlEntries = [
+            ['date' => '2024-10-11', 'temp' => 65.0],
+            ['date' => '2024-10-18', 'temp' => 66.0],
+            ['date' => '2024-10-25', 'temp' => 67.0],
+            ['date' => '2024-11-01', 'temp' => 66.5],
+            ['date' => '2024-11-08', 'temp' => 66.0],
+            ['date' => '2024-11-15', 'temp' => 65.5],
+            ['date' => '2024-11-22', 'temp' => 65.0],
+        ];
+        foreach ($mlEntries as $entry) {
+            FermentationEntry::create([
+                'fermentation_round_id' => $mlRound->id,
+                'entry_date' => $entry['date'],
+                'temperature' => $entry['temp'],
+                'performed_by' => $cellarHand->id,
+            ]);
+            $entryCount++;
+        }
+        $roundCount++;
+
+        // 2024 Estate Syrah — COMPLETED primary
+        $syrah24 = $this->lots['2024 Estate Syrah'];
+        $syrahPrimary = $this->createFermentationRound($syrah24, 1, 'primary', '2024-09-18', 'RC-212', null, 85.0, 'completed', $winemaker);
+        $syrahPrimary->update(['completion_date' => '2024-10-08']);
+        $entryCount += $this->createBrixCurve($syrahPrimary, '2024-09-19', [
+            26.5, 25.0, 22.0, 18.0, 13.5, 9.0, 4.5, 1.0, -0.8, -1.5,
+        ], [83, 85, 88, 90, 88, 86, 84, 82, 80, 79], $cellarHand);
+        $roundCount++;
+
+        // 2025 Estate Chardonnay — white fermentation (cooler temps, slower)
+        $chard25 = $this->lots['2025 Estate Chardonnay'];
+        $round = $this->createFermentationRound($chard25, 1, 'primary', '2025-09-20', 'CY-3079', null, 58.0, 'active', $winemaker);
+        $entryCount += $this->createBrixCurve($round, '2025-09-21', [
+            22.5, 22.0, 21.0, 19.5, 17.5, 15.5, 13.0, 10.5, 8.0, 5.5, 3.0, 0.5,
+        ], [55, 56, 57, 58, 58, 57, 57, 56, 56, 55, 55, 54], $cellarHand);
+        $roundCount++;
+
+        // 2025 Co-Ferment Syrah/Viognier — experimental, stuck fermentation
+        $coferment = $this->lots['2025 Co-Ferment Syrah/Viognier'];
+        $stuckRound = $this->createFermentationRound($coferment, 1, 'primary', '2025-10-01', 'BM45', null, 82.0, 'stuck', $winemaker);
+        $entryCount += $this->createBrixCurve($stuckRound, '2025-10-02', [
+            24.0, 22.5, 20.0, 18.0, 16.5, 16.0, 15.8, 15.8,
+        ], [80, 82, 83, 82, 78, 75, 74, 74], $cellarHand);
+        $roundCount++;
+
+        $this->command?->info("  → Created {$roundCount} fermentation rounds with {$entryCount} daily entries.");
+    }
+
+    private function createFermentationRound(
+        Lot $lot,
+        int $roundNumber,
+        string $type,
+        string $inoculationDate,
+        ?string $yeastStrain,
+        ?string $mlBacteria,
+        float $targetTemp,
+        string $status,
+        User $creator
+    ): FermentationRound {
+        $round = FermentationRound::create([
+            'lot_id' => $lot->id,
+            'round_number' => $roundNumber,
+            'fermentation_type' => $type,
+            'inoculation_date' => $inoculationDate,
+            'yeast_strain' => $yeastStrain,
+            'ml_bacteria' => $mlBacteria,
+            'target_temp' => $targetTemp,
+            'status' => $status,
+            'created_by' => $creator->id,
+        ]);
+
+        $this->eventLogger->log(
+            entityType: 'lot',
+            entityId: $lot->id,
+            operationType: 'fermentation_round_created',
+            payload: [
+                'round_id' => $round->id,
+                'lot_name' => $lot->name,
+                'lot_variety' => $lot->variety,
+                'fermentation_type' => $type,
+                'round_number' => $roundNumber,
+                'inoculation_date' => $inoculationDate,
+                'yeast_strain' => $yeastStrain,
+                'ml_bacteria' => $mlBacteria,
+            ],
+            performedBy: $creator->id,
+            performedAt: Carbon::parse($inoculationDate),
+        );
+
+        return $round;
+    }
+
+    /**
+     * Create a realistic Brix decrease curve with daily entries.
+     *
+     * @param  array<int, float>  $brixValues  Daily Brix readings (decreasing)
+     * @param  array<int, float|int>  $tempValues  Daily temperature readings (°F)
+     * @return int Number of entries created
+     */
+    private function createBrixCurve(
+        FermentationRound $round,
+        string $startDate,
+        array $brixValues,
+        array $tempValues,
+        User $performer
+    ): int {
+        $count = 0;
+        $date = Carbon::parse($startDate);
+
+        foreach ($brixValues as $i => $brix) {
+            $temp = $tempValues[$i] ?? $tempValues[count($tempValues) - 1];
+
+            FermentationEntry::create([
+                'fermentation_round_id' => $round->id,
+                'entry_date' => $date->toDateString(),
+                'temperature' => (float) $temp,
+                'brix_or_density' => $brix,
+                'measurement_type' => 'brix',
+                'performed_by' => $performer->id,
+            ]);
+
+            $date->addDay();
+            $count++;
+        }
+
+        return $count;
+    }
+
+    // ─── Sensory / Tasting Notes ─────────────────────────────────────
+
+    private function seedSensoryNotes(): void
+    {
+        $winemaker = $this->users['winemaker'];
+        $count = 0;
+
+        // 2024 Estate Cab Block A — multiple tastings during aging
+        $cabA = $this->lots['2024 Estate Cabernet Sauvignon - Block A'];
+        $this->createSensoryNote($cabA, $winemaker, '2024-11-20', 3.5, 'five_point',
+            'Dark cherry, cassis, raw oak, cedar shavings',
+            'Medium-full body, grippy tannins, bright acidity, short finish',
+            'Young and tight — needs time. Good structure for aging.');
+        $this->createSensoryNote($cabA, $winemaker, '2025-01-15', 3.8, 'five_point',
+            'Black cherry, blackcurrant, vanilla, hint of chocolate',
+            'Full body, tannins softening, better mid-palate integration',
+            'Developing nicely. Oak integrating well. Revisit at 6 months.');
+        $this->createSensoryNote($cabA, $winemaker, '2025-03-10', 4.0, 'five_point',
+            'Ripe blackberry, plum, mocha, graphite',
+            'Full body, velvety tannins, balanced acidity, long finish',
+            'Excellent development. Reserve quality candidate. Continue barrel program.');
+        $count += 3;
+
+        // 2024 Estate Syrah
+        $syrah = $this->lots['2024 Estate Syrah'];
+        $this->createSensoryNote($syrah, $winemaker, '2024-12-01', 3.7, 'five_point',
+            'Blueberry, black pepper, smoked meat, violets',
+            'Full body, firm tannins, peppery finish',
+            'Varietal character showing well. Dense and concentrated.');
+        $this->createSensoryNote($syrah, $winemaker, '2025-02-15', 4.2, 'five_point',
+            'Dark plum, cracked pepper, lavender, bacon fat',
+            'Full body, round tannins, savory mid-palate, persistent finish',
+            'Outstanding. Best Syrah in 3 vintages. Consider single-vineyard bottling.');
+        $count += 2;
+
+        // 2024 Estate Chardonnay
+        $chard = $this->lots['2024 Estate Chardonnay'];
+        $this->createSensoryNote($chard, $winemaker, '2024-12-15', 3.5, 'five_point',
+            'Green apple, lemon zest, wet stone, light butter',
+            'Medium body, crisp acidity, clean mineral finish',
+            'Clean and varietal-correct. Concrete egg portion adds texture.');
+        $this->createSensoryNote($chard, $winemaker, '2025-02-01', 3.8, 'five_point',
+            'Pear, honeysuckle, toasted almond, brioche',
+            'Medium body, creamy texture, balanced oak, refreshing acidity',
+            'Good commercial quality. Ready for fining and bottling prep.');
+        $count += 2;
+
+        // 2024 Grenache — panel tasting with hundred-point scale
+        $grenache = $this->lots['2024 Estate Grenache'];
+        $this->createSensoryNote($grenache, $winemaker, '2025-01-20', 88, 'hundred_point',
+            'Red cherry, raspberry, white pepper, garrigue',
+            'Medium body, soft tannins, bright fruit, elegant finish',
+            'Classic Paso Grenache. Will be excellent GSM component.');
+        $count++;
+
+        // 2025 lots — early assessments (no rating yet, just qualitative)
+        $cab25A = $this->lots['2025 Estate Cabernet Sauvignon - Block A'];
+        $this->createSensoryNote($cab25A, $winemaker, '2025-10-01', null, 'five_point',
+            'Young fruit, bright berry, no oak influence yet',
+            'Light-medium body, raw tannins, high acidity',
+            'Too early to rate. Primary fermentation character dominant. Check post-press.');
+        $count++;
+
+        // 2024 Petite Sirah — noting VA concern
+        $ps = $this->lots['2024 Petite Sirah - Willow Creek'];
+        $this->createSensoryNote($ps, $winemaker, '2025-03-01', 3.2, 'five_point',
+            'Dark fruit, ink, slight nail polish on the edge',
+            'Full body, big tannins, some volatility on the finish',
+            'VA creeping up — monitor closely. Consider earlier SO2 addition. Still usable for blending.');
+        $count++;
+
+        $this->command?->info("  → Created {$count} sensory/tasting notes.");
+    }
+
+    private function createSensoryNote(
+        Lot $lot,
+        User $taster,
+        string $date,
+        ?float $rating,
+        string $ratingScale,
+        ?string $noseNotes,
+        ?string $palateNotes,
+        ?string $overallNotes
+    ): SensoryNote {
+        $note = SensoryNote::create([
+            'lot_id' => $lot->id,
+            'taster_id' => $taster->id,
+            'date' => $date,
+            'rating' => $rating,
+            'rating_scale' => $ratingScale,
+            'nose_notes' => $noseNotes,
+            'palate_notes' => $palateNotes,
+            'overall_notes' => $overallNotes,
+        ]);
+
+        $this->eventLogger->log(
+            entityType: 'lot',
+            entityId: $lot->id,
+            operationType: 'sensory_note_recorded',
+            payload: [
+                'note_id' => $note->id,
+                'lot_name' => $lot->name,
+                'lot_variety' => $lot->variety,
+                'taster_name' => $taster->name,
+                'date' => $date,
+                'rating' => $rating,
+                'rating_scale' => $ratingScale,
+                'has_nose_notes' => $noseNotes !== null,
+                'has_palate_notes' => $palateNotes !== null,
+                'has_overall_notes' => $overallNotes !== null,
+            ],
+            performedBy: $taster->id,
+            performedAt: Carbon::parse($date),
+        );
+
+        return $note;
     }
 }

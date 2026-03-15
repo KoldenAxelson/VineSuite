@@ -39,7 +39,8 @@ migrate:                     ## Run migrations (central + tenant)
 seed:                        ## Run database seeders
 	docker compose exec app php artisan db:seed
 
-fresh:                       ## Drop all tables, re-migrate, re-seed
+fresh:                       ## Drop all tables, flush sessions, re-migrate, re-seed
+	docker compose exec redis redis-cli FLUSHDB
 	docker compose exec app php artisan migrate:fresh --seed
 
 test:                        ## Run PHP test suite (use: make test or make test F=Transfer)

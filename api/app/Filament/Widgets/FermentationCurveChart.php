@@ -24,6 +24,12 @@ class FermentationCurveChart extends Widget
 {
     protected static string $view = 'filament.widgets.fermentation-curve-chart';
 
+    /**
+     * Prevent Filament from auto-discovering this widget on the Dashboard.
+     * It is only used explicitly on the ViewFermentationRound page footer.
+     */
+    protected static bool $isDiscovered = false;
+
     public ?string $roundId = null;
 
     /**

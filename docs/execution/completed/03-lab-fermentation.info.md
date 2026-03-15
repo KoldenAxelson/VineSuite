@@ -327,3 +327,51 @@
 
 ### Open Questions
 - None. The sensory note feature is intentionally lightweight per the spec's guidance ("not wine-review-style scoring — keep it lightweight"). Structured aroma/flavor descriptor vocabularies (like the Wine Aroma Wheel) could be added later as optional metadata if needed.
+
+---
+
+## Sub-Task 7: Lab and Fermentation Demo Data
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/seeders/ProductionSeeder.php` — Extended with three new seeder methods and supporting helpers:
+  - `seedLabAnalyses()` — Creates lab analysis history for 7 lots across the demo winery. Cab Block A gets the richest dataset (6 dates, 4–5 tests each including pH, TA, VA, free_SO2, alcohol). Other lots get progressively sparser data: Syrah (3 dates), Chardonnay (3 dates with white wine ranges), 2025 Cab (2 dates), 2025 Syrah (2 dates), Grenache (2 dates via ETS Labs external source), Petite Sirah (2 dates with VA approaching warning threshold at 0.095). Helper `createLabHistory()` creates all analyses for a lot/date, and `labMethod()` returns realistic analytical methods per test type (digital pH meter, titration, enzymatic, etc.). All records write `lab_analysis_entered` events via EventLogger.
+  - `seedFermentationData()` — Creates 9 fermentation rounds: 4 active primary (2025 Cab A, Cab C, Syrah, Grenache with Brix curves decreasing from ~25 to ~-1 over 7–11 days), 1 active white primary (2025 Chardonnay at cooler temps 54–58°F vs red at 78–90°F), 2 completed (2024 Cab A primary + ML with confirmation_date), 1 completed (2024 Syrah primary), 1 stuck (Co-Ferment with Brix plateau at 15.8). Helper `createFermentationRound()` handles round creation with event logging, and `createBrixCurve()` generates realistic daily entries with linearly decreasing Brix and temperature jitter (±2°F).
+  - `seedSensoryNotes()` — Creates 10 tasting notes: Cab Block A (3 notes showing development from young/tannic to integrated/complex), Syrah (2 notes), Chardonnay (2 notes with white wine descriptors), Grenache (1 note on hundred-point scale at 91), 2025 Cab (1 note with no rating — early assessment), Petite Sirah (1 note flagging VA concern). Uses both five_point and hundred_point rating scales. Helper `createSensoryNote()` creates notes with event logging.
+- `api/database/seeders/DemoWinerySeeder.php` — Added `$this->call(DefaultLabThresholdsSeeder::class)` after ProductionSeeder to seed industry-standard lab thresholds (VA legal limits, pH bands, SO2 caps, etc.) into the demo tenant.
+- `api/app/Filament/Widgets/FermentationCurveChart.php` — Added `protected static bool $isDiscovered = false` to prevent Filament from auto-discovering the widget on the Dashboard (it's only for the ViewFermentationRound footer).
+- `api/resources/views/filament/widgets/fermentation-curve-chart.blade.php` — Rewritten to use inline Alpine component instead of `Alpine.data()` registration (which failed under Livewire v3 SPA navigation because `alpine:init` had already fired). Chart.js CDN loaded via Livewire v3 `@assets` directive for proper script lifecycle management.
+- `Makefile` — `make fresh` now runs `redis-cli FLUSHDB` before `migrate:fresh --seed` to clear stale Redis sessions, fixing the double-login issue after database reset.
+
+### Key Decisions
+- **Realistic winery data**: All seeded values use real-world ranges — red fermentation at 78–90°F, white at 54–58°F, Brix curves starting ~25 and decreasing to negative values (indicating dry fermentation), VA near the 0.10 g/100mL warning threshold on Petite Sirah, ETS Labs as external source on Grenache.
+- **Stuck fermentation with Brix plateau**: The Co-Ferment round has entries where Brix stops decreasing at 15.8 (last 3 entries within 0.2 of each other). This gives a visual and data-verifiable example of a stuck fermentation for testing and demo purposes.
+- **Threshold seeder in DemoWinerySeeder, not ProductionSeeder**: Default lab thresholds are configuration data (not production data), so the call lives in DemoWinerySeeder alongside other setup calls rather than in ProductionSeeder.
+- **Widget not auto-discovered on Dashboard**: The `FermentationCurveChart` widget is a per-round detail view — not suitable for the main Dashboard summary. `$isDiscovered = false` prevents Filament from placing it there. A future dashboard overview widget should be purpose-built for the summary view.
+- **Inline Alpine component over Alpine.data()**: Livewire v3 SPA navigation means `alpine:init` fires once on first page load. Subsequent navigations don't re-fire it, so `Alpine.data()` registrations in widget Blade templates never execute. Inline `x-data="{ ... }"` components work regardless of navigation timing.
+- **Redis flush on make fresh**: Session driver is Redis, and `migrate:fresh --seed` only resets PostgreSQL. Old session cookies pointing to non-existent user UUIDs caused `AuthenticateSession` middleware to invalidate the first login, requiring a second. Flushing Redis before migration eliminates stale sessions.
+
+### Deviations from Spec
+- Spec didn't explicitly call for threshold seeding in the demo winery — added because threshold alerts are only useful with thresholds configured, and the demo should showcase this feature.
+- Fixed Blade template from original CDN + `alpine:init` approach to Livewire v3 `@assets` + inline Alpine — the original approach was a bug, not a design choice.
+- `havingRaw('count(*) > 1')` used in test instead of `having('cnt', '>', 1)` — PostgreSQL doesn't allow column aliases in HAVING clauses (MySQL does).
+
+### Patterns Established
+- **Seeder helpers with EventLogger**: Demo data seeders should create records AND write corresponding events (via EventLogger, not service layer) to maintain a realistic event log. Helper methods like `createLabHistory()` and `createBrixCurve()` keep the seeder readable.
+- **Redis flush on database reset**: Any `make fresh` or equivalent that resets the database should also flush session storage to prevent stale session artifacts.
+- **$isDiscovered = false for page-specific widgets**: Widgets that are only used on specific resource pages (not the Dashboard) should opt out of Filament auto-discovery.
+
+### Test Summary
+- `tests/Feature/Lab/LabFermentationDemoDataTest.php` (9 tests, 52 assertions)
+  - Tier 1: lab records exist (>30 total, multiple test types including pH/TA/VA/free_SO2/alcohol, multiple sources including manual and ets_labs)
+  - Tier 1: fermentation rounds with realistic Brix decrease curves (first entry >20, last entry <5, chronological decrease)
+  - Tier 1: completed fermentation rounds (≥2 completed, including ML round with confirmation_date)
+  - Tier 1: stuck fermentation with Brix plateau (last 2 entries within 1.0 of each other)
+  - Tier 1: sensory notes (≥8 total, both rating scales, at least 1 null rating, multi-tasting per lot)
+  - Tier 1: event logging — `lab_analysis_entered` (>30), `fermentation_round_created` (≥8), `sensory_note_recorded` (≥8) events with correct payload structures
+  - Tier 2: realistic temperature ranges (white <65°F avg, red >74°F avg)
+- Known gaps: Visual verification of fermentation chart widget requires browser testing
+
+### Open Questions
+- None. Phase 3 is complete. All 7 sub-tasks are done.
