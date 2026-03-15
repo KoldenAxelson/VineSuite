@@ -69,6 +69,9 @@ class DemoWinerySeeder extends Seeder
 
             // Create demo users with each role
             $this->createDemoUsers();
+
+            // Seed realistic production data (lots, vessels, barrels, work orders, etc.)
+            $this->call(ProductionSeeder::class);
         });
 
         Log::info('DemoWinerySeeder: demo winery created', [

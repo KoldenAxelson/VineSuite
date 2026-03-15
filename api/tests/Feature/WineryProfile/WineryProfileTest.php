@@ -269,9 +269,9 @@ it('demo seeder creates paso robles cellars with all demo users', function () {
         expect($profile->fiscal_year_start_month)->toBe(7);
         expect($profile->onboarding_complete)->toBeTrue();
 
-        // Verify 7 demo users (one per role)
-        expect(User::count())->toBe(7);
-        expect(User::where('role', 'owner')->count())->toBe(1);
+        // Verify 8 demo users (admin@vine.com + one per winery role)
+        expect(User::count())->toBe(8);
+        expect(User::where('role', 'owner')->count())->toBe(2);
         expect(User::where('role', 'admin')->count())->toBe(1);
         expect(User::where('role', 'winemaker')->count())->toBe(1);
         expect(User::where('role', 'cellar_hand')->count())->toBe(1);
