@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LabAnalysisController;
+use App\Http\Controllers\Api\V1\LabImportController;
 use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
@@ -233,6 +234,12 @@ Route::middleware([
             Route::post('/lab-thresholds', [LabThresholdController::class, 'store'])->name('lab-thresholds.store');
             Route::put('/lab-thresholds/{threshold}', [LabThresholdController::class, 'update'])->name('lab-thresholds.update');
             Route::delete('/lab-thresholds/{threshold}', [LabThresholdController::class, 'destroy'])->name('lab-thresholds.destroy');
+        });
+
+        // ─── Lab CSV Import ─────────────────────────────────────────
+        Route::middleware('role:owner,admin,winemaker')->prefix('lab-import')->group(function () {
+            Route::post('/preview', [LabImportController::class, 'preview'])->name('lab-import.preview');
+            Route::post('/commit', [LabImportController::class, 'commit'])->name('lab-import.commit');
         });
 
         // Team list — any authenticated user can view team members

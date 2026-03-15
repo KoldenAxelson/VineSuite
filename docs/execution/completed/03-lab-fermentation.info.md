@@ -113,3 +113,57 @@
 
 ### Open Questions
 - None. The threshold checker is fully integrated into the lab analysis creation flow and fires automatically on every new entry.
+
+---
+
+## Sub-Task 3: External Lab CSV Import
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Services/LabImport/LabCsvParser.php` — Interface contract for CSV parsers. Defines `canParse()`, `parse()`, and `getSource()` methods. Parsers are tried in order (most specific first) and the first match wins.
+- `api/app/Services/LabImport/ParsedLabImport.php` — Value object for parse results. Contains records, warnings, source identifier, total/skipped row counts.
+- `api/app/Services/LabImport/ParsedLabRecord.php` — Value object for individual parsed records. Includes lot name/ID, lot match suggestions, test data, and `toArray()` for JSON serialization.
+- `api/app/Services/LabImport/ETSLabsParser.php` — Parser for ETS Laboratories CSV exports. Uses ETS-distinctive identifying headers ("Wine", "Sample") to avoid false-matching generic CSVs. Resilient to column reordering (maps by header name, not position), extra title rows (scans first 5 rows for the real header row), empty rows, N/A values, and `<`/`>` prefixed values (e.g., `<0.5` → 0.5). Supports 30+ column name variations for 11 test types.
+- `api/app/Services/LabImport/GenericCSVParser.php` — Fallback parser for non-lab-specific CSV formats. Accepts any CSV with at least one recognizable test type column. Supports both spaced and underscore column naming conventions (e.g., "Free SO2" and "free_so2"). Used when no specific lab parser matches.
+- `api/app/Services/LabImport/LabImportService.php` — Orchestrator for the two-phase import workflow (preview → commit). Preview phase: parses CSV via auto-detected parser, matches lot names (exact + fuzzy word-split search), returns preview with suggestions. Commit phase: creates LabAnalysis records in a transaction, writes `lab_analysis_entered` events with `import_batch: true` marker, runs threshold checks, handles individual record errors gracefully.
+- `api/app/Http/Controllers/Api/V1/LabImportController.php` — Two endpoints: `preview` (accepts multipart file upload, 5MB max, returns parsed preview) and `commit` (accepts confirmed records array with lot_id assignments, validates source against allowed list).
+- `api/routes/api.php` — Added `POST /lab-import/preview` and `POST /lab-import/commit` routes under winemaker+ RBAC.
+
+### Key Decisions
+- **Two-phase import (preview → commit)**: Per the spec, users must see a preview before data is committed. The preview includes lot match suggestions so users can correct mismatches before importing. This avoids orphaned or mis-attributed lab records.
+- **Parser priority chain**: ETS Labs parser is tried first (specific), then generic CSV (fallback). New lab-specific parsers (OenoFoss, WineScan) can be added to the chain without modifying existing parsers.
+- **ETS-identifying headers vs generic**: ETS parser requires ETS-distinctive headers ("Wine", "Sample") in `canParse()` — not generic headers like "Lot Name" or "Lot". This prevents the ETS parser from greedily matching generic CSVs that happen to have test type columns.
+- **Fuzzy lot matching with word splitting**: When no exact match is found, search terms are split into individual words and each must match independently via `ilike`. So "Cabernet 2024" matches "Cabernet Sauvignon Estate 2024" because both "Cabernet" and "2024" appear in the lot name.
+- **Event payloads include `import_batch: true`**: Batch-imported analyses write the same `lab_analysis_entered` event as manual entries, but include an `import_batch` flag in the payload so the event stream can distinguish bulk imports from manual entries.
+- **Graceful error handling in commit**: Individual record failures (invalid lot_id, bad test_type) are caught and reported in the `errors` array without aborting the entire batch. The transaction still wraps all successful records.
+
+### Deviations from Spec
+- Spec listed a single `POST /lab-import` endpoint. Implementation splits into two endpoints (`/lab-import/preview` and `/lab-import/commit`) to support the mandatory preview-before-commit workflow.
+- Spec mentioned OenoFoss and WineScan parsers. These are deferred as the GenericCSVParser handles their column formats. Dedicated parsers can be added later if format-specific quirks are discovered.
+- No Filament import action added — the import workflow requires a multi-step preview/confirm flow that maps better to the API + frontend than a simple Filament action. The Filament LabAnalysis resource already shows imported records with their source.
+
+### Patterns Established
+- **Parser interface chain**: `LabCsvParser` interface with `canParse()` → `parse()` pattern. Future lab parsers (OenoFoss, WineScan, or custom) implement this interface and register in `LabImportService`.
+- **Two-phase import workflow**: Preview → user review → commit. Reusable for any future CSV import feature (e.g., fermentation data import).
+- **Word-split fuzzy matching**: Splitting search terms into individual words for multi-keyword fuzzy matching. Useful anywhere lot name matching is needed.
+
+### Test Summary
+- `tests/Feature/Lab/LabImportTest.php` (28 tests, 94 assertions)
+  - Tier 1: ETS parser — standard CSV with multiple test types, extra title row, empty rows/N/A values, reordered columns, non-numeric value warnings, non-lab CSV rejection
+  - Tier 1: Generic parser — standard columns, underscore-style columns, unrecognizable columns rejection
+  - Tier 1: lot matching — exact match by name, fuzzy word-split suggestions
+  - Tier 1: event logging — `lab_analysis_entered` events with self-contained payload and `import_batch` flag
+  - Tier 1: threshold alerts fire during import commit
+  - Tier 1: source recorded correctly on imported analyses
+  - Tier 1: tenant isolation — cross-tenant lot matching prevention
+  - Tier 2: API preview (ETS format, generic format)
+  - Tier 2: API commit with database verification
+  - Tier 2: validation — missing file, invalid source, missing lot_id
+  - Tier 2: RBAC — winemaker can import, cellar_hand cannot, read_only cannot
+  - Tier 2: API envelope format
+  - Tier 2: edge cases — headers-only CSV, `<`/`>` prefixed values, invalid lot_id graceful error
+- Known gaps: Filament import UI not tested (import is API-driven); OenoFoss/WineScan specific parsers deferred
+
+### Open Questions
+- None. The generic parser covers OenoFoss and WineScan formats via flexible column matching. Dedicated parsers can be added later if specific format quirks emerge.
