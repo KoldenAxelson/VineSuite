@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\BlendController;
+use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LotController;
@@ -194,6 +195,15 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/blend-trials', [BlendController::class, 'store'])->name('blend-trials.store');
             Route::post('/blend-trials/{blendTrial}/finalize', [BlendController::class, 'finalize'])->name('blend-trials.finalize');
+        });
+
+        // ─── Production: Bottling Runs ──────────────────────────────
+        Route::get('/bottling-runs', [BottlingRunController::class, 'index'])->name('bottling-runs.index');
+        Route::get('/bottling-runs/{bottlingRun}', [BottlingRunController::class, 'show'])->name('bottling-runs.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/bottling-runs', [BottlingRunController::class, 'store'])->name('bottling-runs.store');
+            Route::post('/bottling-runs/{bottlingRun}/complete', [BottlingRunController::class, 'complete'])->name('bottling-runs.complete');
         });
 
         // Team list — any authenticated user can view team members

@@ -167,6 +167,14 @@ class Lot extends Model
         return $this->hasMany(FilterLog::class)->orderByDesc('performed_at');
     }
 
+    /**
+     * @return HasMany<BottlingRun, $this>
+     */
+    public function bottlingRuns(): HasMany
+    {
+        return $this->hasMany(BottlingRun::class)->orderByDesc('created_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

@@ -463,3 +463,54 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 11: Bottling Operations
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100013_create_bottling_runs_table.php` — Creates `bottling_runs` table with UUID PK, FK to lots (cascadeOnDelete), bottle_format, bottles_filled, bottles_breakage, waste_percent, volume_bottled_gallons as `decimal(12,4)`, status (planned/in_progress/completed) with default 'planned', sku (nullable), cases_produced (nullable), bottles_per_case default 12, performed_by FK to users (nullOnDelete), bottled_at/completed_at (nullable), notes. Indexed on lot_id, status, bottled_at, sku.
+- `api/database/migrations/tenant/2026_03_10_100014_create_bottling_components_table.php` — Creates `bottling_components` table with UUID PK, FK to bottling_runs (cascadeOnDelete), component_type, product_name, quantity_used, quantity_wasted default 0, unit default 'each', inventory_item_id (nullable UUID, no FK — stub for 04-inventory.md), notes. Indexed on bottling_run_id, component_type.
+- `api/app/Models/BottlingRun.php` — Model with STATUSES, BOTTLE_FORMATS (187ml–3.0L), BOTTLES_PER_GALLON lookup. Relationships: lot(), performer(), components(). Scopes: withStatus(), forLot(), bottledBetween(). Full PHPStan generics.
+- `api/app/Models/BottlingComponent.php` — Model with COMPONENT_TYPES (bottle, cork, capsule, label, carton). Relationship: bottlingRun(). Full PHPStan generics.
+- `api/database/factories/BottlingRunFactory.php` — Calculates realistic volume from bottles and format. States: completed(), inProgress().
+- `api/database/factories/BottlingComponentFactory.php` — Products organized by component type. States: bottle(), cork().
+- `api/app/Services/BottlingService.php` — Two-phase workflow. `createBottlingRun()` creates run + components in transaction, calculates cases_produced. `completeBottlingRun()` validates not already completed, validates lot has sufficient volume, deducts volume from lot, auto-generates SKU if not provided (format: VARIETY-VINTAGE-FORMAT-RUNID), calculates final cases, writes `bottling_completed` event with full payload including component details. When lot volume reaches zero, auto-sets lot status to 'bottled' with `lot_status_changed` event. Inventory deduction stubbed for 04-inventory.md.
+- `api/app/Http/Requests/StoreBottlingRunRequest.php` — Validates bottle_format (required, in BOTTLE_FORMATS), bottles_filled (required, int), volume_bottled_gallons (required), nested components with component_type/product_name/quantity_used.
+- `api/app/Http/Resources/BottlingRunResource.php` — Nested lot, performer, components. Carbon `@property` annotations for bottled_at/completed_at.
+- `api/app/Http/Controllers/Api/V1/BottlingRunController.php` — index (filterable by lot_id, status), store, show, complete.
+- `api/routes/api.php` — GET /bottling-runs, /bottling-runs/{bottlingRun} (authenticated). POST /bottling-runs, /bottling-runs/{bottlingRun}/complete (winemaker+).
+- `api/app/Models/Lot.php` — Added `bottlingRuns()` HasMany relationship.
+- `api/tests/Feature/Production/BottlingRunTest.php` — 20 tests.
+
+### Key Decisions
+- **Two-phase workflow (create → complete)** — bottling runs are planned first, then completed. This supports the real-world workflow where the bottling line is set up and scheduled before actual bottling happens. Completion is the trigger for volume deduction and event writing.
+- **Bottling is winemaker+ only** — bottling is a major production decision that creates case goods and bridges to inventory/sales. RBAC is `role:owner,admin,winemaker`.
+- **SKU auto-generation** — if no SKU is provided at creation time, one is auto-generated on completion using the pattern `{VARIETY_CODE}-{VINTAGE}-{FORMAT}-{RUN_ID_PREFIX}`. Users can override with a custom SKU.
+- **Lot auto-archives on zero volume** — when bottling consumes all remaining lot volume, the lot status is automatically set to 'bottled' with a `lot_status_changed` event explaining the reason. This prevents stale lots lingering in active status.
+- **Components are optional** — a bottling run can be created without packaging components. Components track consumed materials (bottles, corks, capsules, labels, cartons) for cost accounting.
+- **Inventory linkage stubbed** — `inventory_item_id` on components is a nullable UUID with no FK constraint. Auto-deduction from dry goods inventory will be wired in 04-inventory.md. Case goods inventory creation is also stubbed.
+- **BOTTLES_PER_GALLON lookup** — model constant provides approximate bottle counts per gallon by format. Used by the factory for realistic test data generation, not for production calculations (users enter actual counts).
+
+### Deviations from Spec
+- **Case goods inventory not auto-created** — spec says "Case goods inventory created on completion." Deferred to 04-inventory.md since the inventory module doesn't exist yet. The SKU and cases_produced are captured on the bottling run for future integration.
+- **Packaging materials not auto-deducted** — spec says "Packaging materials auto-deducted from dry goods inventory." Deferred to 04-inventory.md. Component records are created but inventory deduction is stubbed.
+
+### Patterns Extended
+- BottlingService follows Production Service Pattern with EventLogger injection and DB transaction.
+- Two-phase completion pattern: create (planned) → complete (deducts, writes events). Similar to blend trials (draft → finalized).
+- Auto-status-change pattern: lot auto-transitions to 'bottled' when volume depleted, with explanatory event payload.
+- Component tracking pattern: nested array of packaging materials attached to a parent record, similar to blend trial components.
+
+### Test Summary
+- `tests/Feature/Production/BottlingRunTest.php` (20 tests)
+  - Tier 1: create with components, complete with volume deduction, bottling_completed event with full payload, auto-set lot to 'bottled' on zero volume, reject insufficient volume, reject double completion, auto-generate SKU, custom SKU preserved, tenant isolation
+  - Tier 2: CRUD (list with pagination, filter by status, show with components)
+  - Tier 2: validation (missing required fields, invalid bottle format)
+  - Tier 2: RBAC (winemaker can create/complete, cellar_hand cannot create, read_only can list/view)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.
