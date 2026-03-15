@@ -514,3 +514,46 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 12: Barrel Operations (Fill, Top, Rack, Sample)
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Services/BarrelOperationService.php` — Four barrel-specific operations, all with bulk support (up to 200 barrels per request). `fillBarrels()` creates lot_vessel pivots for each barrel. `topBarrels()` validates source vessel has sufficient volume, deducts from source, increases each barrel's pivot volume — writes `barrel_topped` events. `rackBarrels()` moves wine from barrels to a target vessel, tracks optional lees_weight_kg per barrel — writes `barrel_racked` events. `recordSample()` extracts small volume (mL converted to gallons via 3785.41 factor) — writes `barrel_sampled` event. All use DB transactions. Pivot helpers (decreaseVesselVolume/increaseVesselVolume) duplicated from TransferService pattern.
+- `api/app/Http/Requests/BarrelFillRequest.php` — Validates lot_id (required, UUID, exists), barrels array (min 1, max 200) with barrel_id and volume_gallons.
+- `api/app/Http/Requests/BarrelTopRequest.php` — Adds source_vessel_id (required, UUID, exists) to the fill pattern.
+- `api/app/Http/Requests/BarrelRackRequest.php` — Adds target_vessel_id and optional lees_weight_kg per barrel.
+- `api/app/Http/Requests/BarrelSampleRequest.php` — Single barrel: barrel_id, lot_id, volume_ml (1–5000), optional notes.
+- `api/app/Http/Controllers/Api/V1/BarrelOperationController.php` — fill, top, rack, sample endpoints. Returns operation summary with results array.
+- `api/routes/api.php` — POST `/barrel-operations/{fill,top,rack,sample}` gated by `role:owner,admin,winemaker,cellar_hand`.
+- `api/tests/Feature/Production/BarrelOperationTest.php` — 13 tests.
+
+### Key Decisions
+- **Barrel operations are cellar_hand+** — these are routine cellar tasks (filling, topping, racking, sampling). RBAC matches additions and transfers.
+- **Bulk operations support up to 200 barrels** — spec says a winery might top 200 barrels in one session. Validation allows max 200 entries in the barrels array. All processed in a single DB transaction for atomicity.
+- **Topping deducts from source vessel** — per spec, topping uses wine from a source vessel. Total volume across all barrels is validated against source vessel before processing. Source vessel volume decreases by the total.
+- **Racking tracks lees weight** — optional lees_weight_kg per barrel in rack operations. Stored in the event payload for production tracking.
+- **Sample uses milliliters** — samples are tiny (50–500mL typically), so volume_ml is more natural than gallons. Converted to gallons internally for pivot deduction (1 gal = 3785.41 mL).
+- **Pivot helpers duplicated, not shared** — decreaseVesselVolume/increaseVesselVolume are private methods duplicated from TransferService. Could be extracted to a shared trait, but keeping them local avoids coupling. Can refactor later if a third service needs them.
+- **No new migration** — barrel operations use existing lot_vessel pivot and events table. No new tables needed.
+
+### Deviations from Spec
+- **Barrel grouping/sets not implemented** — spec mentions "Barrel grouping/sets for batch operations." This is a UI/organization concept (group barrels into named sets like "2024 CS Barrels"). Deferred to the Filament resources sub-task (Sub-Task 13) where barrel set management makes more sense as a UI feature. The bulk API already supports operating on arbitrary barrel lists.
+
+### Patterns Extended
+- Barrel pivot management reuses TransferService's decrease/increase volume pattern.
+- Event-per-barrel pattern: each barrel in a bulk operation gets its own event for granular tracking.
+- Validation-before-processing: topping validates total volume against source before any individual barrel operations.
+
+### Test Summary
+- `tests/Feature/Production/BarrelOperationTest.php` (13 tests)
+  - Tier 1: fill barrels with events, top with source deduction and events, reject topping on insufficient volume, rack with lees weight and events, sample with event and mL conversion, tenant isolation
+  - Tier 2: validation (missing fill fields, invalid source vessel, sample volume exceeding max)
+  - Tier 2: RBAC (cellar_hand can operate, read_only cannot)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.

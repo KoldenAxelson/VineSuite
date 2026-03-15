@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
+use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
@@ -195,6 +196,14 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/blend-trials', [BlendController::class, 'store'])->name('blend-trials.store');
             Route::post('/blend-trials/{blendTrial}/finalize', [BlendController::class, 'finalize'])->name('blend-trials.finalize');
+        });
+
+        // ─── Production: Barrel Operations ─────────────────────────
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->prefix('barrel-operations')->group(function () {
+            Route::post('/fill', [BarrelOperationController::class, 'fill'])->name('barrel-operations.fill');
+            Route::post('/top', [BarrelOperationController::class, 'top'])->name('barrel-operations.top');
+            Route::post('/rack', [BarrelOperationController::class, 'rack'])->name('barrel-operations.rack');
+            Route::post('/sample', [BarrelOperationController::class, 'sample'])->name('barrel-operations.sample');
         });
 
         // ─── Production: Bottling Runs ──────────────────────────────
