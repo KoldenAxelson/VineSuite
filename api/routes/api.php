@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AdditionController;
 use App\Http\Controllers\Api\V1\BarrelController;
+use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\EventSyncController;
+use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\PressLogController;
 use App\Http\Controllers\Api\V1\TransferController;
@@ -173,6 +175,23 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/press-logs', [PressLogController::class, 'store'])->name('press-logs.store');
+        });
+
+        // ─── Production: Filter Logs ──────────────────────────────
+        Route::get('/filter-logs', [FilterLogController::class, 'index'])->name('filter-logs.index');
+        Route::get('/filter-logs/{filterLog}', [FilterLogController::class, 'show'])->name('filter-logs.show');
+
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::post('/filter-logs', [FilterLogController::class, 'store'])->name('filter-logs.store');
+        });
+
+        // ─── Production: Blend Trials ─────────────────────────────
+        Route::get('/blend-trials', [BlendController::class, 'index'])->name('blend-trials.index');
+        Route::get('/blend-trials/{blendTrial}', [BlendController::class, 'show'])->name('blend-trials.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/blend-trials', [BlendController::class, 'store'])->name('blend-trials.store');
+            Route::post('/blend-trials/{blendTrial}/finalize', [BlendController::class, 'finalize'])->name('blend-trials.finalize');
         });
 
         // Team list — any authenticated user can view team members

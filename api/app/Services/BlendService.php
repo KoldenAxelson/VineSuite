@@ -1,0 +1,254 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\BlendTrial;
+use App\Models\BlendTrialComponent;
+use App\Models\Lot;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * BlendService — business logic for blend trials and finalization.
+ *
+ * Blending workflow:
+ * 1. Create draft trial with source lots and percentages
+ * 2. Compare multiple trial versions
+ * 3. Finalize: creates new blended lot, deducts volumes from sources
+ *
+ * TTB compliance: >=75% of a single variety to label as that variety.
+ * Cost rolls through proportionally (tracked via events for COGS).
+ */
+class BlendService
+{
+    public function __construct(
+        protected EventLogger $eventLogger,
+    ) {}
+
+    /**
+     * Create a blend trial with components.
+     *
+     * @param  array<string, mixed>  $data  Validated trial data with 'components' array
+     * @param  string  $createdBy  UUID of the user
+     */
+    public function createTrial(array $data, string $createdBy): BlendTrial
+    {
+        return DB::transaction(function () use ($data, $createdBy) {
+            $components = $data['components'];
+            unset($data['components']);
+
+            $data['created_by'] = $createdBy;
+            $data['status'] = 'draft';
+
+            // Calculate total volume and variety composition
+            $totalVolume = 0;
+            /** @var array<string, float> $varietyVolumes */
+            $varietyVolumes = [];
+
+            foreach ($components as $component) {
+                $sourceLot = Lot::findOrFail($component['source_lot_id']);
+                $volume = (float) $component['volume_gallons'];
+                $totalVolume += $volume;
+
+                $variety = $sourceLot->variety;
+                $varietyVolumes[$variety] = ($varietyVolumes[$variety] ?? 0) + $volume;
+            }
+
+            // Calculate variety composition as percentages
+            $varietyComposition = [];
+            foreach ($varietyVolumes as $variety => $volume) {
+                $varietyComposition[$variety] = $totalVolume > 0
+                    ? round(($volume / $totalVolume) * 100, 4)
+                    : 0;
+            }
+
+            // Determine TTB label variety (>=75% of a single variety)
+            $ttbLabelVariety = null;
+            foreach ($varietyComposition as $variety => $percentage) {
+                if ($percentage >= BlendTrial::TTB_VARIETY_THRESHOLD) {
+                    $ttbLabelVariety = $variety;
+                    break;
+                }
+            }
+
+            $data['variety_composition'] = $varietyComposition;
+            $data['ttb_label_variety'] = $ttbLabelVariety;
+            $data['total_volume_gallons'] = $totalVolume;
+
+            $trial = BlendTrial::create($data);
+
+            // Create component records
+            foreach ($components as $component) {
+                BlendTrialComponent::create([
+                    'blend_trial_id' => $trial->id,
+                    'source_lot_id' => $component['source_lot_id'],
+                    'percentage' => $component['percentage'],
+                    'volume_gallons' => $component['volume_gallons'],
+                ]);
+            }
+
+            Log::info('Blend trial created', [
+                'blend_trial_id' => $trial->id,
+                'name' => $trial->name,
+                'component_count' => count($components),
+                'total_volume' => $totalVolume,
+                'ttb_label_variety' => $ttbLabelVariety,
+                'tenant_id' => tenant('id'),
+                'user_id' => $createdBy,
+            ]);
+
+            return $trial->load(['components.sourceLot', 'creator']);
+        });
+    }
+
+    /**
+     * Finalize a blend trial — creates a new lot and deducts from sources.
+     *
+     * @throws ValidationException If trial is not in draft status or source lots lack volume
+     */
+    public function finalizeTrial(BlendTrial $trial, string $performedBy): BlendTrial
+    {
+        if ($trial->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => ['Only draft blend trials can be finalized.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($trial, $performedBy) {
+            $trial->load('components.sourceLot');
+
+            // Validate all source lots have enough volume
+            foreach ($trial->components as $component) {
+                $sourceLot = $component->sourceLot;
+                $requiredVolume = (float) $component->volume_gallons;
+                $availableVolume = (float) $sourceLot->volume_gallons;
+
+                if ($requiredVolume > $availableVolume) {
+                    throw ValidationException::withMessages([
+                        'components' => [
+                            "Source lot \"{$sourceLot->name}\" has only {$availableVolume} gallons available, but {$requiredVolume} gallons required.",
+                        ],
+                    ]);
+                }
+            }
+
+            // Determine the blended lot's variety label
+            $variety = $trial->ttb_label_variety ?? 'Blend';
+            $vintage = null;
+            $vintages = [];
+
+            foreach ($trial->components as $component) {
+                $vintages[] = $component->sourceLot->vintage;
+            }
+            $vintages = array_unique($vintages);
+            $vintage = count($vintages) === 1 ? $vintages[0] : min($vintages);
+
+            // Create the resulting blended lot
+            $blendedLot = Lot::create([
+                'name' => $trial->name,
+                'variety' => $variety,
+                'vintage' => $vintage,
+                'source_type' => 'estate',
+                'volume_gallons' => $trial->total_volume_gallons,
+                'status' => 'in_progress',
+                'source_details' => [
+                    'blend_trial_id' => $trial->id,
+                    'variety_composition' => $trial->variety_composition,
+                ],
+            ]);
+
+            // Write lot_created event for the new blended lot
+            $this->eventLogger->log(
+                entityType: 'lot',
+                entityId: $blendedLot->id,
+                operationType: 'lot_created',
+                payload: [
+                    'name' => $blendedLot->name,
+                    'variety' => $blendedLot->variety,
+                    'vintage' => $blendedLot->vintage,
+                    'source_type' => 'estate',
+                    'initial_volume_gallons' => (float) $blendedLot->volume_gallons,
+                    'blend_trial_id' => $trial->id,
+                    'variety_composition' => $trial->variety_composition,
+                ],
+                performedBy: $performedBy,
+                performedAt: now(),
+            );
+
+            // Deduct volumes from source lots and write events
+            $componentDetails = [];
+            foreach ($trial->components as $component) {
+                $sourceLot = $component->sourceLot;
+                $deductVolume = (float) $component->volume_gallons;
+
+                // Deduct volume from source lot
+                $oldVolume = (float) $sourceLot->volume_gallons;
+                $sourceLot->update([
+                    'volume_gallons' => $oldVolume - $deductVolume,
+                ]);
+
+                // Write volume_deducted event on the source lot
+                $this->eventLogger->log(
+                    entityType: 'lot',
+                    entityId: $sourceLot->id,
+                    operationType: 'volume_deducted',
+                    payload: [
+                        'reason' => 'blend_finalization',
+                        'blend_trial_id' => $trial->id,
+                        'resulting_lot_id' => $blendedLot->id,
+                        'volume_deducted_gallons' => $deductVolume,
+                        'old_volume_gallons' => $oldVolume,
+                        'new_volume_gallons' => $oldVolume - $deductVolume,
+                    ],
+                    performedBy: $performedBy,
+                    performedAt: now(),
+                );
+
+                $componentDetails[] = [
+                    'source_lot_id' => $sourceLot->id,
+                    'source_lot_name' => $sourceLot->name,
+                    'variety' => $sourceLot->variety,
+                    'percentage' => (float) $component->percentage,
+                    'volume_gallons' => $deductVolume,
+                ];
+            }
+
+            // Update trial to finalized
+            $trial->update([
+                'status' => 'finalized',
+                'resulting_lot_id' => $blendedLot->id,
+                'finalized_at' => now(),
+            ]);
+
+            // Write blend_finalized event on the new blended lot
+            $this->eventLogger->log(
+                entityType: 'lot',
+                entityId: $blendedLot->id,
+                operationType: 'blend_finalized',
+                payload: [
+                    'blend_trial_id' => $trial->id,
+                    'components' => $componentDetails,
+                    'variety_composition' => $trial->variety_composition,
+                    'ttb_label_variety' => $trial->ttb_label_variety,
+                    'total_volume_gallons' => (float) $trial->total_volume_gallons,
+                ],
+                performedBy: $performedBy,
+                performedAt: now(),
+            );
+
+            Log::info('Blend trial finalized', [
+                'blend_trial_id' => $trial->id,
+                'resulting_lot_id' => $blendedLot->id,
+                'total_volume' => $trial->total_volume_gallons,
+                'component_count' => $trial->components->count(),
+                'tenant_id' => tenant('id'),
+                'user_id' => $performedBy,
+            ]);
+
+            return $trial->fresh(['components.sourceLot', 'creator', 'resultingLot']);
+        });
+    }
+}

@@ -330,3 +330,96 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 8: Filtering and Fining Operations
+**Completed:** 2026-03-14
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100010_create_filter_logs_table.php` — Creates `filter_logs` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), filter_type, filter_media, flow_rate_lph, volume_processed_gallons, fining fields (agent, rate, rate_unit, bench_trial_notes, treatment_notes), pre/post_analysis_id (nullable UUIDs for future lab module), performed_by/at, notes. Indexed on lot_id, filter_type, performed_at.
+- `api/app/Models/FilterLog.php` — Model with FILTER_TYPES (pad, crossflow, cartridge, plate_and_frame, de, lenticular), FINING_RATE_UNITS (g/L, g/hL, mL/L, lb/1000gal). Relationships: lot(), vessel(), performer(). Scopes: ofType(), forLot(), performedBetween(), withFining(). Full PHPStan generics.
+- `api/database/factories/FilterLogFactory.php` — Media library organized by filter type, fining agent library with typical rates. States: withFining(), crossflow(), pad().
+- `api/app/Services/FilterLogService.php` — `logFiltering()` creates filter log, writes `filtering_logged` event with filter details and conditional fining/analysis payload fields.
+- `api/app/Http/Requests/StoreFilterLogRequest.php` — Validates filter_type (required, in constants), volume_processed_gallons (required), fining fields (all nullable), analysis IDs (nullable UUIDs).
+- `api/app/Http/Resources/FilterLogResource.php` — Returns all fields with nested lot/vessel/performer. Carbon `@property` annotations for PHPStan compatibility.
+- `api/app/Http/Controllers/Api/V1/FilterLogController.php` — index with filters (lot_id, filter_type, has_fining, performed date range), store, show.
+- `api/routes/api.php` — GET (authenticated), POST (cellar_hand+).
+- `api/app/Models/Lot.php` — Added `filterLogs()` HasMany.
+- `api/tests/Feature/Production/FilterLogTest.php` — 18 tests.
+
+### Key Decisions
+- **Kept simple per spec** — "this is a log entry, not a complex workflow." No multi-step state machine, just create and read.
+- **Fining is optional on a filter log** — same record captures pure filtration, fining+filtration, or standalone fining. The `has_fining` filter scope/query param lets the UI distinguish.
+- **Pre/post analysis IDs are nullable UUIDs with no FK** — lab module (03-lab-fermentation.md) isn't built yet. These will link to lab analysis entries once that module exists.
+- **Cellar hand+ can log** — filtering is a routine cellar operation, unlike pressing which is winemaker+.
+- **Bench trial notes and treatment notes are separate fields** — bench trial captures the small-scale testing, treatment notes capture the final full-lot application. Keeps them distinct for reporting.
+
+### Deviations from Spec
+- None. Implementation matches the spec exactly.
+
+### Patterns Extended
+- FilterLogService follows Production Service Pattern with conditional event payload (fining details only included when present).
+- `withFining()` scope and `has_fining` query filter for distinguishing fining operations from pure filtration.
+
+### Test Summary
+- `tests/Feature/Production/FilterLogTest.php` (18 tests)
+  - Tier 1: filtering_logged event with correct payload, fining details in event when present, tenant isolation
+  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
+  - Tier 2: filters (lot_id, has_fining)
+  - Tier 2: validation (missing required fields, invalid filter_type, invalid fining_rate_unit)
+  - Tier 2: RBAC (cellar_hand can log, read_only cannot, read_only can list/view)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.
+
+---
+
+## Sub-Task 9: Blending Operations
+**Completed:** 2026-03-14
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_10_100011_create_blend_trials_table.php` — Creates `blend_trials` table with UUID PK, name, status (draft/finalized/archived) with default 'draft', version integer default 1, variety_composition JSONB, ttb_label_variety (nullable), total_volume_gallons as `decimal(12,4)`, resulting_lot_id (nullable FK to lots, nullOnDelete), created_by FK to users (nullOnDelete), finalized_at (nullable datetime), notes. Indexed on status, created_by.
+- `api/database/migrations/tenant/2026_03_10_100012_create_blend_trial_components_table.php` — Creates `blend_trial_components` table with UUID PK, FK to blend_trials (cascadeOnDelete), FK to lots as source_lot_id (cascadeOnDelete), percentage as `decimal(8,4)`, volume_gallons as `decimal(12,4)`. Unique constraint on [blend_trial_id, source_lot_id]. Indexed on source_lot_id.
+- `api/app/Models/BlendTrial.php` — Model with STATUSES (draft/finalized/archived), TTB_VARIETY_THRESHOLD = 75.0. Relationships: components(), creator(), resultingLot(). Scopes: withStatus(), drafts(). Full PHPStan generics.
+- `api/app/Models/BlendTrialComponent.php` — Model with blendTrial() and sourceLot() relationships. Full PHPStan generics.
+- `api/database/factories/BlendTrialFactory.php` — States: finalized(), archived().
+- `api/database/factories/BlendTrialComponentFactory.php` — Factory for component records.
+- `api/app/Services/BlendService.php` — Most complex service in the module. `createTrial()` calculates variety_composition from source lot varieties weighted by volume, determines TTB label variety (>=75% threshold), creates trial + components in transaction. `finalizeTrial()` validates draft status, validates all source lots have sufficient volume, creates new blended lot (variety from TTB label or "Blend", vintage from common or min), deducts volumes from each source lot with `volume_deducted` events, writes `lot_created` and `blend_finalized` events on the new lot.
+- `api/app/Http/Requests/StoreBlendTrialRequest.php` — Validates name (required), components array (required, min 2, max 20) with source_lot_id (UUID, exists), percentage (0.0001–100), volume_gallons (0.0001–999999.9999).
+- `api/app/Http/Resources/BlendTrialResource.php` — Nested components with source lots, resulting lot, creator. Carbon `@property` annotations. `@phpstan-ignore return.type` on components map for Collection covariance.
+- `api/app/Http/Controllers/Api/V1/BlendController.php` — index (filterable by status), store, show, finalize.
+- `api/routes/api.php` — GET /blend-trials and GET /blend-trials/{blendTrial} open to authenticated. POST /blend-trials and POST /blend-trials/{blendTrial}/finalize gated by `role:owner,admin,winemaker`.
+- `api/tests/Feature/Production/BlendTrialTest.php` — 18 tests.
+
+### Key Decisions
+- **TTB compliance modeled as class constant** — `TTB_VARIETY_THRESHOLD = 75.0` on BlendTrial model. If the threshold changes, it's a single constant update. Variety composition stored as JSONB percentages for flexibility.
+- **Blending is winemaker+ only** — significant winemaking decision that affects wine identity and TTB labeling. RBAC is `role:owner,admin,winemaker`.
+- **Finalization is destructive and validated** — server validates all source lots have sufficient volume before any deductions. Each source lot gets its own `volume_deducted` event for full audit trail. Double finalization is rejected.
+- **Resulting lot variety from TTB label** — if a single variety reaches 75%, the blended lot is labeled as that variety. Otherwise, variety is set to "Blend". Vintage is the common vintage if all sources match, otherwise the minimum vintage.
+- **Status explicitly set in service** — `$data['status'] = 'draft'` set in `createTrial()` to ensure the PHP model object has the value, even though the DB default handles persistence. Prevents null status in API responses.
+- **Components require min 2** — a blend must have at least 2 source lots. Validation enforces this at the request level.
+- **Collection covariance suppressed** — PHPStan reports a false positive on `Collection::map()` return type covariance in BlendTrialResource. Suppressed with `@phpstan-ignore return.type` inline comment.
+
+### Deviations from Spec
+- None. Implementation matches the spec exactly.
+
+### Patterns Extended
+- BlendService follows Production Service Pattern with EventLogger injection and DB transaction.
+- Multi-event finalization: `lot_created` + `blend_finalized` on new lot, `volume_deducted` on each source lot.
+- Variety composition calculated server-side from source lot metadata — clients don't need to compute percentages.
+- JSON int/float encoding handled with `(float)` casts in tests (established pattern from Sub-Tasks 6–8).
+
+### Test Summary
+- `tests/Feature/Production/BlendTrialTest.php` (18 tests)
+  - Tier 1: variety composition and TTB label variety calculation, TTB null when no variety reaches 75%, finalization creates new lot and deducts source volumes, blend_finalized and volume_deducted events, reject double finalization, reject insufficient volume, tenant isolation
+  - Tier 2: CRUD (create with components, list with pagination, filter by status, show with nested data)
+  - Tier 2: validation (missing required fields, single component rejected)
+  - Tier 2: RBAC (winemaker can create/finalize, cellar_hand cannot, read_only can list/view)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.
