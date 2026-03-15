@@ -227,3 +227,50 @@
 ### Open Questions
 - The `confirmMlDryness()` service method exists but has no API endpoint. It will be exposed when the ML-specific workflow is fully defined (likely Sub-Task 5 or a future phase).
 - `nutrients_schedule` JSON structure is intentionally unvalidated beyond "nullable array" — wineries have very different nutrient protocols. A structured schema could be added later if consistency is needed.
+
+---
+
+## Sub-Task 5: Fermentation Curve Chart
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Http/Controllers/Api/V1/FermentationChartController.php` — Two endpoints returning chart-ready JSON for mobile and frontend consumption. `show()` returns data for a single round: series of date/temperature/brix_or_density/measurement_type/free_so2 entries sorted chronologically, round metadata (lot_name, lot_variety, target_temp, status), axis configuration with dynamically resolved y_left label (brix vs specific_gravity vs mixed). `lotOverview()` returns overlay data for all rounds of a lot, each with its own series, label, and metadata — for comparison charts.
+- `api/app/Filament/Widgets/FermentationCurveChart.php` — Custom Livewire widget for Filament. Loads entries for a given round, prepares labels/brix/temperature arrays, and passes them to the Blade template. Determines left axis label based on measurement types present. Mounted on ViewFermentationRound page as a footer widget via `getFooterWidgets()`.
+- `api/resources/views/filament/widgets/fermentation-curve-chart.blade.php` — Blade template rendering a dual-axis Chart.js 4.x line chart via Alpine.js integration. Left Y axis: Brix (blue, filled area). Right Y axis: Temperature °F (red, dashed line). Target temperature shown as a faint reference line when set. Interactive tooltips on hover. Legend at bottom. Empty state with icon when no data exists.
+- `api/app/Filament/Resources/FermentationRoundResource/Pages/ViewFermentationRound.php` — Updated to mount FermentationCurveChart widget in footer with full-width layout.
+- `api/routes/api.php` — Added `GET /fermentations/{roundId}/chart` and `GET /lots/{lotId}/fermentation-chart` routes, both authenticated (any role).
+
+### Key Decisions
+- **Chart.js via CDN rather than npm**: The spec says "keep it simple — this will be rebuilt as a native chart in the mobile apps." Chart.js 4.x loaded from cdnjs.cloudflare.com avoids adding a build step to the Filament backend. Alpine.js (already bundled with Filament) handles initialization.
+- **Two chart endpoints**: Single-round (`/fermentations/{roundId}/chart`) for detail views and lot-level overlay (`/lots/{lotId}/fermentation-chart`) for comparing primary vs ML rounds. Both return data in a chart-agnostic JSON format so mobile apps can consume the same API with their native charting library.
+- **Dynamic axis label resolution**: The `y_left` axis label is determined by the measurement types actually present in the entries — pure Brix data shows "brix", pure SG shows "specific_gravity", mixed or empty shows "brix_or_density". This avoids misleading axis labels when a winery uses one convention consistently.
+- **No event logging**: Chart endpoints are read-only — they don't mutate state, so no events are written. This is consistent with other read-only endpoints in the API.
+- **Target temperature reference line**: When `target_temp` is set on the round, the chart shows it as a faint dashed horizontal line on the temperature axis. Helps winemakers see at a glance if fermentation temperature stayed within their target range.
+- **free_so2 included in series data**: Although not plotted on the chart (only 2 axes), SO2 data is returned in the series so mobile apps or future chart enhancements can overlay it as a third metric without a new API call.
+
+### Deviations from Spec
+- Spec mentioned a single chart endpoint (`GET /fermentations/{round}/chart`). Added a second lot-level overlay endpoint (`GET /lots/{lotId}/fermentation-chart`) for comparing multiple rounds — a natural extension since winemakers commonly want to see primary and ML curves side by side.
+- Chart will show empty state until Sub-Task 7 seeds demo fermentation data with realistic Brix curves.
+
+### Patterns Established
+- **Chart-ready JSON format**: API returns data structured for immediate consumption by charting libraries — series arrays with consistent keys, axis configuration metadata, entry count. Future chart endpoints (lab analysis trends, barrel aging curves) should follow this pattern.
+- **Filament custom widget with Alpine.js + CDN library**: For one-off visualizations that don't warrant a full frontend build step, load the library via CDN and initialize with Alpine.js data binding.
+
+### Test Summary
+- `tests/Feature/Lab/FermentationChartTest.php` (14 tests)
+  - Tier 1: dual-axis data structure with round metadata, series content (date/temp/brix/measurement_type), chronological sort verification
+  - Tier 1: y_left axis resolved as "brix" for all-Brix entries, "specific_gravity" for all-SG entries
+  - Tier 1: round metadata includes lot_name, target_temp, status
+  - Tier 1: empty series for round with no entries
+  - Tier 1: lot overview returns all rounds with series data and labels
+  - Tier 1: tenant isolation — cross-tenant chart data returns 404
+  - Tier 2: read_only users can access chart data
+  - Tier 2: unauthenticated request rejected (401)
+  - Tier 2: API envelope format
+  - Tier 2: null temperature/brix handled gracefully in series
+  - Tier 2: free_so2 included in series data
+- Known gaps: Filament widget rendering not tested via Livewire (requires browser/JS execution); visual appearance depends on Sub-Task 7 demo data
+
+### Open Questions
+- None. The chart will be visually verifiable once Sub-Task 7 seeds realistic fermentation data with Brix decrease curves.

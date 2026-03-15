@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
+use App\Http\Controllers\Api\V1\FermentationChartController;
 use App\Http\Controllers\Api\V1\FermentationController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LabAnalysisController;
@@ -259,6 +260,10 @@ Route::middleware([
             Route::post('/fermentations/{roundId}/complete', [FermentationController::class, 'complete'])->name('fermentation-rounds.complete');
             Route::post('/fermentations/{roundId}/stuck', [FermentationController::class, 'markStuck'])->name('fermentation-rounds.stuck');
         });
+
+        // ─── Fermentation Chart Data ────────────────────────────────
+        Route::get('/fermentations/{roundId}/chart', [FermentationChartController::class, 'show'])->name('fermentation-chart.show');
+        Route::get('/lots/{lotId}/fermentation-chart', [FermentationChartController::class, 'lotOverview'])->name('fermentation-chart.lot-overview');
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {
