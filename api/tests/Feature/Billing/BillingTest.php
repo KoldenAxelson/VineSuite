@@ -58,35 +58,46 @@ afterEach(function () {
 
 // ─── Tenant Billable Setup ──────────────────────────────────────
 
-it('tenant model has Billable trait', function () {
+it('tenant model has Billable trait with working Stripe methods', function () {
     $tenant = Tenant::create([
         'name' => 'Billable Test',
         'slug' => 'billable-test',
         'plan' => 'basic',
     ]);
 
-    // Cashier Billable methods exist on the Tenant model
-    expect(method_exists($tenant, 'subscription'))->toBeTrue();
-    expect(method_exists($tenant, 'subscribed'))->toBeTrue();
-    expect(method_exists($tenant, 'createOrGetStripeCustomer'))->toBeTrue();
-    expect(method_exists($tenant, 'newSubscription'))->toBeTrue();
-    expect(method_exists($tenant, 'hasStripeId'))->toBeTrue();
+    // Verify Cashier Billable methods return expected defaults (no Stripe configured)
+    expect($tenant->hasStripeId())->toBeFalse();
+    expect($tenant->subscribed())->toBeFalse();
+    expect($tenant->subscription())->toBeNull();
 });
 
-it('tenant has plan helper methods', function () {
+it('tenant plan helper methods return correct values for basic plan', function () {
     $tenant = Tenant::create([
         'name' => 'Plan Helper Test',
         'slug' => 'plan-helper-test',
         'plan' => 'basic',
     ]);
 
-    expect(method_exists($tenant, 'hasActiveSubscription'))->toBeTrue();
-    expect(method_exists($tenant, 'isInGracePeriod'))->toBeTrue();
-    expect(method_exists($tenant, 'isFreePlan'))->toBeTrue();
-    expect(method_exists($tenant, 'hasActiveAccess'))->toBeTrue();
-    expect(method_exists($tenant, 'planRank'))->toBeTrue();
-    expect(method_exists($tenant, 'isDowngradeTo'))->toBeTrue();
-    expect(method_exists($tenant, 'hasPlanAtLeast'))->toBeTrue();
+    // Exercise each helper with real return value checks
+    expect($tenant->isFreePlan())->toBeFalse();
+    expect($tenant->hasActiveSubscription())->toBeFalse();
+    // hasActiveAccess() = isFreePlan() || subscribed() — basic plan with no Stripe sub = false
+    expect($tenant->hasActiveAccess())->toBeFalse();
+    expect($tenant->isInGracePeriod())->toBeFalse();
+    expect($tenant->planRank())->toBe(1);
+    expect($tenant->hasPlanAtLeast('basic'))->toBeTrue();
+    expect($tenant->hasPlanAtLeast('pro'))->toBeFalse();
+    expect($tenant->isDowngradeTo('free'))->toBeTrue();
+    expect($tenant->isDowngradeTo('pro'))->toBeFalse();
+
+    // Verify free plan returns hasActiveAccess = true
+    $freeTenant = Tenant::create([
+        'name' => 'Free Plan Test',
+        'slug' => 'free-plan-test',
+        'plan' => 'free',
+    ]);
+    expect($freeTenant->isFreePlan())->toBeTrue();
+    expect($freeTenant->hasActiveAccess())->toBeTrue();
 });
 
 it('stripePriceForPlan returns null when env not set', function () {
@@ -328,16 +339,17 @@ it('plan change validates plan name', function () {
 
 // ─── Webhook Route ──────────────────────────────────────────────
 
-it('webhook endpoint exists and is reachable', function () {
-    // The webhook route should exist (will return 403 without valid signature)
+it('webhook endpoint is registered and reachable', function () {
+    // Post to the webhook endpoint without a Stripe signature
     $response = $this->postJson('/api/v1/stripe/webhook', [
         'type' => 'test.event',
         'data' => ['object' => []],
     ]);
 
-    // Cashier will reject without a valid Stripe signature, but the route should exist
-    // It returns 403 (not 404) which means the route is registered
-    expect($response->getStatusCode())->not->toBe(404);
+    // The route exists (not 404/405) and responds.
+    // In test environment without STRIPE_WEBHOOK_SECRET, Cashier accepts unsigned requests (200).
+    // In production with the secret set, unsigned requests would be rejected (403).
+    $response->assertStatus(200);
 });
 
 // ─── Central Schema Tables ──────────────────────────────────────

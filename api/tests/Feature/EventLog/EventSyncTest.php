@@ -343,3 +343,64 @@ it('preserves client-provided performed_at timestamp', function () {
         expect($event->performed_at->toIso8601String())->toBe($clientTime);
     });
 });
+
+// ─── Partial Batch Failure ──────────────────────────────────────
+
+it('handles partial batch failure gracefully via EventProcessor', function () {
+    [$tenant, $token] = createSyncTestTenant('partial-fail');
+
+    $tenant->run(function () {
+        $processor = app(\App\Services\EventProcessor::class);
+        $userId = User::first()->id;
+
+        $events = [
+            // Event 1: valid
+            [
+                'entity_type' => 'lot',
+                'entity_id' => Str::uuid()->toString(),
+                'operation_type' => 'addition',
+                'payload' => ['volume_gallons' => 500],
+                'performed_at' => now()->subMinutes(10)->toIso8601String(),
+                'idempotency_key' => 'partial-test-1',
+                'device_id' => 'test-device',
+            ],
+            // Event 2: null entity_id will cause a DB not-null constraint violation
+            [
+                'entity_type' => 'lot',
+                'entity_id' => null,
+                'operation_type' => 'addition',
+                'payload' => ['volume_gallons' => 200],
+                'performed_at' => now()->subMinutes(5)->toIso8601String(),
+                'idempotency_key' => 'partial-test-2',
+                'device_id' => 'test-device',
+            ],
+            // Event 3: valid
+            [
+                'entity_type' => 'vessel',
+                'entity_id' => Str::uuid()->toString(),
+                'operation_type' => 'transfer',
+                'payload' => ['volume_gallons' => 300],
+                'performed_at' => now()->subMinutes(3)->toIso8601String(),
+                'idempotency_key' => 'partial-test-3',
+                'device_id' => 'test-device',
+            ],
+        ];
+
+        $result = $processor->processBatch($events, $userId);
+
+        // Event 1 and 3 should succeed, event 2 should fail
+        expect($result['accepted'])->toBe(2);
+        expect($result['failed'])->toBe(1);
+        expect($result['skipped'])->toBe(0);
+
+        // Verify the failed event has status 'failed' and an error message
+        $failedResult = collect($result['results'])->firstWhere('status', 'failed');
+        expect($failedResult)->not->toBeNull();
+        expect($failedResult['index'])->toBe(1);
+        expect($failedResult['event_id'])->toBeNull();
+        expect($failedResult['error'])->not->toBeEmpty();
+
+        // Verify only 2 events in the DB (the failed one rolled back)
+        expect(Event::count())->toBe(2);
+    });
+});

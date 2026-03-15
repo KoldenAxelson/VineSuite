@@ -117,7 +117,7 @@ it('rejects login with invalid credentials', function () {
     expect($fields)->toContain('email');
 });
 
-it('rejects login for deactivated users', function () {
+it('rejects login for deactivated users with deactivation message', function () {
     $tenant = createTestTenant('test-winery', function () {
         User::create([
             'name' => 'Inactive User',
@@ -138,6 +138,11 @@ it('rejects login for deactivated users', function () {
     ]);
 
     $response->assertStatus(422);
+
+    // Verify the error specifically mentions deactivation (not just generic "invalid credentials")
+    $errors = $response->json('errors');
+    $messages = array_column($errors, 'message');
+    expect(implode(' ', $messages))->toContain('deactivated');
 });
 
 it('accesses authenticated endpoint with valid token', function () {

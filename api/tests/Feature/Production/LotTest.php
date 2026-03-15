@@ -233,6 +233,52 @@ it('lists lots with pagination', function () {
         ]);
 });
 
+it('paginates lots correctly across pages', function () {
+    [$tenant, $token] = createLotTestTenant('pagination-winery');
+
+    // Create 7 lots so we can test with per_page=5
+    foreach (range(1, 7) as $i) {
+        test()->postJson('/api/v1/lots', [
+            'name' => "2024 Paginate Lot {$i}",
+            'variety' => 'Zinfandel',
+            'vintage' => 2024,
+            'source_type' => 'estate',
+            'volume_gallons' => 100 * $i,
+        ], [
+            'Authorization' => "Bearer {$token}",
+            'X-Tenant-ID' => $tenant->id,
+        ])->assertStatus(201);
+    }
+
+    // Page 1 with per_page=5
+    $page1 = test()->getJson('/api/v1/lots?per_page=5&page=1', [
+        'Authorization' => "Bearer {$token}",
+        'X-Tenant-ID' => $tenant->id,
+    ]);
+
+    $page1->assertOk()
+        ->assertJsonCount(5, 'data')
+        ->assertJsonPath('meta.current_page', 1)
+        ->assertJsonPath('meta.last_page', 2)
+        ->assertJsonPath('meta.per_page', 5)
+        ->assertJsonPath('meta.total', 7);
+
+    // Page 2 should have the remaining 2 lots
+    $page2 = test()->getJson('/api/v1/lots?per_page=5&page=2', [
+        'Authorization' => "Bearer {$token}",
+        'X-Tenant-ID' => $tenant->id,
+    ]);
+
+    $page2->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('meta.current_page', 2);
+
+    // Pages should not have overlapping lot IDs
+    $page1Ids = collect($page1->json('data'))->pluck('id');
+    $page2Ids = collect($page2->json('data'))->pluck('id');
+    expect($page1Ids->intersect($page2Ids))->toBeEmpty();
+});
+
 it('filters lots by variety', function () {
     [$tenant, $token] = createLotTestTenant();
 
@@ -579,6 +625,19 @@ it('read-only users cannot create lots', function () {
 it('allows cellar hands to view but not create lots', function () {
     [$tenant, $wmToken] = createLotTestTenant('cellar-winery', 'winemaker');
 
+    // Create a lot as winemaker so cellar hand has something to view
+    $createResponse = test()->postJson('/api/v1/lots', [
+        'name' => '2024 Cellar Test Lot',
+        'variety' => 'Merlot',
+        'vintage' => 2024,
+        'source_type' => 'estate',
+        'volume_gallons' => 500,
+    ], [
+        'Authorization' => "Bearer {$wmToken}",
+        'X-Tenant-ID' => $tenant->id,
+    ]);
+    $lotId = $createResponse->json('data.id');
+
     // Create a cellar_hand user
     $tenant->run(function () {
         $user = User::create([
@@ -601,6 +660,22 @@ it('allows cellar hands to view but not create lots', function () {
     ]);
 
     $cellarToken = $loginResponse->json('data.token');
+
+    // Reset auth guard so Sanctum re-resolves the user from the new token
+    app('auth')->forgetGuards();
+
+    // Cellar hand CAN list lots
+    test()->getJson('/api/v1/lots', [
+        'Authorization' => "Bearer {$cellarToken}",
+        'X-Tenant-ID' => $tenant->id,
+    ])->assertOk();
+
+    // Cellar hand CAN view a specific lot
+    test()->getJson("/api/v1/lots/{$lotId}", [
+        'Authorization' => "Bearer {$cellarToken}",
+        'X-Tenant-ID' => $tenant->id,
+    ])->assertOk()
+        ->assertJsonPath('data.name', '2024 Cellar Test Lot');
 
     // Cellar hand CANNOT create a lot
     test()->postJson('/api/v1/lots', [

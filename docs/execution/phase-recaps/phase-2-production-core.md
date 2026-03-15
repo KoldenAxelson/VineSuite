@@ -69,8 +69,8 @@ In `AdminPanelProvider`, tenancy middleware (`InitializeTenancyByDomain`, `Preve
 
 ## Metrics
 - Sub-tasks completed: 14/14
-- Test count: 352 (all passing, up from 141 at end of Phase 1)
-- Assertions: ~1,418
+- Test count: 354 (all passing, up from 141 at end of Phase 1; includes post-audit additions)
+- Assertions: ~1,466
 - Files created: ~75 new files (models, migrations, factories, services, controllers, requests, resources, pages, seeders, tests, views)
 - Tenant migrations: 9 new (lots, vessels, barrels, lot_vessel, work_orders, work_order_templates, additions, transfers, bottling_runs, blend_trials, blend_trial_components, bottling_components, press_logs, filter_logs)
 - Filament resources: 8 (with 23 page classes + 1 Blade template)

@@ -304,11 +304,16 @@ it('does not apply envelope to non-API routes', function () {
 
     // Should be standard Laravel response, not our envelope
     $response->assertStatus(200);
-    // The response should NOT have our envelope structure
-    if ($response->headers->get('Content-Type') === 'application/json') {
+
+    // The response Content-Type should not be application/json (it's an HTML health page)
+    // or if it is JSON, it must not have our envelope keys
+    $contentType = $response->headers->get('Content-Type');
+    if (str_contains($contentType ?? '', 'application/json')) {
         $json = $response->json();
-        // If it happens to be JSON, it shouldn't have our exact envelope
         expect($json)->not->toHaveKeys(['data', 'meta', 'errors']);
+    } else {
+        // Non-JSON response — confirmed not using our API envelope
+        expect($contentType)->not->toContain('application/json');
     }
 });
 

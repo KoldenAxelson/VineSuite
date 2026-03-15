@@ -46,7 +46,7 @@ it('seeds all 7 roles when a tenant is created', function () {
     });
 });
 
-it('owner has all permissions', function () {
+it('owner has all permissions including critical ones', function () {
     $tenant = Tenant::create([
         'name' => 'Test Winery',
         'slug' => 'test-winery',
@@ -59,6 +59,14 @@ it('owner has all permissions', function () {
 
         expect($ownerRole->permissions->count())->toBe($totalPermissions);
         expect($totalPermissions)->toBeGreaterThan(0);
+
+        // Verify specific critical permissions are present
+        $permNames = $ownerRole->permissions->pluck('name');
+        expect($permNames)->toContain('users.create');
+        expect($permNames)->toContain('settings.update');
+        expect($permNames)->toContain('billing.read');
+        expect($permNames)->toContain('lots.create');
+        expect($permNames)->toContain('work-orders.create');
     });
 });
 

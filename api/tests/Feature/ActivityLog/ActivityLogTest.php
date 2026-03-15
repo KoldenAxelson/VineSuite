@@ -447,9 +447,11 @@ it('does not break the application if activity logging fails', function () {
     $tenant = createTestTenantForActivityLog('resilience-test');
 
     $tenant->run(function () {
-        // Even if the activity_logs table is somehow compromised,
-        // the LogsActivity trait wraps in try/catch so operations still succeed
-        // We can verify by ensuring user creation succeeds despite any issues
+        // Temporarily rename the activity_logs table to force a real logging failure
+        DB::statement('ALTER TABLE activity_logs RENAME TO activity_logs_disabled');
+
+        // User creation should still succeed despite activity logging failure
+        // (LogsActivity trait wraps in try/catch)
         $user = User::create([
             'name' => 'Resilient User',
             'email' => 'resilient@test.com',
@@ -459,5 +461,14 @@ it('does not break the application if activity logging fails', function () {
 
         expect($user->exists)->toBeTrue();
         expect($user->name)->toBe('Resilient User');
+
+        // Restore the table so other tests aren't affected
+        DB::statement('ALTER TABLE activity_logs_disabled RENAME TO activity_logs');
+
+        // Verify no activity log was written for this user (the logging failed silently)
+        $logs = ActivityLog::where('model_type', User::class)
+            ->where('model_id', $user->id)
+            ->count();
+        expect($logs)->toBe(0);
     });
 });

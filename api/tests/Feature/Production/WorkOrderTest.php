@@ -639,12 +639,54 @@ it('cellar_hand can complete but not create work orders', function () {
 });
 
 it('read-only users cannot create or complete work orders', function () {
-    [$tenant, $token] = createWorkOrderTestTenant('rbac-ro-wo', 'read_only');
+    // First create a work order as winemaker that we can try to complete
+    [$tenant, $wmToken] = createWorkOrderTestTenant('rbac-ro-wo', 'winemaker');
 
+    $createResponse = test()->postJson('/api/v1/work-orders', [
+        'operation_type' => 'Pump Over',
+        'due_date' => '2026-03-15',
+    ], [
+        'Authorization' => "Bearer {$wmToken}",
+        'X-Tenant-ID' => $tenant->id,
+    ]);
+    $woId = $createResponse->json('data.id');
+
+    // Create a read_only user
+    $tenant->run(function () {
+        $user = User::create([
+            'name' => 'Read Only',
+            'email' => 'readonly@example.com',
+            'password' => 'SecurePass123!',
+            'role' => 'read_only',
+            'is_active' => true,
+        ]);
+        $user->assignRole('read_only');
+    });
+
+    $roLogin = test()->postJson('/api/v1/auth/login', [
+        'email' => 'readonly@example.com',
+        'password' => 'SecurePass123!',
+        'client_type' => 'portal',
+        'device_name' => 'Test Browser',
+    ], ['X-Tenant-ID' => $tenant->id]);
+    $roToken = $roLogin->json('data.token');
+
+    // Reset auth guard so Sanctum re-resolves the user from the new token
+    app('auth')->forgetGuards();
+
+    // read_only CANNOT create work orders
     test()->postJson('/api/v1/work-orders', [
         'operation_type' => 'Unauthorized',
     ], [
-        'Authorization' => "Bearer {$token}",
+        'Authorization' => "Bearer {$roToken}",
+        'X-Tenant-ID' => $tenant->id,
+    ])->assertStatus(403);
+
+    // read_only CANNOT complete work orders
+    test()->postJson("/api/v1/work-orders/{$woId}/complete", [
+        'completion_notes' => 'Should not work',
+    ], [
+        'Authorization' => "Bearer {$roToken}",
         'X-Tenant-ID' => $tenant->id,
     ])->assertStatus(403);
 });

@@ -30,7 +30,7 @@ Future directories (not yet built): `shared/` (KMP), `cellar-app/`, `pos-app/`, 
 
 **Data pattern:** Immutable append-only event log. Every winery operation writes an event; materialized tables are derived state. PostgreSQL trigger enforces immutability at DB level.
 
-**Testing:** Pest + PHPStan (level 6) + Pint. 352 tests, 1,418 assertions. All against real PostgreSQL (no SQLite).
+**Testing:** Pest + PHPStan (level 6) + Pint. 354 tests, 1,466 assertions. All against real PostgreSQL (no SQLite).
 
 **CI/CD:** GitHub Actions — Pint → PHPStan → Pest on every push.
 
@@ -67,7 +67,7 @@ make analyse      # PHPStan only
 | Phase | Status | Sub-tasks | Tests |
 |---|---|---|---|
 | 1. Foundation | Complete | 15/15 | 141 |
-| 2. Production Core | Complete | 14/14 | 352 |
+| 2. Production Core | Complete | 14/14 | 354 |
 | 3. Lab & Fermentation | Not started | 0/7 | — |
 | 4. Inventory | Not started | 0/11 | — |
 | 5. Cost Accounting | Not started | 0/8 | — |

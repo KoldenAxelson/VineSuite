@@ -56,7 +56,7 @@ database/
 └── factories/             Factories for all production models
 
 tests/
-└── Feature/               352 tests, all against real PostgreSQL
+└── Feature/               354 tests, all against real PostgreSQL
 ```
 
 ## Documentation

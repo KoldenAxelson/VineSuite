@@ -182,7 +182,7 @@ For KMP and widgets, pass `tenant_id` explicitly in every structured log call.
 |---------|------|-------|
 | Test runner | Pest (PHP) | Ships with Laravel 12. Use `describe()` blocks to group by feature. |
 | HTTP tests | `$this->getJson()`, `$this->postJson()` | Laravel's built-in test client. Always assert status + JSON structure. |
-| Database | `RefreshDatabase` trait | Runs migrations per test. Use `DatabaseTransactions` only if tests are slow and don't need migration resets. |
+| Database | `DatabaseMigrations` trait | Runs migrations per test. We use `DatabaseMigrations` instead of `RefreshDatabase` because PostgreSQL DDL in tenant schema creation causes deadlocks with `RefreshDatabase`'s transaction wrapper. |
 | Factories | Laravel model factories | Every model gets a factory. Factories should produce valid, seedable records without overrides. |
 | Mocking external APIs | `Http::fake()` | Mock Stripe, QBO, Xero at the HTTP level. Never mock your own service classes. |
 | Mocking events/jobs | `Event::fake()`, `Queue::fake()` | Use to assert events are dispatched without triggering handlers. |
@@ -245,6 +245,71 @@ When recording test coverage in a sub-task's INFO file, use this format so futur
 ```
 
 This tells the next session what's protected, what isn't, and why — without having to read the test files themselves.
+
+---
+
+## PHP / Laravel Testing Gotchas
+
+These are patterns discovered through VineSuite development that aren't obvious from the framework docs.
+
+### Sanctum auth guard caching across multi-user tests
+
+When a test logs in as User A, then logs in as User B with a different token, Sanctum's auth guard caches User A for the duration of the request. Subsequent HTTP calls with User B's Bearer token will still resolve as User A.
+
+**Fix:** Call `app('auth')->forgetGuards()` after obtaining the second user's token and before making HTTP requests as that user.
+
+```php
+// Login as read_only user
+$roLogin = test()->postJson('/api/v1/auth/login', [...], ['X-Tenant-ID' => $tenant->id]);
+$roToken = $roLogin->json('data.token');
+
+// REQUIRED: Reset auth guard so Sanctum re-resolves from the new token
+app('auth')->forgetGuards();
+
+// Now this correctly runs as the read_only user
+test()->postJson('/api/v1/work-orders', [...], [
+    'Authorization' => "Bearer {$roToken}",
+    'X-Tenant-ID' => $tenant->id,
+])->assertStatus(403);
+```
+
+### DatabaseMigrations, not RefreshDatabase
+
+PostgreSQL DDL statements (CREATE SCHEMA, ALTER TABLE) inside tenant creation cause deadlocks when wrapped in `RefreshDatabase`'s transaction. Use `DatabaseMigrations` instead — it runs `migrate:fresh` between tests, which is slower but avoids deadlocks.
+
+### Tenant schema cleanup in afterEach
+
+Every test file that creates tenants must clean up schemas in `afterEach()` to prevent cross-test pollution:
+
+```php
+afterEach(function () {
+    if (function_exists('tenancy') && tenancy()->initialized) {
+        tenancy()->end();
+    }
+    $schemas = DB::select(
+        "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'"
+    );
+    foreach ($schemas as $schema) {
+        DB::statement("DROP SCHEMA IF EXISTS \"{$schema->schema_name}\" CASCADE");
+    }
+});
+```
+
+### Testing resilience (try/catch in traits)
+
+When testing that a trait's `try/catch` actually catches failures, you must trigger a real failure. Creating normal records doesn't test resilience — the catch block never fires. Instead, temporarily break the dependency (rename a table, mock a service to throw) and verify the primary operation still succeeds.
+
+```php
+// Force a real failure by removing the table the trait writes to
+DB::statement('ALTER TABLE activity_logs RENAME TO activity_logs_disabled');
+$user = User::create([...]); // LogsActivity trait catches the error silently
+expect($user->exists)->toBeTrue();
+DB::statement('ALTER TABLE activity_logs_disabled RENAME TO activity_logs');
+```
+
+### UUID pivot tables and attach()
+
+The `lot_vessel` pivot uses `uuid('id')->primary()`. Laravel's `attach()` won't auto-generate UUIDs — you must pass `'id' => (string) Str::uuid()` explicitly. This applies to any pivot with a UUID primary key.
 
 ---
 
