@@ -167,3 +167,63 @@
 
 ### Open Questions
 - None. The generic parser covers OenoFoss and WineScan formats via flexible column matching. Dedicated parsers can be added later if specific format quirks emerge.
+
+---
+
+## Sub-Task 4: Fermentation Round and Daily Entry Tracking
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_100003_create_fermentation_rounds_table.php` — Creates `fermentation_rounds` table with UUID PK, FK to lots (cascade delete), round_number, fermentation_type (primary/malolactic), inoculation_date, yeast_strain, ml_bacteria, target_temp, nutrients_schedule (JSON), status (active/completed/stuck), completion_date, confirmation_date, notes, created_by. Indexes on (lot_id, fermentation_type), (lot_id, round_number), status.
+- `api/database/migrations/tenant/2026_03_15_100004_create_fermentation_entries_table.php` — Creates `fermentation_entries` table with UUID PK, FK to fermentation_rounds (cascade delete), entry_date, temperature, brix_or_density (decimal 10,4), measurement_type (brix/specific_gravity), free_so2, notes, performed_by. Indexes on (fermentation_round_id, entry_date), entry_date.
+- `api/app/Models/FermentationRound.php` — Eloquent model with `HasFactory`, `HasUuids`, `LogsActivity` traits. Constants: `FERMENTATION_TYPES` (primary, malolactic), `STATUSES` (active, completed, stuck). Relationships: `lot()`, `entries()` (ordered by entry_date), `creator()`. Scopes: `forLot()`, `ofType()`, `withStatus()`, `active()`. Casts: dates as date, nutrients_schedule as array, target_temp as decimal:2.
+- `api/app/Models/FermentationEntry.php` — Eloquent model with `HasFactory`, `HasUuids`, `LogsActivity` traits. Constants: `MEASUREMENT_TYPES` (brix, specific_gravity). Relationships: `round()`, `performer()`. Scopes: `forRound()`, `recordedBetween()`. Casts: entry_date as date, temperature/free_so2 as decimal:2, brix_or_density as decimal:4.
+- `api/database/factories/FermentationRoundFactory.php` — Realistic yeast strains (EC-1118, D-254, BM45, etc.) and ML bacteria (VP41, CH16, etc.). States: `primary()`, `malolactic()`, `completed()`, `stuck()`.
+- `api/database/factories/FermentationEntryFactory.php` — States: `brix(?float)`, `specificGravity(?float)`, `withSo2()`. Generates realistic temperature and Brix ranges.
+- `api/app/Services/FermentationService.php` — Business logic layer injecting EventLogger. Methods: `createRound()` creates round in transaction, writes `fermentation_round_created` event with self-contained payload (lot_name, lot_variety, fermentation_type, yeast_strain, ml_bacteria, inoculation_date). `addEntry()` creates entry in transaction, writes `fermentation_data_entered` event with measurement data. `completeRound()` updates status to completed, writes `fermentation_completed` event with total_entries count. `markStuck()` updates status, logs warning. `confirmMlDryness()` sets confirmation_date for ML rounds.
+- `api/app/Http/Requests/StoreFermentationRoundRequest.php` — Validates: lot_id (optional uuid exists), round_number (required int min:1), fermentation_type (required, in FERMENTATION_TYPES), inoculation_date (required date), yeast_strain/ml_bacteria (nullable max:100), target_temp (nullable numeric 30–120°F), nutrients_schedule (nullable array), notes (nullable string).
+- `api/app/Http/Requests/StoreFermentationEntryRequest.php` — Validates: entry_date (required date), temperature (nullable numeric 30–120°F), brix_or_density (nullable numeric), measurement_type (nullable, required_with brix_or_density, in MEASUREMENT_TYPES), free_so2 (nullable numeric min:0), notes (nullable string).
+- `api/app/Http/Resources/FermentationRoundResource.php` — Extends BaseResource. Includes lot (when loaded), entries_count (when counted). Casts target_temp to float.
+- `api/app/Http/Resources/FermentationEntryResource.php` — Extends BaseResource. Casts temperature/brix_or_density/free_so2 to float. Includes performer when loaded.
+- `api/app/Http/Controllers/Api/V1/FermentationController.php` — Methods: `index()` lists rounds for a lot with type/status filters and withCount entries; `store()` creates round via service with lot_id from route; `show()` returns round with entries and performer; `addEntry()` adds entry via service; `entries()` lists entries with date range filter; `complete()` completes round via service; `markStuck()` marks round stuck via service.
+- `api/app/Filament/Resources/FermentationRoundResource.php` + Pages (List, Create, View, Edit) — Under "Lab" navigation group (sort 3). Reactive form: yeast_strain visible for primary type, ml_bacteria for malolactic. Badge colors for fermentation type and status. Filters for type/status/lot.
+- `api/routes/api.php` — Added nested routes: `GET/POST /lots/{lotId}/fermentations` (round CRUD), `GET/POST /fermentations/{roundId}/entries` (entry CRUD), `POST /fermentations/{roundId}/complete` and `/stuck` (lifecycle transitions). Round creation requires winemaker+, entries and lifecycle transitions allow cellar_hand+.
+- `api/app/Models/Lot.php` — Added `fermentationRounds()` HasMany relationship ordered by round_number.
+
+### Key Decisions
+- **Brix vs specific gravity via measurement_type**: Rather than separate columns, a single `brix_or_density` column stores the value and `measurement_type` (enum: brix, specific_gravity) indicates the unit. This keeps the schema simple while supporting both measurement conventions. `measurement_type` is `required_with` brix_or_density so it's always paired.
+- **Fermentation types limited to primary and malolactic**: These are the two standard wine fermentation types. "Spontaneous" is a yeast strategy (no inoculation), not a separate fermentation type — it would still be tracked as a primary round with no yeast_strain. Additional types can be added to the enum if needed.
+- **Lifecycle transitions as separate endpoints**: `POST /fermentations/{roundId}/complete` and `/stuck` rather than PATCH status. This makes the intent explicit and allows the service layer to perform lifecycle-specific logic (e.g., counting total entries on completion, setting completion_date).
+- **ML-specific fields on shared table**: `yeast_strain` (primary) and `ml_bacteria` (malolactic) coexist on the same table rather than separate tables. Only one is populated based on fermentation_type. The Filament form uses reactive visibility to show the relevant field.
+- **Nutrients schedule as JSON**: Variable structure (timing, amounts, products differ by winery) makes a structured JSON column more practical than a normalized child table for nutrient additions.
+- **confirmation_date for ML dryness**: ML fermentation requires lab confirmation that malic acid has been fully converted. The `confirmation_date` field records when this was verified, separate from `completion_date`.
+
+### Deviations from Spec
+- None. Implementation matches the spec's fermentation round and entry tracking requirements.
+
+### Patterns Established
+- **Lifecycle endpoints**: Explicit `POST .../complete` and `.../stuck` endpoints for status transitions rather than generic PATCH. Future lifecycle-driven models (barrel operations, bottling runs) should follow this pattern.
+- **Measurement type pairing**: When a numeric value can be in different units, store the value and unit type together with `required_with` validation.
+- **Reactive Filament forms**: Use `->visible(fn (callable $get) => ...)` for fields that depend on a type selector, keeping the form clean for each context.
+
+### Test Summary
+- `tests/Feature/Lab/FermentationTest.php` (22 tests)
+  - Tier 1: `fermentation_round_created` event with self-contained payload (lot_name, lot_variety, fermentation_type, yeast_strain, inoculation_date)
+  - Tier 1: `fermentation_data_entered` event with measurement data (temperature, brix_or_density, measurement_type)
+  - Tier 1: `fermentation_completed` event with status update and completion_date
+  - Tier 1: full lifecycle — create round → 7 daily Brix-decreasing entries → complete, verify 7 data events + 1 completion event
+  - Tier 1: ML fermentation with bacteria strain and null yeast_strain
+  - Tier 1: Brix vs specific_gravity measurement_type stored correctly on separate entries
+  - Tier 1: tenant isolation — cross-tenant fermentation data access prevention
+  - Tier 2: list rounds for a lot with count
+  - Tier 2: filter rounds by fermentation_type
+  - Tier 2: mark round as stuck
+  - Tier 2: validation — invalid fermentation_type rejected, invalid measurement_type rejected
+  - Tier 2: RBAC — winemaker can create rounds, cellar_hand cannot create rounds but can add entries, read_only cannot create but can list
+  - Tier 2: API envelope format verification
+- Known gaps: Filament resource CRUD not tested via Livewire (deferred per Phase 1-2 audit); `confirmMlDryness()` method built but no API endpoint or test yet (can be added when ML workflow is fully specced)
+
+### Open Questions
+- The `confirmMlDryness()` service method exists but has no API endpoint. It will be exposed when the ML-specific workflow is fully defined (likely Sub-Task 5 or a future phase).
+- `nutrients_schedule` JSON structure is intentionally unvalidated beyond "nullable array" — wineries have very different nutrient protocols. A structured schema could be added later if consistency is needed.

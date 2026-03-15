@@ -183,6 +183,14 @@ class Lot extends Model
         return $this->hasMany(LabAnalysis::class)->orderByDesc('test_date');
     }
 
+    /**
+     * @return HasMany<FermentationRound, $this>
+     */
+    public function fermentationRounds(): HasMany
+    {
+        return $this->hasMany(FermentationRound::class)->orderBy('round_number');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

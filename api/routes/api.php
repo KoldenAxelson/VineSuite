@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
+use App\Http\Controllers\Api\V1\FermentationController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LabAnalysisController;
 use App\Http\Controllers\Api\V1\LabImportController;
@@ -240,6 +241,23 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->prefix('lab-import')->group(function () {
             Route::post('/preview', [LabImportController::class, 'preview'])->name('lab-import.preview');
             Route::post('/commit', [LabImportController::class, 'commit'])->name('lab-import.commit');
+        });
+
+        // ─── Fermentation Rounds (per lot) ──────────────────────────
+        Route::get('/lots/{lotId}/fermentations', [FermentationController::class, 'index'])->name('fermentation-rounds.index');
+        Route::get('/lots/{lotId}/fermentations/{fermentationRound}', [FermentationController::class, 'show'])->name('fermentation-rounds.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/lots/{lotId}/fermentations', [FermentationController::class, 'store'])->name('fermentation-rounds.store');
+        });
+
+        // ─── Fermentation Entries (per round) ────────────────────────
+        Route::get('/fermentations/{roundId}/entries', [FermentationController::class, 'entries'])->name('fermentation-entries.index');
+
+        Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
+            Route::post('/fermentations/{roundId}/entries', [FermentationController::class, 'addEntry'])->name('fermentation-entries.store');
+            Route::post('/fermentations/{roundId}/complete', [FermentationController::class, 'complete'])->name('fermentation-rounds.complete');
+            Route::post('/fermentations/{roundId}/stuck', [FermentationController::class, 'markStuck'])->name('fermentation-rounds.stuck');
         });
 
         // Team list — any authenticated user can view team members

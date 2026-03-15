@@ -252,7 +252,7 @@ class ETSLabsParser implements LabCsvParser
         $searchLimit = min(5, count($rows));
 
         for ($i = 0; $i < $searchLimit; $i++) {
-            if (! isset($rows[$i]) || ! is_array($rows[$i])) {
+            if (! isset($rows[$i])) {
                 continue;
             }
 
