@@ -423,3 +423,43 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 10: Lot Splitting
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Services/LotSplitService.php` — `splitLot()` validates total child volume does not exceed parent volume, creates N child lots inheriting parent's variety/vintage/source_type/source_details, deducts total child volume from parent, writes `lot_created` event on each child (with parent_lot_id and split_volume_ratio for COGS proportional tracking) and `lot_split` event on parent (with child lot references and volume details). All in a DB transaction.
+- `api/app/Http/Requests/StoreLotSplitRequest.php` — Validates lot_id (required, UUID, exists), children array (required, min 2, max 20) with name (required, string, max 255) and volume_gallons (required, numeric, 0.0001–999999.9999).
+- `api/app/Http/Controllers/Api/V1/LotSplitController.php` — Single `store()` endpoint. Returns `{parent, children}` in API envelope with 201 status.
+- `api/routes/api.php` — POST `/lots/split` gated by `role:owner,admin,winemaker`.
+- `api/tests/Feature/Production/LotSplitTest.php` — 16 tests.
+
+### Key Decisions
+- **Lot splitting is winemaker+ only** — splitting affects lot identity and COGS tracking. RBAC is `role:owner,admin,winemaker`, consistent with blending.
+- **Minimum 2 child lots** — splitting into 1 child is pointless (just rename the lot). Validation enforces min 2 children.
+- **Partial splits allowed** — total child volume can be less than parent volume. Remaining volume stays on the parent lot. This supports workflows like "take 100 gallons off for an experiment, keep the rest."
+- **Volume ratio stored in events** — each child's `lot_created` event includes `split_volume_ratio` (child_volume / parent_volume). This enables proportional COGS allocation in the cost accounting module (05-cost-accounting.md).
+- **Child lots inherit all parent metadata** — variety, vintage, source_type, source_details, and parent_lot_id. Status is always 'in_progress' on creation.
+- **No new migration needed** — lot splitting uses existing `lots` table with its `parent_lot_id` self-reference (established in Sub-Task 1).
+
+### Deviations from Spec
+- None. Implementation matches the spec exactly.
+
+### Patterns Extended
+- LotSplitService follows Production Service Pattern with EventLogger injection and DB transaction.
+- Multi-event pattern: `lot_split` on parent + `lot_created` on each child, consistent with blend finalization's multi-event approach.
+- Cross-tenant test uses direct model access (not HTTP) per established convention.
+- Validation tests use `array_column($response->json('errors'), 'field')` pattern matching custom API envelope format.
+
+### Test Summary
+- `tests/Feature/Production/LotSplitTest.php` (16 tests)
+  - Tier 1: split creates child lots and deducts parent volume, child lots inherit parent metadata, lot_split event on parent with child references, lot_created events on each child, partial split leaves remaining volume, reject over-volume split, tenant isolation
+  - Tier 2: validation (missing required fields, single child rejected, missing child name, invalid lot_id)
+  - Tier 2: RBAC (winemaker can split, cellar_hand cannot, read_only cannot)
+  - Tier 2: API envelope format, unauthenticated rejection
+
+### Open Questions
+- None for this sub-task.

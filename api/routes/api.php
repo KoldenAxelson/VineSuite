@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LotController;
+use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PressLogController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
@@ -115,6 +116,7 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/lots', [LotController::class, 'store'])->name('lots.store');
             Route::put('/lots/{lot}', [LotController::class, 'update'])->name('lots.update');
+            Route::post('/lots/split', [LotSplitController::class, 'store'])->name('lots.split');
         });
 
         // ─── Production: Vessels ─────────────────────────────────
