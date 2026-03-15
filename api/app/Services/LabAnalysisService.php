@@ -19,10 +19,15 @@ class LabAnalysisService
 {
     public function __construct(
         protected EventLogger $eventLogger,
+        protected LabThresholdChecker $thresholdChecker,
     ) {}
 
     /**
-     * Record a lab analysis and write a lab_analysis_entered event.
+     * Record a lab analysis, write event, and check thresholds.
+     *
+     * Returns the analysis model. Threshold alerts (if any) are attached
+     * as a transient `threshold_alerts` attribute on the model for the
+     * controller to include in the response.
      *
      * @param  array<string, mixed>  $data  Validated analysis data
      * @param  string  $performedBy  UUID of the user entering the record
@@ -56,6 +61,10 @@ class LabAnalysisService
                 performedAt: $analysis->test_date,
             );
 
+            // Check thresholds — fires automatically on every new entry
+            $alerts = $this->thresholdChecker->check($analysis);
+            $analysis->setAttribute('threshold_alerts', $alerts);
+
             Log::info('Lab analysis recorded', [
                 'analysis_id' => $analysis->id,
                 'lot_id' => $analysis->lot_id,
@@ -63,6 +72,7 @@ class LabAnalysisService
                 'value' => $analysis->value,
                 'unit' => $analysis->unit,
                 'source' => $analysis->source,
+                'threshold_alerts' => count($alerts),
                 'tenant_id' => tenant('id'),
                 'user_id' => $performedBy,
             ]);

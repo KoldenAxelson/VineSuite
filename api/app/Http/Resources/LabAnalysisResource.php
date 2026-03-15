@@ -39,6 +39,7 @@ class LabAnalysisResource extends BaseResource
                 'id' => $this->performer->id,
                 'name' => $this->performer->name,
             ] : null,
+            'threshold_alerts' => $this->getAttribute('threshold_alerts') ?? [],
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }

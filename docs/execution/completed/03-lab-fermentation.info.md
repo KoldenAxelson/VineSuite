@@ -52,3 +52,64 @@
 
 ### Open Questions
 - None for Sub-Task 1. The LabAnalysisService's `getLatestValue()` and `getHistory()` methods are built but not yet consumed by any endpoint — they're ready for the threshold checker (Sub-Task 2) and chart endpoint (future).
+
+---
+
+## Sub-Task 2: Lab Threshold Alerts
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_100002_create_lab_thresholds_table.php` — Creates `lab_thresholds` table with auto-increment PK (config data, not event-sourced — no UUID needed), test_type, variety (nullable for global thresholds), min_value/max_value as `decimal(12,6)`, alert_level. Unique constraint on (test_type, variety, alert_level) prevents duplicate threshold definitions. Indexes on test_type.
+- `api/app/Models/LabThreshold.php` — Eloquent model with `HasFactory`, `LogsActivity` traits. Defines `ALERT_LEVELS` (warning, critical). Casts min_value/max_value as `decimal:6`. Scopes: `forTestType()`, `ofLevel()`, `applicableTo()` — the last one retrieves both variety-specific and global thresholds for a test type, ordered so variety-specific come first (`ORDER BY variety IS NULL ASC`).
+- `api/database/factories/LabThresholdFactory.php` — Default factory produces pH warning thresholds. States: `vaCritical()` (0.12 max — 27 CFR 4.21 legal limit), `vaWarning()` (0.10 max), `critical()`, `forVariety()`.
+- `api/app/Services/LabThresholdChecker.php` — Core threshold evaluation engine. `check()` loads applicable thresholds via `applicableTo` scope, resolves effective thresholds (variety-specific overrides global for same alert level), evaluates each against the analysis value. Returns array of alert objects with alert_level, test_type, value, threshold_id, min/max, variety, and human-readable message. Logs structured `Log::warning()` with context when alerts fire.
+- `api/app/Services/LabAnalysisService.php` — Modified to inject `LabThresholdChecker` and call `check()` after every new analysis. Alerts are attached as a transient `threshold_alerts` attribute on the model, flowing through the existing API resource without changing the response structure for non-alerting analyses.
+- `api/app/Http/Resources/LabAnalysisResource.php` — Added `threshold_alerts` field (defaults to empty array, populated on creation).
+- `api/app/Http/Controllers/Api/V1/LabThresholdController.php` — Full CRUD: `index()` with test_type/alert_level filtering and pagination, `store()`, `show()`, `update()`, `destroy()`.
+- `api/app/Http/Requests/StoreLabThresholdRequest.php` — Validates test_type (in LabAnalysis::TEST_TYPES), variety (nullable string), min_value/max_value (nullable numerics, at least one required), alert_level (in ALERT_LEVELS).
+- `api/app/Http/Requests/UpdateLabThresholdRequest.php` — Partial update validation, same rules as store but all fields optional.
+- `api/app/Http/Resources/LabThresholdResource.php` — Extends BaseResource. Casts min_value/max_value to float (or null).
+- `api/database/seeders/DefaultLabThresholdsSeeder.php` — Seeds 17 default thresholds covering VA (warning 0.10, critical 0.12 per 27 CFR 4.21), pH, TA, free_SO2, total_SO2, residual_sugar, alcohol, turbidity. Uses `updateOrCreate` keyed on (test_type, variety, alert_level) for idempotency.
+- `api/app/Filament/Resources/LabThresholdResource.php` + Pages — Under "Lab" navigation group (sort 2). Full CRUD with edit/delete (unlike LabAnalysis which is view-only — thresholds are mutable config). Pages: List, Create, Edit.
+- `api/routes/api.php` — Added `apiResource` routes for `/lab-thresholds` (full CRUD, cellar_hand+ for write operations).
+
+### Key Decisions
+- **Auto-increment PK instead of UUID**: Thresholds are configuration data, not domain events. No need for UUIDs — keeps the config table simple and avoids unnecessary complexity. The unique constraint on (test_type, variety, alert_level) is the real identity.
+- **Variety-specific override logic**: When both a global (variety=null) and variety-specific threshold exist for the same test_type and alert_level, the variety-specific one takes precedence. The `resolveEffectiveThresholds()` method groups by alert_level and picks the most specific match.
+- **Transient attribute pattern**: Threshold alerts are attached to the LabAnalysis model via `setAttribute('threshold_alerts', $alerts)` rather than being persisted. This keeps the response transparent — alerts appear in the creation response but don't add a column or relationship to the analyses table.
+- **Strict boundary comparison**: `value > max_value` and `value < min_value` — values exactly at the boundary do NOT trigger alerts. This is intentional: VA at exactly 0.12 g/100mL is AT the 27 CFR 4.21 legal limit, not exceeding it.
+- **No event logging for threshold CRUD**: Thresholds are configuration, not business events. Activity is tracked via `LogsActivity` trait but doesn't write to the event log. The threshold *checking* logs warnings when alerts fire.
+
+### Deviations from Spec
+- None. Implementation matches the spec's description of variety-specific overrides, two alert levels (warning/critical), and integration with the lab analysis creation flow.
+
+### Patterns Established
+- **Config data uses auto-increment PK**: Non-event-sourced configuration tables (thresholds, templates, settings) can use simple auto-increment IDs instead of UUIDs.
+- **Transient attribute for computed response data**: When a creation response needs additional computed data (like alerts), attach it as a transient attribute rather than persisting or adding a separate API call.
+- **Seeder idempotency via updateOrCreate**: Default data seeders use `updateOrCreate` keyed on the unique constraint columns to be safely re-runnable.
+
+### Test Summary
+- `tests/Feature/Lab/LabThresholdTest.php` (25 tests, 76 assertions)
+  - Tier 1: VA critical alert fires when exceeding 0.12 legal limit
+  - Tier 1: VA warning alert fires when approaching limit but not critical
+  - Tier 1: both warning and critical alerts fire when value exceeds both
+  - Tier 1: no alerts when value within all thresholds
+  - Tier 1: below-minimum alert (free_SO2 below 15 mg/L)
+  - Tier 1: variety-specific threshold overrides global (Riesling pH)
+  - Tier 1: no alerts when no thresholds configured for test type
+  - Tier 1: API response includes threshold_alerts on creation
+  - Tier 1: empty threshold_alerts when value in range
+  - Tier 1: VA at exact limit (0.12) — no alert (boundary correctness)
+  - Tier 1: VA just above limit (0.121) — alert fires
+  - Tier 1: tenant isolation — cross-tenant threshold data access prevention
+  - Tier 2: CRUD — create, list with filtering, update, delete
+  - Tier 2: validation — invalid test_type, invalid alert_level
+  - Tier 2: RBAC — winemaker can manage, cellar_hand cannot create but can view, read_only cannot create
+  - Tier 2: default seeder creates expected thresholds with correct values
+  - Tier 2: seeder idempotency — running twice produces no duplicates
+  - Tier 2: API envelope format verification
+- Known gaps: Filament resource CRUD not tested via Livewire (deferred per Phase 1-2 audit)
+
+### Open Questions
+- None. The threshold checker is fully integrated into the lab analysis creation flow and fires automatically on every new entry.

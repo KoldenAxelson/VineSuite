@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LabAnalysisController;
+use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PressLogController;
@@ -222,6 +223,16 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker,cellar_hand')->group(function () {
             Route::post('/lots/{lotId}/analyses', [LabAnalysisController::class, 'store'])->name('lab-analyses.store');
+        });
+
+        // ─── Lab Thresholds ─────────────────────────────────────────
+        Route::get('/lab-thresholds', [LabThresholdController::class, 'index'])->name('lab-thresholds.index');
+        Route::get('/lab-thresholds/{threshold}', [LabThresholdController::class, 'show'])->name('lab-thresholds.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/lab-thresholds', [LabThresholdController::class, 'store'])->name('lab-thresholds.store');
+            Route::put('/lab-thresholds/{threshold}', [LabThresholdController::class, 'update'])->name('lab-thresholds.update');
+            Route::delete('/lab-thresholds/{threshold}', [LabThresholdController::class, 'destroy'])->name('lab-thresholds.destroy');
         });
 
         // Team list — any authenticated user can view team members
