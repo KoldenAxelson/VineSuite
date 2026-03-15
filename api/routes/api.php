@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PressLogController;
+use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
@@ -264,6 +265,14 @@ Route::middleware([
         // ─── Fermentation Chart Data ────────────────────────────────
         Route::get('/fermentations/{roundId}/chart', [FermentationChartController::class, 'show'])->name('fermentation-chart.show');
         Route::get('/lots/{lotId}/fermentation-chart', [FermentationChartController::class, 'lotOverview'])->name('fermentation-chart.lot-overview');
+
+        // ─── Sensory/Tasting Notes (per lot) ─────────────────────────
+        Route::get('/lots/{lotId}/sensory-notes', [SensoryNoteController::class, 'index'])->name('sensory-notes.index');
+        Route::get('/lots/{lotId}/sensory-notes/{sensoryNote}', [SensoryNoteController::class, 'show'])->name('sensory-notes.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/lots/{lotId}/sensory-notes', [SensoryNoteController::class, 'store'])->name('sensory-notes.store');
+        });
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {

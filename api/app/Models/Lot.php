@@ -191,6 +191,14 @@ class Lot extends Model
         return $this->hasMany(FermentationRound::class)->orderBy('round_number');
     }
 
+    /**
+     * @return HasMany<SensoryNote, $this>
+     */
+    public function sensoryNotes(): HasMany
+    {
+        return $this->hasMany(SensoryNote::class)->orderByDesc('date');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

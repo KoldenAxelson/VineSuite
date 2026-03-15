@@ -274,3 +274,56 @@
 
 ### Open Questions
 - None. The chart will be visually verifiable once Sub-Task 7 seeds realistic fermentation data with Brix decrease curves.
+
+---
+
+## Sub-Task 6: Sensory/Tasting Notes
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_100005_create_sensory_notes_table.php` — Creates `sensory_notes` table with UUID PK, FKs to lots (cascade delete) and users (taster_id, cascade delete), date, rating (decimal 5,2 nullable), rating_scale (default five_point), nose_notes, palate_notes, overall_notes (all text nullable). Indexes on (lot_id, date), (taster_id, date), date.
+- `api/app/Models/SensoryNote.php` — Eloquent model with `HasFactory`, `HasUuids`, `LogsActivity` traits. PHPDoc `@property` annotations for PHPStan type resolution (including `@property-read Lot $lot` and `@property-read User $taster`). Constants: `RATING_SCALES` (five_point, hundred_point). Relationships: `lot()`, `taster()` — both with `BelongsTo<Model, $this>` generic annotations. Scopes: `forLot()`, `byTaster()`, `recordedBetween()`. Casts: date as date, rating as decimal:2.
+- `api/database/factories/SensoryNoteFactory.php` — Realistic winery tasting vocabulary: nose descriptors (cherry/cassis, citrus/apple, tropical, etc.), palate descriptors (tannin structure, acidity, body, finish), overall assessments (barrel aging readiness, bottling timeline, quality tier). States: `hundredPoint()` (78–98 range), `fivePoint(?float)`.
+- `api/app/Services/SensoryNoteService.php` — Business logic layer injecting EventLogger. `createNote()` creates note in transaction, writes `sensory_note_recorded` event with self-contained payload: lot_name, lot_variety, taster_name, date, rating, rating_scale, has_nose_notes/has_palate_notes/has_overall_notes boolean flags (avoids storing full note text in event log).
+- `api/app/Http/Requests/StoreSensoryNoteRequest.php` — Validates: lot_id (optional uuid exists), date (required), rating (nullable numeric min:0), rating_scale (nullable, in RATING_SCALES), nose_notes/palate_notes/overall_notes (nullable string max:5000).
+- `api/app/Http/Resources/SensoryNoteResource.php` — Extends BaseResource. Casts rating to float. Conditionally includes lot (id, name, variety, vintage) and taster (id, name) when loaded.
+- `api/app/Http/Controllers/Api/V1/SensoryNoteController.php` — Three endpoints: `index()` lists notes for a lot with taster and date range filters, descending by date; `store()` creates note via service with lot_id from route and taster_id from auth; `show()` returns single note with relationships.
+- `api/app/Filament/Resources/SensoryNoteResource.php` + Pages (List, Create, View) — Under "Lab" navigation group (sort 4, label "Tasting Notes"). Reactive form: rating max value adapts to rating_scale (5 vs 100). Table shows rating as "X/5" or "X/100" format. Filters for lot, taster, rating_scale. View-only (no edit page — tasting notes are observational records).
+- `api/routes/api.php` — Added `GET/POST /lots/{lotId}/sensory-notes` and `GET /lots/{lotId}/sensory-notes/{sensoryNote}`. Creation requires winemaker+, reading is authenticated.
+- `api/app/Models/Lot.php` — Added `sensoryNotes()` HasMany relationship ordered by date desc.
+
+### Key Decisions
+- **Winemaker+ for creation, not cellar_hand**: The spec says "winemaker+" for tasting notes. Unlike daily fermentation entries (which cellar_hand can do as routine data collection), tasting notes are evaluative and typically done by senior staff.
+- **No edit/delete**: Tasting notes are observational records — like lab analyses, they represent what someone perceived at a point in time. Corrections should be new entries with updated notes.
+- **Boolean flags in event payload instead of full text**: Event payloads include `has_nose_notes`, `has_palate_notes`, `has_overall_notes` booleans rather than the full note text. This keeps event payloads lightweight while still indicating completeness of the evaluation.
+- **Rating nullable**: A taster may record qualitative notes without assigning a numeric rating — common during early development assessments.
+- **Rating scale per note, not per winery**: The spec says "configurable per winery" but implementing it per-note is more flexible. A winery might use 5-point for quick barrel checks and 100-point for formal panel tastings.
+- **PHPDoc @property annotations**: Added full `@property` block to SensoryNote model for PHPStan type resolution — avoids "undefined property" errors when accessing model attributes and relationships through `@mixin` in resources and services.
+
+### Deviations from Spec
+- Spec mentioned rating scale "configurable per winery." Implementation stores the scale per note instead, which is strictly more flexible. A winery-level default could be added later as a tenant setting.
+- No edit page on Filament resource (view-only) — consistent with the immutable-records philosophy for observational data.
+
+### Patterns Established
+- **Per-record configuration over per-tenant**: When a configuration value (like rating scale) could vary by context, store it alongside the record rather than at the tenant level. This avoids migration complexity when wineries change their preference.
+- **Boolean flags for text presence in events**: When event payloads would otherwise contain large text blobs, use boolean presence flags instead. The full text is in the source record and can be fetched on demand.
+
+### Test Summary
+- `tests/Feature/Lab/SensoryNoteTest.php` (16 tests)
+  - Tier 1: `sensory_note_recorded` event with self-contained payload (lot_name, lot_variety, taster_name, date, rating, rating_scale, has_*_notes flags)
+  - Tier 1: five-point rating scale storage and response
+  - Tier 1: hundred-point rating scale storage and response
+  - Tier 1: notes without rating (nullable rating)
+  - Tier 1: multiple tasters note same lot on same date (with forgetGuards for second login)
+  - Tier 1: tenant isolation — cross-tenant sensory note access prevention
+  - Tier 2: list notes for lot (most recent first)
+  - Tier 2: show single note with taster and lot info
+  - Tier 2: create with all fields
+  - Tier 2: validation — invalid rating_scale rejected, missing date rejected
+  - Tier 2: RBAC — winemaker can create, cellar_hand cannot, read_only can list but not create
+  - Tier 2: API envelope format
+- Known gaps: Filament resource CRUD not tested via Livewire (deferred per Phase 1-2 audit)
+
+### Open Questions
+- None. The sensory note feature is intentionally lightweight per the spec's guidance ("not wine-review-style scoring — keep it lightweight"). Structured aroma/flavor descriptor vocabularies (like the Wine Aroma Wheel) could be added later as optional metadata if needed.
