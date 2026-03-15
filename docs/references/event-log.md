@@ -1,6 +1,6 @@
 # Event Log
 
-> Last updated: 2026-03-10
+> Last updated: 2026-03-15
 > Relevant source: `api/app/Services/EventLogger.php`, `api/app/Models/Event.php`
 > Architecture doc: Section 3
 
@@ -83,7 +83,43 @@ $events = Event::whereRaw("payload->>'grape_variety' = ?", ['Pinot Noir'])->get(
 - **BRIN index on performed_at** — designed for time-series queries. Much smaller than B-tree for sequential data.
 - For volume-sensitive operations, the server validates physical possibility on receipt (to be implemented in event handlers).
 
+## Production Event Types (Phase 2)
+
+The following event types are written by the production module. All use `entityType: 'lot'` with the lot's UUID as `entityId`.
+
+| Operation Type | When Logged | Key Payload Fields |
+|---|---|---|
+| `lot_created` | New lot created | name, variety, vintage, source, initial_volume |
+| `lot_split` | Lot split into children | parent_lot_id, child_lots [{id, volume}] |
+| `addition_made` | Chemical addition logged | lot_id, type, product, rate, rate_unit, amount, unit |
+| `transfer_executed` | Wine moved between vessels | lot_id, from_vessel, to_vessel, volume, variance, transfer_type |
+| `rack_completed` | Racking operation done | lot_id, from_vessels, to_vessels, lees_weight |
+| `blend_finalized` | Blend trial finalized | new_lot_id, sources [{lot_id, pct, volume}] |
+| `barrel_filled` | Barrel filled with wine | lot_id, barrel_id, volume |
+| `barrel_topped` | Barrel topped off | barrel_id, source_lot_id, volume |
+| `barrel_racked` | Barrel racked to vessel | barrel_id, to_vessel_id, lees_weight |
+| `pressing_logged` | Press operation recorded | lot_id, press_type, fractions, yield_pct |
+| `filtering_logged` | Filter operation recorded | lot_id, filter_type, media, volume |
+| `bottling_completed` | Bottling run finished | lot_id, format, bottles, waste_pct, cases, sku |
+
+## Seeder Event Logging
+
+Demo seeders should always log events through `EventLogger::log()` rather than inserting Event records directly. This ensures idempotency key handling, payload structure, and timestamp consistency. The `ProductionSeeder` established this pattern — see `database/seeders/ProductionSeeder.php`.
+
+```php
+// In a seeder — always use EventLogger, set specific dates
+$this->eventLogger->log(
+    entityType: 'lot',
+    entityId: $lot->id,
+    operationType: 'lot_created',
+    payload: ['name' => $name, 'variety' => $variety, ...],
+    performedBy: $user->id,
+    performedAt: Carbon::create(2024, 10, 15),  // historical date
+);
+```
+
 ## History
 - 2026-03-10: Sub-Task 6 complete. Events table, Event model, EventLogger service. 13 tests passing. Immutability enforced via PostgreSQL trigger.
 - 2026-03-10: Sub-Task 7 complete. Batch sync endpoint `POST /api/v1/events/sync`. Per-event transactions, 100 max batch, 30-day window. 12 tests.
 - 2026-03-10: Sub-Task 13 — Sync endpoint responses wrapped in API envelope format.
+- 2026-03-15: Phase 2 complete. 12 production event types documented. Seeder event logging pattern established.

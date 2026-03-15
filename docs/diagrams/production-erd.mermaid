@@ -1,0 +1,157 @@
+---
+title: Production Core — Entity Relationships
+---
+erDiagram
+    LOT ||--o{ LOT : "parent/child (splits)"
+    LOT ||--o{ LOT_VESSEL : "contains"
+    VESSEL ||--o{ LOT_VESSEL : "holds"
+    VESSEL ||--o| BARREL : "extends (1:1 for type=barrel)"
+    LOT ||--o{ ADDITION : "receives"
+    LOT ||--o{ TRANSFER : "moved via"
+    LOT ||--o{ BOTTLING_RUN : "bottled as"
+    LOT ||--o{ EVENT : "logged (entity_type=lot)"
+    VESSEL ||--o{ EVENT : "logged (entity_type=vessel)"
+    BLEND_TRIAL ||--o{ BLEND_TRIAL_COMPONENT : "composed of"
+    BLEND_TRIAL ||--o| LOT : "produces (resulting_lot)"
+    BLEND_TRIAL_COMPONENT }o--|| LOT : "sources from"
+    BOTTLING_RUN ||--o{ BOTTLING_COMPONENT : "consumes"
+    WORK_ORDER }o--o| LOT : "operates on"
+    WORK_ORDER }o--o| VESSEL : "operates on"
+    WORK_ORDER }o--o| USER : "assigned to"
+    TRANSFER }o--|| VESSEL : "from_vessel"
+    TRANSFER }o--|| VESSEL : "to_vessel"
+    ADDITION }o--|| USER : "performed by"
+    TRANSFER }o--|| USER : "performed by"
+
+    LOT {
+        uuid id PK
+        string name
+        string variety
+        smallint vintage
+        string source_type
+        jsonb source_details
+        decimal volume_gallons
+        string status
+        uuid parent_lot_id FK
+    }
+
+    VESSEL {
+        uuid id PK
+        string name
+        string type
+        decimal capacity_gallons
+        string material
+        string location
+        string status
+    }
+
+    BARREL {
+        uuid id PK
+        uuid vessel_id FK
+        string cooperage
+        string toast_level
+        string oak_type
+        string forest_origin
+        decimal volume_gallons
+        int years_used
+        string qr_code
+    }
+
+    LOT_VESSEL {
+        uuid id PK
+        uuid lot_id FK
+        uuid vessel_id FK
+        decimal volume_gallons
+        timestamp filled_at
+        timestamp emptied_at
+    }
+
+    WORK_ORDER {
+        uuid id PK
+        string operation_type
+        uuid lot_id FK
+        uuid vessel_id FK
+        uuid assigned_to FK
+        date due_date
+        string status
+        string priority
+        timestamp completed_at
+        uuid completed_by FK
+    }
+
+    ADDITION {
+        uuid id PK
+        uuid lot_id FK
+        string addition_type
+        string product_name
+        decimal rate
+        string rate_unit
+        decimal total_amount
+        uuid performed_by FK
+        timestamp performed_at
+    }
+
+    TRANSFER {
+        uuid id PK
+        uuid lot_id FK
+        uuid from_vessel_id FK
+        uuid to_vessel_id FK
+        decimal volume_gallons
+        string transfer_type
+        decimal variance_gallons
+        uuid performed_by FK
+        timestamp performed_at
+    }
+
+    BOTTLING_RUN {
+        uuid id PK
+        uuid lot_id FK
+        string bottle_format
+        int bottles_filled
+        decimal volume_bottled_gallons
+        string status
+        string sku
+        int cases_produced
+        uuid performed_by FK
+    }
+
+    BLEND_TRIAL {
+        uuid id PK
+        string name
+        string status
+        int version
+        jsonb variety_composition
+        string ttb_label_variety
+        decimal total_volume_gallons
+        uuid resulting_lot_id FK
+        uuid created_by FK
+        timestamp finalized_at
+    }
+
+    BLEND_TRIAL_COMPONENT {
+        uuid id PK
+        uuid blend_trial_id FK
+        uuid source_lot_id FK
+        decimal percentage
+        decimal volume_gallons
+    }
+
+    BOTTLING_COMPONENT {
+        uuid id PK
+        uuid bottling_run_id FK
+        string component_type
+        string product_name
+        int quantity_used
+        int quantity_wasted
+    }
+
+    EVENT {
+        uuid id PK
+        string entity_type
+        uuid entity_id
+        string operation_type
+        jsonb payload
+        uuid performed_by FK
+        timestamptz performed_at
+        string idempotency_key UK
+    }

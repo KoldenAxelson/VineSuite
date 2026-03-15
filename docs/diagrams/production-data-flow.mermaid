@@ -1,0 +1,86 @@
+---
+title: Production Data Flow — Wine Lifecycle
+---
+graph TD
+    subgraph "Grape Reception"
+        A[Grapes Arrive] --> B[Create Lot]
+        B --> B1[lot_created event]
+    end
+
+    subgraph "Fermentation"
+        B --> C[Fill Tank]
+        C --> C1[lot_vessel pivot created]
+        C --> D{Fermentation Ops}
+        D --> D1[Punch Down / Pump Over]
+        D1 --> D1E[Work Order completed]
+        D --> D2[Add Nutrients]
+        D2 --> D2E[addition_made event]
+        D --> D3[Add SO2]
+        D3 --> D3E[addition_made event]
+        D --> D4[Sample / Lab Analysis]
+        D4 --> D4E[Work Order completed]
+    end
+
+    subgraph "Post-Fermentation"
+        D --> E[Press]
+        E --> E1[pressing_logged event]
+        E --> F[Transfer to Clean Vessel]
+        F --> F1[transfer_executed event]
+        F --> G{Aging Path}
+    end
+
+    subgraph "Aging"
+        G --> G1[Barrel Down]
+        G1 --> G1E[transfer_executed event]
+        G1 --> G1V[Barrel vessel_id linked]
+        G --> G2[Tank Aging]
+        G2 --> G2E[transfer_executed event]
+
+        G1 --> H{Barrel Maintenance}
+        H --> H1[Top Barrels]
+        H1 --> H1E[barrel_topped event]
+        H --> H2[Rack]
+        H2 --> H2E[rack_completed event]
+        H --> H3[SO2 Additions]
+        H3 --> H3E[addition_made event]
+        H --> H4[Sample]
+    end
+
+    subgraph "Blending"
+        G1 --> I[Blend Trial - Draft]
+        G2 --> I
+        I --> I1[BlendTrialComponents created]
+        I1 --> J[Finalize Blend]
+        J --> J1[blend_finalized event]
+        J --> J2[New Lot created from blend]
+    end
+
+    subgraph "Bottling"
+        J2 --> K[Filter / Fine]
+        G2 --> K
+        K --> K1[filtering_logged event]
+        K --> L[Bottling Run]
+        L --> L1[bottling_completed event]
+        L --> L2[Lot status → bottled]
+        L --> L3[Cases produced + SKU assigned]
+    end
+
+    subgraph "Event Log (Immutable)"
+        B1 --> EL[(events table)]
+        D2E --> EL
+        D3E --> EL
+        E1 --> EL
+        F1 --> EL
+        G1E --> EL
+        G2E --> EL
+        H1E --> EL
+        H2E --> EL
+        H3E --> EL
+        J1 --> EL
+        K1 --> EL
+        L1 --> EL
+    end
+
+    style EL fill:#f9f,stroke:#333,stroke-width:2px
+    style A fill:#9f9,stroke:#333
+    style L3 fill:#ff9,stroke:#333

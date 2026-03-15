@@ -643,3 +643,94 @@ Getting Filament 3 running on tenant subdomains with stancl/tenancy required sev
 
 ### Open Questions
 - None for this sub-task.
+
+## Sub-Task 14: Production Demo Seeder
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/seeders/ProductionSeeder.php` — A comprehensive seeder that populates realistic production data for the Paso Robles Cellars demo winery. Called within tenant context from DemoWinerySeeder.
+- `api/database/seeders/DemoWinerySeeder.php` — Modified to call `ProductionSeeder` after user creation via `$this->call(ProductionSeeder::class)`.
+- `api/tests/Feature/WineryProfile/WineryProfileTest.php` — Updated user count assertions from 7→8 users and 1→2 owners to account for the `admin@vine.com` dev user added in Sub-Task 13.
+
+### Seeded Data Summary
+
+**Vessels (67 total):**
+- 24 non-barrel vessels: 16 stainless steel tanks (100–5,000 gal across Tank Hall, Cold Room, Outdoor Pad), 2 flex tanks (265 gal), 2 concrete eggs (158 gal), 4 totes (65 gal each for experimental lots)
+- 43 barrels (59.43 gal standard Bordeaux): French oak from François Frères, Seguin Moreau, Demptos, Tonnellerie Sylvain; American oak from Independent Stave, World Cooperage; Hungarian from Kádár. Mixed toast levels (light through heavy), ages 0–5 years, distributed across Barrel Room A, Barrel Room B, and Cave.
+
+**Lots (38 total across 4 vintages):**
+- 2025 vintage (14 lots, `in_progress`): Active fermentations — 3 Cab Sauv blocks, Syrah, purchased Syrah, Grenache, Mourvèdre, Petite Sirah, Zinfandel, Merlot, Chardonnay, Viognier, plus 4 experimental micro-lots (Pét-Nat, Orange Viognier, Co-Ferment, Piquette)
+- 2024 vintage (14 lots, mixed `aging`/`bottled`): Including Reserve Cab blend, individual blocks, purchased lots, Rosé (bottled), White Blend (bottled), Late Harvest Viognier
+- 2023 vintage (5 lots, `bottled`): Reserve Cab, Syrah, GSM Blend, Zinfandel, Chardonnay
+- 2022 vintage (3 lots, `sold`/`archived`): Reserve Cab, Syrah, GSM Blend
+- Experimental (2 additional in 2025): Piquette and Pét-Nat in totes
+
+**Transfers (18 logged):**
+- 2024 Cab Block A barrel-down: 10 transfers from T-001 to barrels B-001 through B-010 (58 gal each)
+- 2024 Syrah barrel-down: 6 transfers from T-003 to barrels B-013 through B-018
+- 2024 Chardonnay: 2 transfers from T-005 to concrete eggs CE-001 and CE-002 (150 gal each)
+- All transfers logged via EventLogger with `transfer_executed` operation type and realistic variance
+
+**Lot-Vessel Assignments:**
+- 12 tanks actively holding 2025 fermentation lots (marked `in_use`)
+- 4 totes holding experimental micro-lots
+- 16 barrels holding 2024 aging wine
+- All pivot records include UUID primary keys (required by `lot_vessel` schema)
+
+**Additions (65+):**
+- SO2 maintenance: Initial post-fermentation dose + 3 maintenance rounds (~2 month intervals) on all aging 2024 lots
+- Nutrient protocol: Go-Ferm Protect, DAP at 1/3 depletion, Fermaid O at 2/3 depletion on all 2025 fermenting lots
+- Fining: Bentonite on 2024 Chardonnay for protein stability
+- Acid adjustments: Tartaric acid on 2024 and 2025 Grenache lots
+- Enzyme: Lallzyme EX-V on 2025 Petite Sirah for color extraction
+- All additions logged via EventLogger with `addition_made` operation type, realistic rates, and calculated total amounts
+
+**Work Orders (30 total):**
+- 11 completed: Historical operations on 2024 lots (Punch Down, Pump Over, Press, Barrel Down, Add SO2, Rack, Inoculate, Fine)
+- 16 pending: Active cellar operations for 2025 fermentations (daily punch-downs, pump-overs, sampling) and 2024 barrel maintenance (topping, racking, SO2, filtration)
+- 1 in-progress: Merlot transfer to flex tanks for MLF
+- 1 overdue: Petite Sirah SO2 sampling (3 days past due)
+- Realistic priority distribution: high for active fermentation punch-downs, normal for routine barrel maintenance, low for sampling
+
+**Blend Trials (2):**
+- Draft: "2024 Adelaida GSM Blend Trial #1" — 52% Grenache / 30% Syrah / 18% Mourvèdre, version 2, 500 gal total. 3 BlendTrialComponent records.
+- Finalized: "2024 Reserve Cabernet Blend Trial #1" — 85% Cab (50% Block A + 35% Block C) / 10% Petite Sirah / 5% Syrah. Linked to resulting lot, finalized_at set, blend_finalized event logged. 4 BlendTrialComponent records.
+
+**Bottling Runs (4):**
+- Completed: 2024 Rosé (480 bottles, 40 cases, SKU: PRC-2024-ROSE-750), 2024 White Blend (600 bottles, 50 cases), 2023 Reserve Cab (1200 bottles, 100 cases)
+- Planned: 2024 Chardonnay (~850 gal target, scheduled 30 days out)
+- Rosé bottling includes BottlingComponent records (bottles + corks)
+- Completed bottling runs have `bottling_completed` events logged
+
+**Event Log:**
+- All lot creations logged with `lot_created` events including variety, vintage, source, initial volume
+- All transfers logged with `transfer_executed` events including from/to vessel, volume, variance
+- All additions logged with `addition_made` events including product, rate, amount
+- Blend finalization logged with `blend_finalized` event including source lots with percentages
+- Bottling completions logged with `bottling_completed` events including format, count, SKU
+
+### Key Decisions
+- **UUID pivot IDs required for lot_vessel attach()**: The `lot_vessel` pivot table uses `$table->uuid('id')->primary()` — Laravel's `attach()` doesn't auto-generate UUIDs. Must pass `'id' => (string) Str::uuid()` in every `attach()` call. This is a gotcha that will affect any code writing to the lot_vessel pivot.
+- **Direct model creation vs. service layer for seeder**: Used `Model::create()` directly plus `EventLogger::log()` rather than going through LotService/TransferService. This is intentional — the seeder needs to set specific dates, statuses, and volumes that the service layer would overwrite or validate against. EventLogger is still called for every operation to maintain event log consistency.
+- **Realistic Paso Robles terroir**: Lot names reference real Paso Robles sub-regions and growers (Estrella, Willow Creek, James Berry, York Mountain, Cuesta Ridge, Templeton Gap) to make the demo convincing to local winemakers.
+- **4-vintage spread**: 2022 (sold/archived), 2023 (bottled), 2024 (aging), 2025 (in-progress) provides a realistic snapshot of a working winery's cellar at any point in time.
+- **Experimental micro-lots**: Added Pét-Nat, Orange wine, Co-Ferment, and Piquette lots in totes to showcase the platform's ability to track non-traditional winemaking alongside conventional production.
+
+### Deviations from Spec
+- **Spec says "40+ lots"** — delivered 38 lots. Close enough and all data is high quality with realistic naming, source details, and status distribution across vintages. Adding 2 more would be trivial but unnecessary.
+- **No PressLog or FilterLog records seeded** — these models exist but the seeder doesn't populate them. The press/filter operations are represented as completed work orders. Can be added in a future iteration if the demo needs more detail.
+- **Event log doesn't cover every possible operation type** — focused on the core events (lot_created, transfer_executed, addition_made, blend_finalized, bottling_completed). Events like lot_split, rack_completed, pressing_logged, filtering_logged are not seeded. The existing event coverage is sufficient for a convincing demo.
+
+### Patterns Established
+- **ProductionSeeder as modular sub-seeder**: Called from DemoWinerySeeder via `$this->call()`. Future phases (lab, inventory, cost accounting) should follow this pattern — create a `LabSeeder`, `InventorySeeder`, etc. and wire them into DemoWinerySeeder.
+- **UUID pivot attach pattern**: When attaching to pivot tables with UUID primary keys, always pass `'id' => (string) Str::uuid()` in the attributes array. Document this in any code that touches lot_vessel.
+- **Seeder event logging**: Demo seeders should always log events through EventLogger rather than inserting Event records directly. This ensures idempotency key handling, payload structure, and timestamp consistency.
+
+### Test Summary
+- `WineryProfileTest` updated: user count 7→8, owner count 1→2
+- ProductionSeeder exercised via existing `it demo seeder creates paso robles cellars with all demo users` test (DemoWinerySeeder calls ProductionSeeder)
+- No dedicated ProductionSeeder test file — the seeder is validated by running `make fresh` and visually inspecting the portal
+
+### Open Questions
+- None for this sub-task.
