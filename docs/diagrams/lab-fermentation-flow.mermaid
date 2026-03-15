@@ -1,0 +1,62 @@
+---
+title: Lab & Fermentation Data Flow
+---
+graph TD
+    subgraph "Lab Analysis"
+        LA1[Manual Entry] --> LA2[LabAnalysisService.createAnalysis]
+        LA3[CSV Import Preview] --> LA4[User Reviews Matches]
+        LA4 --> LA5[CSV Import Commit]
+        LA5 --> LA2
+        LA2 --> LA6[lab_analysis_entered event]
+        LA2 --> LA7{LabThresholdChecker.check}
+        LA7 -->|VA > 0.12| LA8[Critical Alert - 27 CFR 4.21]
+        LA7 -->|Value near limit| LA9[Warning Alert]
+        LA7 -->|In range| LA10[No Alert]
+    end
+
+    subgraph "Threshold Configuration"
+        TH1[DefaultLabThresholdsSeeder] --> TH2[17 Default Thresholds]
+        TH3[Winemaker Custom] --> TH4[Variety-Specific Override]
+        TH2 --> LA7
+        TH4 --> LA7
+    end
+
+    subgraph "Fermentation Tracking"
+        F1[Create Round] --> F2[FermentationService.createRound]
+        F2 --> F3[fermentation_round_created event]
+        F4[Daily Entry] --> F5[FermentationService.addEntry]
+        F5 --> F6[fermentation_data_entered event]
+        F5 --> F7[Brix / Temp / SO2 recorded]
+        F8{Lifecycle} --> F9[Complete Round]
+        F8 --> F10[Mark Stuck]
+        F9 --> F11[fermentation_completed event]
+        F10 --> F12[Status = stuck]
+        F9 --> F13[ML Dryness Confirmation]
+    end
+
+    subgraph "Fermentation Chart"
+        F7 --> FC1[API: /fermentations/round/chart]
+        F7 --> FC2[API: /lots/lotId/fermentation-chart]
+        FC1 --> FC3[Single Round - Dual Axis]
+        FC2 --> FC4[Lot Overview - Multi Round Overlay]
+        FC3 --> FC5[Filament Widget - Chart.js]
+    end
+
+    subgraph "Sensory Notes"
+        SN1[Taster Records Note] --> SN2[SensoryNoteService.createNote]
+        SN2 --> SN3[sensory_note_recorded event]
+        SN2 --> SN4[Rating: 5-point or 100-point]
+    end
+
+    subgraph "Event Log (Immutable)"
+        LA6 --> EL[(events table)]
+        F3 --> EL
+        F6 --> EL
+        F11 --> EL
+        SN3 --> EL
+    end
+
+    style EL fill:#f9f,stroke:#333,stroke-width:2px
+    style LA8 fill:#f66,stroke:#333
+    style LA9 fill:#ff9,stroke:#333
+    style LA10 fill:#9f9,stroke:#333

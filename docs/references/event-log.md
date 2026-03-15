@@ -118,8 +118,29 @@ $this->eventLogger->log(
 );
 ```
 
+## Lab & Fermentation Event Types (Phase 3)
+
+The following event types are written by the lab and fermentation modules.
+
+| Operation Type | Entity Type | When Logged | Key Payload Fields |
+|---|---|---|---|
+| `lab_analysis_entered` | lot | Lab analysis recorded (manual or import) | lot_name, lot_variety, test_type, value, unit, method, analyst, test_date. Import batches include `import_batch: true`. |
+| `fermentation_round_created` | lot | Fermentation round started | lot_name, lot_variety, fermentation_type, yeast_strain (or ml_bacteria), inoculation_date |
+| `fermentation_data_entered` | fermentation_round | Daily entry logged | temperature, brix_or_density, measurement_type, free_so2, entry_date |
+| `fermentation_completed` | fermentation_round | Round marked complete | status, completion_date, total_entries |
+| `sensory_note_recorded` | lot | Tasting note created | lot_name, lot_variety, taster_name, date, rating, rating_scale, has_nose_notes, has_palate_notes, has_overall_notes |
+
+### Self-Contained Payload Pattern
+
+Phase 3 established the pattern of including human-readable context in event payloads. Every lab/fermentation event includes `lot_name` and `lot_variety` alongside `lot_id`, and sensory notes include `taster_name` alongside `taster_id`. This makes the event stream readable without joins — critical for data portability and TTB audit trails.
+
+### Boolean Flags for Text Presence
+
+Sensory note events use boolean flags (`has_nose_notes`, `has_palate_notes`, `has_overall_notes`) instead of the full note text. This keeps event payloads lightweight while indicating evaluation completeness.
+
 ## History
 - 2026-03-10: Sub-Task 6 complete. Events table, Event model, EventLogger service. 13 tests passing. Immutability enforced via PostgreSQL trigger.
 - 2026-03-10: Sub-Task 7 complete. Batch sync endpoint `POST /api/v1/events/sync`. Per-event transactions, 100 max batch, 30-day window. 12 tests.
 - 2026-03-10: Sub-Task 13 — Sync endpoint responses wrapped in API envelope format.
 - 2026-03-15: Phase 2 complete. 12 production event types documented. Seeder event logging pattern established.
+- 2026-03-15: Phase 3 complete. 5 lab/fermentation event types added. Self-contained payload pattern and boolean flags pattern established.

@@ -311,6 +311,47 @@ DB::statement('ALTER TABLE activity_logs_disabled RENAME TO activity_logs');
 
 The `lot_vessel` pivot uses `uuid('id')->primary()`. Laravel's `attach()` won't auto-generate UUIDs — you must pass `'id' => (string) Str::uuid()` explicitly. This applies to any pivot with a UUID primary key.
 
+### PostgreSQL column aliases in HAVING clauses
+
+PostgreSQL does not allow referencing column aliases in `HAVING` clauses (MySQL does, which is why this pattern sneaks in). Use `havingRaw()` with the full expression instead.
+
+```php
+// Bad — fails on PostgreSQL with "column cnt does not exist"
+SensoryNote::select('lot_id')
+    ->selectRaw('count(*) as cnt')
+    ->groupBy('lot_id')
+    ->having('cnt', '>', 1)
+    ->get();
+
+// Good — use havingRaw with the full aggregate expression
+SensoryNote::select('lot_id')
+    ->selectRaw('count(*) as cnt')
+    ->groupBy('lot_id')
+    ->havingRaw('count(*) > 1')
+    ->get();
+```
+
+### PHPStan and Eloquent model type resolution
+
+PHPStan needs `@property` PHPDoc blocks on Eloquent models to resolve dynamic attribute access. Without them, accessing `$model->attribute` in closures, resources, or service methods triggers "undefined property" errors. Relationships also need generic annotations.
+
+```php
+/**
+ * @property string $id
+ * @property string $lot_id
+ * @property \Illuminate\Support\Carbon $date
+ * @property-read Lot $lot
+ * @property-read User $taster
+ */
+class SensoryNote extends Model
+{
+    /** @return BelongsTo<Lot, $this> */
+    public function lot(): BelongsTo { ... }
+}
+```
+
+This pattern was established in Phase 3 (SensoryNote, FermentationRound) after encountering 13 PHPStan errors from missing annotations. Apply proactively to new models.
+
 ---
 
 ## CI Integration

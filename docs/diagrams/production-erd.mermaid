@@ -1,5 +1,5 @@
 ---
-title: Production Core — Entity Relationships
+title: Production & Lab — Entity Relationships
 ---
 erDiagram
     LOT ||--o{ LOT : "parent/child (splits)"
@@ -22,6 +22,14 @@ erDiagram
     TRANSFER }o--|| VESSEL : "to_vessel"
     ADDITION }o--|| USER : "performed by"
     TRANSFER }o--|| USER : "performed by"
+    LOT ||--o{ LAB_ANALYSIS : "tested via"
+    LOT ||--o{ FERMENTATION_ROUND : "fermented as"
+    LOT ||--o{ SENSORY_NOTE : "tasted via"
+    FERMENTATION_ROUND ||--o{ FERMENTATION_ENTRY : "tracked daily"
+    FERMENTATION_ROUND }o--|| USER : "created by"
+    FERMENTATION_ENTRY }o--o| USER : "performed by"
+    SENSORY_NOTE }o--|| USER : "taster"
+    LAB_ANALYSIS }o--o| USER : "performed by"
 
     LOT {
         uuid id PK
@@ -154,4 +162,64 @@ erDiagram
         uuid performed_by FK
         timestamptz performed_at
         string idempotency_key UK
+    }
+
+    LAB_ANALYSIS {
+        uuid id PK
+        uuid lot_id FK
+        date test_date
+        string test_type
+        decimal value
+        string unit
+        string method
+        string analyst
+        string source
+        uuid performed_by FK
+    }
+
+    LAB_THRESHOLD {
+        int id PK
+        string test_type
+        string variety
+        decimal min_value
+        decimal max_value
+        string alert_level
+    }
+
+    FERMENTATION_ROUND {
+        uuid id PK
+        uuid lot_id FK
+        int round_number
+        string fermentation_type
+        date inoculation_date
+        string yeast_strain
+        string ml_bacteria
+        decimal target_temp
+        string status
+        date completion_date
+        date confirmation_date
+        uuid created_by FK
+    }
+
+    FERMENTATION_ENTRY {
+        uuid id PK
+        uuid fermentation_round_id FK
+        date entry_date
+        decimal temperature
+        decimal brix_or_density
+        string measurement_type
+        decimal free_so2
+        uuid performed_by FK
+    }
+
+    SENSORY_NOTE {
+        uuid id PK
+        uuid lot_id FK
+        uuid taster_id FK
+        date date
+        decimal rating
+        string rating_scale
+        text nose_notes
+        text palate_notes
+        text overall_notes
     }

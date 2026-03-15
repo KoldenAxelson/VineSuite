@@ -18,7 +18,14 @@ graph TD
         D --> D3[Add SO2]
         D3 --> D3E[addition_made event]
         D --> D4[Sample / Lab Analysis]
-        D4 --> D4E[Work Order completed]
+        D4 --> D4E[lab_analysis_entered event]
+        D4 --> D4T{Threshold Check}
+        D4T -->|Exceeds limit| D4W[Alert: warning/critical]
+        D --> D5[Daily Brix/Temp Entry]
+        D5 --> D5E[fermentation_data_entered event]
+        D5 --> D5C[Fermentation Curve Chart]
+        D --> D6[Sensory Tasting]
+        D6 --> D6E[sensory_note_recorded event]
     end
 
     subgraph "Post-Fermentation"
@@ -69,6 +76,9 @@ graph TD
         B1 --> EL[(events table)]
         D2E --> EL
         D3E --> EL
+        D4E --> EL
+        D5E --> EL
+        D6E --> EL
         E1 --> EL
         F1 --> EL
         G1E --> EL
