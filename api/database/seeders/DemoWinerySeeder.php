@@ -36,9 +36,9 @@ class DemoWinerySeeder extends Seeder
             'plan' => 'pro',
         ]);
 
-        // Create domain for subdomain routing
+        // Create domain for subdomain routing (full hostname for InitializeTenancyByDomain)
         $tenant->domains()->create([
-            'domain' => 'paso-robles-cellars',
+            'domain' => 'paso-robles-cellars.localhost',
         ]);
 
         $tenant->run(function () {
@@ -83,6 +83,11 @@ class DemoWinerySeeder extends Seeder
     {
         $users = [
             [
+                'name' => 'Admin',
+                'email' => 'admin@vine.com',
+                'role' => 'owner',
+            ],
+            [
                 'name' => 'Sarah Mitchell',
                 'email' => 'sarah@pasoroblescellars.example.com',
                 'role' => 'owner',
@@ -123,7 +128,7 @@ class DemoWinerySeeder extends Seeder
             $user = User::create([
                 'name' => $userData['name'],
                 'email' => $userData['email'],
-                'password' => 'DemoPass123!',
+                'password' => 'password',
                 'role' => $userData['role'],
                 'is_active' => true,
             ]);

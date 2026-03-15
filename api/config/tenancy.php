@@ -86,6 +86,11 @@ return [
             'public' => '%storage_path%/app/public/',
         ],
         'suffix_storage_path' => true,
+
+        // Disable tenancy's asset() URL rewriting so Filament's CSS/JS
+        // are served from /css/filament/ and /js/filament/ as normal,
+        // instead of being routed through /tenancy/assets/...
+        'asset_helper_tenancy' => false,
     ],
 
     /**

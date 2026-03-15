@@ -41,7 +41,6 @@ seed:                        ## Run database seeders
 
 fresh:                       ## Drop all tables, re-migrate, re-seed
 	docker compose exec app php artisan migrate:fresh --seed
-	docker compose exec app php artisan tenants:migrate --fresh --seed
 
 test:                        ## Run PHP test suite (use: make test or make test F=Transfer)
 	docker compose exec app ./vendor/bin/pest $(if $(F),--filter="$(F)",)
@@ -53,7 +52,7 @@ lint:                        ## Run Laravel Pint (code style)
 	docker compose exec app ./vendor/bin/pint
 
 analyse:                     ## Run PHPStan (static analysis)
-	docker compose exec app ./vendor/bin/phpstan analyse
+	docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=512M
 
 testsuite:                   ## Full QA: filtered Pest → full Pest → Pint → PHPStan (use: make testsuite F="Transfer Addition")
 	@START=$$(date +%s); PEST_OK=0; PINT_OK=0; STAN_OK=0; \
@@ -71,7 +70,7 @@ testsuite:                   ## Full QA: filtered Pest → full Pest → Pint �
 	docker compose exec app ./vendor/bin/pint && PINT_OK=1; \
 	echo ""; \
 	echo "══════ PHPSTAN ══════"; \
-	docker compose exec app ./vendor/bin/phpstan analyse && STAN_OK=1; \
+	docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=512M && STAN_OK=1; \
 	echo ""; \
 	END=$$(date +%s); ELAPSED=$$((END - START)); \
 	echo "┌──────────────────────────────────────┐"; \

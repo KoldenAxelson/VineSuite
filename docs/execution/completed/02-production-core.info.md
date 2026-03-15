@@ -557,3 +557,89 @@
 
 ### Open Questions
 - None for this sub-task.
+
+---
+
+## Sub-Task 13: Filament Resources for All Production Models
+**Completed:** 2026-03-15
+**Status:** Awaiting verification
+
+### What Was Built
+- `api/app/Filament/Resources/LotResource.php` — Full CRUD resource with table (name, variety, vintage, status badge, volume, source_type), form (lot details + collapsible source_details KeyValue), infolist with event timeline (RepeatableEntry showing operation_type, performed_at, performer, payload). Filters: status, variety, vintage, source_type. Bulk archive action. Pages: List, Create, View, Edit.
+- `api/app/Filament/Resources/VesselResource.php` — CRUD resource showing current_volume and fill_percent accessors in table with color-coded fill percentages (green >=90%, amber >=50%, red >0%). Infolist shows current contents via lots relationship with pivot volume_gallons and filled_at. Filters: type, status, location. Pages: List, Create, View, Edit.
+- `api/app/Filament/Resources/BarrelResource.php` — CRUD resource for barrel metadata (cooperage, toast_level, oak_type, forest_origin, volume, years_used, qr_code). Linked to vessel via relationship select. Filters: toast_level, oak_type, cooperage (dynamic), years_used range. Pages: List, Create, Edit.
+- `api/app/Filament/Resources/WorkOrderResource.php` — CRUD resource with custom Complete action (sets completed_at, completed_by). Table shows operation_type, lot, assigned user, due_date, status/priority badges. Overdue filter. Calendar page registered. Pages: List, Create, Edit, CalendarWorkOrders.
+- `api/app/Filament/Resources/WorkOrderResource/Pages/CalendarWorkOrders.php` — Custom Filament page displaying work orders in a weekly calendar view with Blade template.
+- `api/resources/views/filament/resources/work-order-resource/pages/calendar-work-orders.blade.php` — Tailwind-styled week calendar grid with prev/next navigation, status legend, and links to edit individual work orders.
+- `api/app/Filament/Resources/AdditionResource.php` — Create + View only (immutable records). Color-coded addition_type badges, rate+unit and total+unit display. Filters: addition_type, lot, performed_at date range. Pages: List, Create, View.
+- `api/app/Filament/Resources/TransferResource.php` — Create + View only (immutable). Table shows lot, fromVessel, toVessel, volume, transfer_type badge, variance, performer. Filters: transfer_type, lot. Pages: List, Create, View.
+- `api/app/Filament/Resources/BottlingRunResource.php` — Full CRUD with custom Complete action. Table shows lot, bottle_format badge, bottles_filled, volume, status badges, SKU, cases_produced. Filters: status, bottle_format, lot. Pages: List, Create, View, Edit.
+- `api/app/Filament/Resources/BlendTrialResource.php` — CRUD with custom Finalize action (sets status=finalized, finalized_at=now). Edit hidden when finalized. KeyValue for variety_composition. Filter: status. Pages: List, Create, View, Edit.
+
+### Design Decisions
+- All production resources use `canAccess(): auth()->check()` — any authenticated winery staff can view. Write operations controlled by action visibility, not resource-level gating.
+- Immutable operation logs (Additions, Transfers) have no edit pages — Create + View only, matching API design.
+- BottlingRun and WorkOrder have custom "Complete" actions mirroring the API's two-phase workflow with confirmation modals.
+- BlendTrialResource has a "Finalize" action visible only in draft state.
+- LotResource uses Filament Infolist RepeatableEntry for event timeline with operation badges, timestamps, performers, and payload.
+- VesselResource displays computed current_volume and fill_percent accessors directly in table.
+- WorkOrder calendar is a custom Filament Page with Blade template, no third-party packages.
+
+### Navigation Structure
+All 8 resources under Production group: Lots (1), Vessels (2), Barrels (3), Work Orders (4), Additions (5), Transfers (6), Bottling Runs (7), Blend Trials (8).
+
+### Files Created (31 new files)
+- 8 Filament Resource classes
+- 22 Filament Page classes (List/Create/View/Edit per resource + CalendarWorkOrders)
+- 1 Blade template (calendar view)
+
+### Infrastructure Fixes Required for Filament + Stancl Tenancy
+
+Getting Filament 3 running on tenant subdomains with stancl/tenancy required several non-obvious fixes:
+
+**1. Filament assets 404 — `/tenancy/assets/` URL rewriting (config/tenancy.php)**
+- **Symptom:** All CSS/JS files returned 404. Browser requested URLs like `/tenancy/assets/css/filament/...` instead of `/css/filament/...`.
+- **Root cause:** `FilesystemTenancyBootstrapper` defaults `asset_helper_tenancy` to `true`, which rewrites all `asset()` URLs to go through a `/tenancy/assets/` route that doesn't serve Filament's published assets.
+- **Fix:** Added `'asset_helper_tenancy' => false` to `config/tenancy.php` → `filesystem` section.
+
+**2. Filament login "credentials do not match" — Livewire update route (AppServiceProvider)**
+- **Symptom:** Correct credentials rejected on login form. `Auth::attempt()` worked fine in tinker within tenant context.
+- **Root cause:** Livewire's `/livewire/update` POST route (used by Filament's login form) doesn't go through Filament's panel middleware stack. It has its own route without tenancy middleware, so the login POST queries the central database's users table instead of the tenant's.
+- **Fix:** Added `Livewire::setUpdateRoute()` in `AppServiceProvider::boot()` that includes `InitializeTenancyByDomain::class` middleware alongside `'web'`.
+
+**3. Session auth resolving wrong database — middleware ordering (AdminPanelProvider)**
+- **Symptom:** After login, redirect triggered `SQLSTATE[22P02]: invalid input syntax for type bigint` — Laravel tried to look up a UUID user ID in the central `users` table (which uses bigint).
+- **Root cause:** `InitializeTenancyByDomain` was placed after `StartSession` in the panel middleware stack. The session started in central context, so the auth session cookie referenced the central users table.
+- **Fix:** Moved `InitializeTenancyByDomain` and `PreventAccessFromCentralDomains` before `StartSession` in `AdminPanelProvider`'s middleware array. Tenancy must initialize before the session starts.
+
+**4. Filament Infolist BadgeEntry class not found (PHPStan)**
+- **Symptom:** PHPStan reported `Call to static method make() on unknown class Filament\Infolists\Components\BadgeEntry`.
+- **Root cause:** Filament 3 Infolists don't have a `BadgeEntry` class (unlike Tables which have `BadgeColumn`). The equivalent is `TextEntry::make()->badge()`.
+- **Fix:** Changed all `Infolists\Components\BadgeEntry::make()` to `Infolists\Components\TextEntry::make()->badge()` in LotResource and VesselResource.
+
+**5. PHPStan memory limit exceeded (Makefile)**
+- **Symptom:** PHPStan crashed with `reached configured PHP memory limit: 256M` after adding 31 new Filament files.
+- **Fix:** Added `--memory-limit=512M` to both `make analyse` and `make testsuite` PHPStan invocations.
+
+**6. Domain record mismatch (DemoWinerySeeder)**
+- **Symptom:** `TenantCouldNotBeIdentifiedOnDomainException` — tenant not found for `paso-robles-cellars.localhost`.
+- **Root cause:** Seeder stored domain as `paso-robles-cellars` but `InitializeTenancyByDomain` matches the full hostname `paso-robles-cellars.localhost`.
+- **Fix:** Updated DemoWinerySeeder to store `paso-robles-cellars.localhost` as the domain.
+
+**7. Makefile `fresh` target — stancl doesn't support `--fresh` (Makefile)**
+- **Symptom:** `make fresh` failed on `php artisan tenants:migrate --fresh --seed` — `--fresh` option doesn't exist on `tenants:migrate`.
+- **Fix:** Removed the `tenants:migrate --fresh --seed` line. `migrate:fresh --seed` already triggers tenant creation via DemoWinerySeeder, which runs tenant migrations through stancl's lifecycle events.
+
+**8. Filament asset publishing (container setup)**
+- **Symptom:** Even after fixing the URL rewriting, CSS/JS files didn't exist on disk.
+- **Fix:** Must run `php artisan filament:assets` inside the container after install. Published pre-compiled JS/CSS to `public/`. Also ran `php artisan storage:link`.
+
+### Additional Files Modified
+- `api/config/tenancy.php` — Added `asset_helper_tenancy => false`
+- `api/app/Providers/AppServiceProvider.php` — Added `Livewire::setUpdateRoute()` with tenancy middleware
+- `api/app/Providers/Filament/AdminPanelProvider.php` — Reordered middleware (tenancy before session)
+- `api/database/seeders/DemoWinerySeeder.php` — Fixed domain to `paso-robles-cellars.localhost`, added `admin@vine.com` user, simplified password to `password`
+- `Makefile` — Added `--memory-limit=512M` to PHPStan, fixed `fresh` target
+
+### Open Questions
+- None for this sub-task.
