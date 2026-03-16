@@ -1,5 +1,8 @@
 # Grape Marketplace (Tenant-to-Tenant Fruit Trading)
 
+> ⏳ **Deferred → Phase 4+.** Requires lot management (Phase 3) and plan gating (Phase 2) to exist. Central-schema data model should be sketched early to reserve design space.
+> Created: 2026-03-10
+
 ## The Insight
 
 Local wineries constantly buy and sell grapes to each other. A great harvest year means surplus fruit to offload; a tough year means scrambling to source varietals you're short on. This is an annual reality for nearly every small-to-mid winery, and right now it happens through phone calls, text threads, and word of mouth.

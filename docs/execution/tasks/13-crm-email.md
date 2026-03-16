@@ -9,6 +9,14 @@ Phase 7
 - `10-wine-club.md` — ClubMember model (club history)
 - `12-reservations-events.md` — Reservation model (visit history)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- See TRIAGE.md note on "Automated Churn Response Workflows" — connect churn risk scores (Task 20) to automated retention campaigns.
+
 ## Goal
 Build unified customer profiles that aggregate every touchpoint — tasting room visits, online purchases, club membership, reservations, email engagement. Provide segmentation tools to create targeted marketing lists and a basic built-in email system. Integrations with Mailchimp and Klaviyo sync customer data for wineries using external email platforms.
 

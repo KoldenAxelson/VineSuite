@@ -12,6 +12,7 @@ Load only what you need. 3-5 files per session max.
 
 ### Core
 - `architecture.md` — Stack, API, event log, multi-tenancy, key decisions. Load on first session or cross-cutting changes.
+- `CONVENTIONS.md` — Cross-cutting code patterns from Phases 1-4: services, API, Filament, data model, tests, seeders. Load on every coding session.
 - `WORKFLOW.md` — Task lifecycle (LOAD->BUILD->TEST->VERIFY->RECORD->UPDATE), phase completion, context loading cheat sheet.
 
 ### References (load when touching that subsystem)
@@ -43,11 +44,40 @@ Load only what you need. 3-5 files per session max.
 - `business/selling-points.md` — Marketing positioning.
 
 ### Other
-- `diagrams/` — Mermaid/JSX visualizations (ERDs, data flows, architecture).
+- `diagrams/` — Mermaid visualizations (ERDs, data flows, architecture).
 - `templates/` — Templates for INFO files, phase recaps, reference docs, sub-tasks.
 - `ideas/` — Feature ideas backlog. See `ideas/TRIAGE.md`.
 - `refactors/` — Active refactor specs. Check before overlapping work.
 - `legacy/` — `PHASE_5_HANDOFF.md` is the active handoff for next phase.
+
+---
+
+## Makefile Commands
+
+| Command | What it does |
+|---|---|
+| `make up` / `down` / `restart` | Start, stop, restart Docker services |
+| `make fresh` | Drop all, flush Redis, re-migrate, re-seed |
+| `make test` | Run Pest test suite |
+| `make test G=inventory` | Run only one test group (`foundation`, `production`, `lab`, `inventory`, `accounting`) |
+| `make test F=Transfer` | Run tests matching a filter name |
+| `make testsuite` | Full QA: Pest → Pint → PHPStan |
+| `make quicktest F=Transfer` | Filtered Pest only, no full suite |
+| `make lint` | Laravel Pint (code style) |
+| `make analyse` | PHPStan level 6 (static analysis) |
+| `make migrate` | Run migrations (central + tenant) |
+| `make shell` | Bash shell in the API container |
+| `make logs` / `logs-api` | Tail service logs |
+
+---
+
+## Caution: Heavy Files
+
+These files are large. Don't load them speculatively — only when your task actually needs them.
+
+- `business/feature-inventory.md` (800 lines) — executive summaries, feature audits, marketing
+- `execution/completed/*.info.md` (1,356 lines total) — investigating past decisions, debugging inherited code
+- `ideas/pricing-and-plan-tiers.md` (308 lines) — billing, plan gating, PlanFeatureService work
 
 ---
 

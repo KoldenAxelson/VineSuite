@@ -8,6 +8,8 @@ Phase 8
 - All modules — the public API exposes endpoints from every module
 - `18-notifications.md` — webhook dispatch uses the same event listener pattern
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Expose a documented, versioned public REST API for Pro tier subscribers. Wineries can integrate their own custom systems, build reports, or connect third-party tools. Includes configurable webhook subscriptions for real-time event notifications with HMAC signing and delivery guarantees. Uses Sanctum scoped token abilities (not Passport/OAuth) for fine-grained permissions. The API design follows the same patterns as the internal API — Pro-tier API access is a permission layer on top of existing endpoints, not a separate API.
 

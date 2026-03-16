@@ -9,6 +9,8 @@ Phase 7
 - `11-ecommerce.md` — club processing creates orders through the eCommerce order pipeline
 - `15-payments-advanced.md` — card-on-file charging for club members
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the wine club management and batch processing system. Wine clubs are the most important revenue channel for most DTC wineries — a quarterly club run can generate $50-100k in a single batch. This module handles club configuration (multiple tiers), member management, the batch processing workflow (preview → customize → charge → ship), and failed payment recovery. Club processing is the biggest pain point after TTB — most wineries spend a full day on it. This module reduces it to an hour.
 

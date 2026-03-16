@@ -9,6 +9,14 @@ Phase 6
 - `04-inventory.md` — Case goods SKUs and stock levels (product catalog)
 - `02-production-core.md` — Not directly consumed by POS, but POS sales deduct from the same inventory that production creates
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/unified-tax-engine.md` — Shared tax service (federal excise + CBMA credits, state excise, sales tax API). Design here, first sales channel needs it.
+
 ## Goal
 Build the native tablet POS app for tasting room sales. iOS (SwiftUI) + Android (Jetpack Compose), tablet-optimized layout. Offline-first — the POS must keep processing card AND cash payments when wifi drops. This is the key differentiator: "Keeps taking cards when your wifi goes down." Integrates Stripe Terminal native SDKs for card-present payments with offline capture capability. This module unlocks the Growth tier.
 

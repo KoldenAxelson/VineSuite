@@ -1,5 +1,7 @@
 # {Module Name}
 
+> **Before starting:** Check `docs/CONVENTIONS.md` for cross-cutting patterns. Verify assumptions against the relevant phase recap(s) in `docs/execution/phase-recaps/` — specs may have evolved since this file was written.
+
 ## Phase
 Phase {N}
 
@@ -40,15 +42,15 @@ Phase {N}
 
 ## API Endpoints
 
-| Method | URI | Description | Auth | Tier |
-|--------|-----|-------------|------|------|
-| GET | `/api/v1/{resource}` | List all with pagination | Sanctum | Starter |
-| POST | `/api/v1/{resource}` | Create new | Sanctum + role | Starter |
-| GET | `/api/v1/{resource}/{id}` | Show single | Sanctum | Starter |
-| PUT | `/api/v1/{resource}/{id}` | Update | Sanctum + role | Starter |
-| DELETE | `/api/v1/{resource}/{id}` | Soft-delete | Sanctum + owner | Starter |
+| Method | URI | Description | Auth |
+|--------|-----|-------------|------|
+| GET | `/api/v1/{resource}` | List all with pagination | Sanctum |
+| POST | `/api/v1/{resource}` | Create new | Sanctum + role |
+| GET | `/api/v1/{resource}/{id}` | Show single | Sanctum |
+| PUT | `/api/v1/{resource}/{id}` | Update | Sanctum + role |
+| DELETE | `/api/v1/{resource}/{id}` | Soft-delete | Sanctum + owner |
 
-{Include every endpoint this module exposes. Mark tier gates (Starter/Growth/Pro). Mark role requirements. If an endpoint is internal-only (not public API), note it.}
+{Include every endpoint this module exposes. Mark role requirements. If an endpoint is internal-only (not public API), note it. Plan tier gating (Free/Basic/Pro/Max) is enforced by PlanFeatureService at runtime, not hardcoded per endpoint.}
 
 ---
 
@@ -59,16 +61,10 @@ Phase {N}
 | `{entity}_created` | `{entity}` | `{field1}`, `{field2}`, ... | `{ServiceClass}` |
 | `{entity}_updated` | `{entity}` | `changed_fields`, `old_values`, `new_values` | `{ServiceClass}` |
 
-{Every state change must produce an event. This table is the contract — the handler that materializes CRUD state reads from these payloads. If a sub-task doesn't produce events, it's either a read-only feature or something is missing.}
+{Every state change must produce an event via EventLogger. This table is the contract. If a sub-task doesn't produce events, it's either a read-only feature or something is missing. Payloads must be self-contained (include human-readable names alongside foreign keys).}
 
 ---
 
-## Testing Notes
-
-{Refer to `docs/guides/testing-and-logging.md` for tier definitions. Summarize what's specific to THIS module:}
-
-- **Tier 1 (must have):** {e.g. "Event log writes for every lot operation, inventory math accuracy, TTB report generation"}
-- **Tier 2 (should have):** {e.g. "Filament resource CRUD flows, permission gate enforcement"}
-- **Tier 3 (skip unless complex):** {e.g. "UI rendering, simple getters/setters"}
-- **Compliance tests:** {if applicable — TTB, DTC shipping, payment PCI considerations}
-- **Cross-module integration:** {if this module depends on another, describe the integration test}
+## Ideas to Evaluate
+{Optional. Populated during ideas triage. Points to idea docs that may influence this task's sub-tasks.}
+- [ ] `docs/ideas/{idea-file}.md` — {one-line summary of what to consider}

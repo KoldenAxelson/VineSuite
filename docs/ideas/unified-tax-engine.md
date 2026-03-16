@@ -1,6 +1,6 @@
 # Unified Tax Engine
 
-> Status: Idea — currently fragmented across multiple tasks
+> **🟡 TRIAGED → Phase 6 (as constraint)** — Absorbed as a cross-cutting service to be built with the first sales channel (Task 09 POS). Not yet written into the Task 09 spec as a sub-task. See Tasks 09 and 11 "Ideas to Evaluate" sections.
 > Created: 2026-03-15
 > Source: Market research gap analysis
 > Priority: Low-Medium — cross-cutting concern, important but not urgent until DTC sales go live

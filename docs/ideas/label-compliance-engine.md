@@ -1,6 +1,7 @@
 # Automated Label Compliance / COLA Validation Engine
 
-> Status: Idea — partially covered by Task 06 (license tracking) but validation logic is missing
+> **🟡 PARTIALLY ABSORBED → Task 06 (TTB Compliance)**
+> Triaged for absorption into Phase 3 (Task 06) as a sub-task. COLA record tracking exists, but the real-time blend-to-label validation engine described here has **not yet been written into the task spec**. See Task 06's "Ideas to Evaluate" section.
 > Created: 2026-03-15
 > Source: Market research gap analysis
 > Priority: High — genuinely differentiated, only possible in an integrated suite

@@ -8,6 +8,15 @@ Phase 7
 - `02-production-core.md` — Lot model (harvest creates lots)
 - `04-inventory.md` — raw materials (spray chemicals inventory)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/water-sgma-tracking.md` — Per-block water usage, well metering, SGMA compliance reporting (beachhead-critical for Paso Robles)
+- `ideas/grower-tools.md` — Standalone grower tenant type with cross-tenant data flow (longer-term, may not fit this phase)
+
 ## Goal
 Track vineyard blocks, seasonal activities, sampling data, spray applications, and harvest management. Harvest events auto-create lots in the cellar module, bridging vineyard to production. This module is important for estate wineries that grow their own grapes and need to track farming costs through to COGS.
 

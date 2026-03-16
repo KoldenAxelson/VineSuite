@@ -10,6 +10,8 @@ Phase 7
 - `10-wine-club.md` — Club processing charges to sync as invoices
 - `15-payments-advanced.md` — Payment reconciliation and dispute tracking
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Two-way sync with QuickBooks Online and Xero. Push: invoices from orders, COGS journal entries from bottling, payment receipts, refunds. Pull: payment confirmations, account balances, chart of accounts. Wineries currently spend hours reconciling their winery software with their accounting software — this integration eliminates double-entry and reduces monthly close from days to hours. Sync is automatic on order and bottling events, with a manual re-sync button for edge cases. Uses event-driven push (Order → Invoice Sync Job queued) and scheduled pull (daily pull of payment status and balances).
 

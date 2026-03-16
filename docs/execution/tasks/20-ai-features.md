@@ -11,6 +11,15 @@ Phase 8
 - `10-wine-club.md` — member data for churn scoring
 - `05-cost-accounting.md` — COGS data for margin optimization
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/smart-allocation.md` — AI-powered inventory allocation across channels with revenue optimization
+- See TRIAGE.md note on "Vineyard-Side AI / Harvest Prediction" — weather API integration, historical yield trending
+
 ## Goal
 Pro-tier AI features powered by Anthropic API (claude-sonnet-4-6). All AI is background jobs on a schedule — never real-time, never blocking core operations. Features: weekly business digest, demand forecasting, harvest timing suggestions, fermentation dry-down prediction, club churn risk scoring, and margin optimization flags. Token costs controlled via scheduled execution, pre-aggregated context prompts (not raw DB dumps), per-tenant weekly budgets, and 7-day result caching.
 

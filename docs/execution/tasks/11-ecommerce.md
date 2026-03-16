@@ -9,6 +9,14 @@ Phase 7
 - `06-ttb-compliance.md` — DTC shipping compliance (block orders to non-compliant states)
 - `15-payments-advanced.md` — payment processing for online orders
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/unified-tax-engine.md` — Consumes the shared tax service designed in Task 09
+
 ## Goal
 Build the hosted online store for DTC wine sales. Winery gets a storefront at `shop.wineryname.com` (or custom domain via CNAME) with product pages, age gate, state compliance layer, cart, checkout with Stripe payments, and a complete order management + fulfillment workflow. This is a core Growth tier feature — wineries without an integrated online store are losing revenue.
 

@@ -16,6 +16,8 @@ Spans all phases: basic reports in Phase 2 (production, inventory), full reporti
 - `10-wine-club.md` — club members, processing runs, charges
 - `17-vineyard.md` — harvest, blocks, chemicals
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Comprehensive reporting across all winery operations. Reports are read-only query views that aggregate existing data — no separate data warehouse. Key insight: the event log makes most reports simple time-range aggregations rather than complex joins. Reports must be filterable, exportable (CSV + PDF), and schedulable for email delivery. The reporting module is the primary way winery owners understand their business. Reports drive business decisions and must be fast, accurate, and trustworthy.
 

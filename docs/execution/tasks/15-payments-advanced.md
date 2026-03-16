@@ -9,6 +9,8 @@ Phase 7
 - `11-ecommerce.md` — Order model (payments attach to orders)
 - `10-wine-club.md` — Club processing uses card-on-file charging
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the payment processor abstraction layer supporting Managed Stripe (default) and BYO Processor (Growth+). Implement card-on-file for club charging, gift cards, surcharging/cash discount programs, dispute management, and payment reconciliation. Support Apple Pay and Google Pay for faster checkouts (tokenized via processor, same as card-on-file). The two-mode system is a competitive advantage — managed mode lowers friction for new signups, BYO removes the transaction fee objection for price-sensitive wineries.
 

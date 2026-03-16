@@ -4,21 +4,17 @@ sequenceDiagram
     participant EL as Event Log
     participant Handler as Event Handler
     participant State as Materialized State
-    participant WS as Reverb (WebSocket)
 
     Client->>API: POST /api/v1/additions (with idempotency_key)
     API->>API: Validate request
-    API->>EL: INSERT into events table
+    API->>EL: EventLogger::log() → INSERT into events table
     Note over EL: Immutable. Never UPDATE or DELETE.
-    EL-->>Handler: Event dispatched
-    Handler->>State: Update additions table
-    Handler->>State: Update lot SO2 running total
-    Handler->>State: Deduct from inventory (if linked)
-    Handler->>WS: Broadcast lot.updated
+    EL-->>Handler: Event dispatched (via EventProcessor)
+    Handler->>State: Update materialized state (additions, SO2 totals, etc.)
+    Note over Handler,State: Per-event handlers partially wired. Full dispatch planned.
     API-->>Client: 201 Created (event_id)
-    WS-->>Client: Real-time UI update
 
-    Note over Client,WS: Offline flow (Cellar/POS apps)
+    Note over Client,State: Offline flow (Cellar/POS apps — future phases)
 
     Client->>Client: Write to local SQLite
     Client->>Client: Queue event in local outbox

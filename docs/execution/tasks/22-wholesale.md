@@ -9,6 +9,8 @@ Phase 8
 - `11-ecommerce.md` — Order model (wholesale orders use the same order pipeline)
 - `13-crm-email.md` — Customer model (wholesale accounts are customer type)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Support wholesale/distribution sales — a significant revenue channel for established wineries. Wholesale accounts have different pricing, payment terms (Net 30/60), and ordering workflows than DTC customers. Pro tier adds a distributor portal where distributors can self-serve orders.
 

@@ -8,6 +8,12 @@ Phase 2
 - `02-production-core.md` — Lot model (costs accumulate per lot), BottlingRun (triggers per-bottle COGS calc)
 - `04-inventory.md` — Raw materials (cost per unit for additions), Dry goods (packaging costs for bottling)
 
+> **Before starting:** This spec was written before Phases 1-4 were implemented. Verify assumptions against:
+> - `CONVENTIONS.md` — established code patterns (InventoryService, EventLogger, Filament conventions)
+> - `execution/phase-recaps/phase-4-inventory.md` — InventoryService is the sole stock mutation path; auto-deduction from production is listed as known debt (not yet wired)
+> - `execution/phase-recaps/phase-2-production-core.md` — UUID pivot tables need manual ID generation; immutable operation logs pattern
+> - `references/event-source-partitioning.md` — new event types need `event_source` mapping (prefix `cost_` → `accounting`)
+
 ## Goal
 Track the true cost of producing every bottle of wine. Costs accumulate per lot through all operations — fruit purchase, material additions, labor on work orders, overhead allocation — and roll through blends proportionally. At bottling, the system calculates per-bottle and per-case COGS. This gives winemakers and owners margin visibility they've never had without a spreadsheet and an accountant.
 

@@ -9,6 +9,8 @@ Phase 7
 - `12-reservations-events.md` — Availability API for booking widget
 - `10-wine-club.md` — Club signup API + member portal API
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build embeddable JavaScript Web Components that wineries paste into their existing website (Squarespace, WordPress, Wix, custom HTML). Four widgets: store, reservations, club signup, and member portal. Each renders in Shadow DOM (isolated from host site CSS), communicates directly with the Laravel API, and is themeable to match the winery's brand. Served from Cloudflare CDN.
 

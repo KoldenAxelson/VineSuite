@@ -1,8 +1,10 @@
 # Pricing Model & Plan Tier Architecture
 
-> Status: Partially implemented — `free|basic|pro|max` enum and helpers are in code
+> **🟢 DELIVERED (Phase 2)** — Tier enum, plan helpers, and Stripe Cashier integration are in code. Absorbed into Phase 2 via triage. Remaining unbuilt items below.
 > Created: 2026-03-10
 > Context: Competitive analysis, modular adoption strategy, freemium vs individual module pricing
+>
+> **Still needed:** `PlanFeatureService` (feature gating + volume limits), annual billing toggle, Community Insights BI pipeline, downgrade grace-period enforcement.
 
 ---
 

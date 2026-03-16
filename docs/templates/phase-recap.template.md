@@ -6,29 +6,29 @@
 
 ---
 
-## What Was Delivered
+## Delivered
 - {Feature 1 — described in terms a winery owner would understand}
 - {Feature 2}
 - {Feature 3}
 
-## Architecture Decisions Made
+## Architecture Decisions
 - **{Decision title}:** {summary}. Chose {X} because {reason}. See `{NN-module}.info.md` Sub-Task {N} for full context.
 
-## Deviations from Original Spec
+## Deviations from Spec
 - **{What changed}:** Planned {X}, built {Y} because {Z}. Impact on downstream: {none / affects task NN sub-task M}.
 
 ## Patterns Established
 - **{Pattern name}:** {description}. Detailed in `references/{topic}.md`.
+- If cross-cutting, also added to `docs/CONVENTIONS.md`.
 
 ## Known Debt
+{Include only if debt exists. Omit section entirely if none.}
 1. {Item} — impact: {low/medium/high} — affects: {which downstream tasks}
-2. {Item}
 
-## Reference Docs Updated
-- `references/{topic}.md` — {created / updated} — {what changed}
+## Diagrams Created/Updated
+{Include only if diagrams were touched this phase.}
+- `diagrams/{name}.mermaid` — {created / updated} — {what changed}
 
-## Metrics
-- Sub-tasks completed: {X}/{Y}
-- Test count: {total} (unit: {N}, integration: {N})
-- Files created: {N}
-- Migrations created: {N}
+## Post-Phase Amendments
+{Optional. Add entries here if decisions are revised after the phase closes.}
+- {YYYY-MM-DD}: {What changed and why}

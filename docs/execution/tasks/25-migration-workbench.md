@@ -11,6 +11,8 @@ Phase 8
 - `10-wine-club.md` — ClubMember model (migration imports club memberships)
 - `11-ecommerce.md` — Order model (migration imports order history)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the internal Migration Workbench — a separate Laravel + Filament application used to orchestrate end-to-end data migration for every new winery subscriber. Handles extraction from source systems (InnoVint, vintrace, Commerce7, etc.), AI-assisted normalization of messy data, dry-run verification, and production cut-over. This is the tool that makes "We'll migrate your data" a real offer instead of a placeholder. A high-quality migration tool is not optional — it's a sales blocker (see README.md Key Risks #4).
 

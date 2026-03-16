@@ -8,6 +8,14 @@ Phase 8
 - `19-reporting.md` — consolidated reporting queries across brands
 - All modules — multi-brand affects data scoping in every module
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/custom-crush-ap-portal.md` — Full alternating proprietorship with per-client schemas, shared resource scheduling (Sub-Task 3 covers simple case; this is the full version)
+
 ## Goal
 Allow a single user to manage multiple winery brands under one login (Pro tier). Serves two use cases: (1) multi-label operations that run several brands from one facility but need separate data, branding, and compliance per label, and (2) custom crush facilities that produce wine for multiple client wineries and need per-client data isolation with owner-level visibility across all. Each brand remains a fully isolated tenant schema — multi-brand is a cross-tenant user linking and UI convenience, not a data merge.
 

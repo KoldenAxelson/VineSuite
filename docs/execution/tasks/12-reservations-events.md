@@ -8,6 +8,8 @@ Phase 7
 - `11-ecommerce.md` — Payment model (deposits/tickets), Order model (event tickets)
 - `13-crm-email.md` — Customer profiles (reservation linked to customer)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the reservation system for tasting room experiences and the event management module for winery events (dinners, barrel tastings, release parties). Includes a public booking widget, availability management, deposit/prepay handling, confirmation/reminder emails, and day-of check-in. Integrates with POS for on-site activities and CRM for customer history.
 

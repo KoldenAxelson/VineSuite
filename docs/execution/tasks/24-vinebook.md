@@ -9,6 +9,8 @@ Phase 8
 - `12-reservations-events.md` — Availability API (booking widget)
 - `10-wine-club.md` — Club API (signup widget)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build VineBook — a public winery directory powered by Astro (static site generator). Seeds with ~11,000 US bonded wineries from TTB public data, enriched with Yelp and Google Places data. Subscriber wineries get enhanced pages with live widgets (shop, book, join club). Non-subscriber pages are static stubs. The directory doubles as an SEO-powered acquisition funnel — winery owners find their own listing, claim it, and get upsold to the suite.
 

@@ -9,6 +9,8 @@ Phase 5
 - `02-production-core.md` — API endpoints for lots, vessels, work orders, additions, transfers, barrel ops
 - `03-lab-fermentation.md` — API endpoints for lab analysis and fermentation data entry
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the native mobile app for cellar floor operations. iOS (SwiftUI) + Android (Jetpack Compose), phone-optimized. Offline-first — a cellar hand must be able to complete a full shift of work orders, log additions, record transfers, and scan barrel QR codes without any internet connectivity. This app exploits InnoVint's iOS-only gap by shipping on both platforms with truly native UX.
 

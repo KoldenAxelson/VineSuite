@@ -1,5 +1,6 @@
 # Research Gap Analysis — Winery SaaS Opportunity vs. VineSuite Pipeline
 
+> **📋 TRIAGED — Reference only.** All actionable items have been triaged and either absorbed into task files or deferred with target phases. See `TRIAGE.md` for dispositions. This doc is context for future triage sessions, not an active work item.
 > Created: 2026-03-15
 > Source: `WineSaaSOpportunity.md` market research document
 > Purpose: Identify what the research recommends that VineSuite's current 25-task pipeline doesn't cover, under-specifies, or sequences differently than the research would suggest.

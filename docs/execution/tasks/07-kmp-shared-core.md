@@ -8,6 +8,8 @@ Phase 4
 - `02-production-core.md` — API endpoints that the mobile apps consume (lots, vessels, work orders, additions, transfers, barrels)
 - `03-lab-fermentation.md` — API endpoints for lab and fermentation data entry
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
 ## Goal
 Build the Kotlin Multiplatform shared core that powers both the Cellar App and POS App. This is the most technically complex piece of the entire platform. It includes: the local SQLite database (SQLDelight), the event queue (offline outbox), the sync engine (POST events → confirm → pull state), the Ktor API client, and conflict resolution logic. Written in Kotlin, tested on JVM (no emulator needed), shared across Android and iOS. Getting this right means both apps work reliably offline. Getting it wrong breaks both.
 

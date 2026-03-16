@@ -8,6 +8,14 @@ Phase 3
 - `02-production-core.md` — all production operations that generate TTB-reportable events (lot creation, transfers, bottling, blending, additions, losses)
 - `04-inventory.md` — case goods (removals from bond on sale)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- `ideas/label-compliance-engine.md` — Real-time blend-to-label validation (75% varietal, 85% AVA, 95% vintage rules). Partially absorbed: COLA storage is Sub-Task 8, but blending validation rules not yet specced.
+
 ## Goal
 Auto-generate TTB Form 5120.17 (Report of Wine Premises Operations) from the event log data. This is the single most important compliance feature — it's why wineries pay for the software. The report aggregates production operations into the five required parts of the form. Getting this right means a winery saves 2-4 hours per month of manual reporting. Getting it wrong has legal consequences. Treat this as safety-critical code.
 

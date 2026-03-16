@@ -7,16 +7,10 @@ graph TB
         WidgetCheckout["Widget Checkout<br/>(Stripe.js)"]
     end
 
-    subgraph Abstraction["Payment Abstraction Layer"]
-        Interface["PaymentProcessor Interface<br/>charge() / refund() / saveCard()"]
-        StripeImpl["StripeProcessor"]
-        SquareImpl["SquareProcessor<br/>(Growth+)"]
-        BraintreeImpl["BraintreeProcessor<br/>(Growth+)"]
-    end
-
-    subgraph Modes["Payment Modes"]
-        Managed["Mode A: Managed<br/>(Stripe Connect)<br/>Platform fee auto-deducted"]
-        BYO["Mode B: BYO Processor<br/>(Growth + Pro)<br/>Flat SaaS fee only"]
+    subgraph Processing["Payment Processing (Stripe via Cashier)"]
+        Cashier["Laravel Cashier<br/>charge() / refund() / subscribe()"]
+        Connect["Stripe Connect<br/>Platform fee auto-deducted"]
+        Terminal["Stripe Terminal<br/>Card-present SDK"]
     end
 
     subgraph Recording["Recording"]
@@ -25,22 +19,17 @@ graph TB
         Inventory["Inventory deduction"]
     end
 
-    OnlineCheckout --> Interface
-    POSCard --> Interface
-    ClubCharge --> Interface
-    WidgetCheckout --> Interface
+    OnlineCheckout --> Cashier
+    ClubCharge --> Cashier
+    WidgetCheckout --> Cashier
+    POSCard --> Terminal
+    Terminal --> Cashier
     POSCash --> Event
 
-    Interface --> StripeImpl
-    Interface --> SquareImpl
-    Interface --> BraintreeImpl
-
-    StripeImpl --> Managed
-    StripeImpl --> BYO
-    SquareImpl --> BYO
-    BraintreeImpl --> BYO
-
-    Managed --> Event
-    BYO --> Event
+    Cashier --> Connect
+    Connect --> Event
     Event --> Order
     Order --> Inventory
+
+    %% Future: PaymentProcessor interface to abstract
+    %% Square/Braintree as BYO options for Pro+ tiers

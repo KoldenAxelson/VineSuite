@@ -7,6 +7,15 @@ Phase 7 (notifications) / Phase 8 (automation rules engine)
 - `01-foundation.md` — event log (events trigger notifications), Laravel notification system, Reverb websockets
 - All other modules — notifications span the entire system (every module emits events that can trigger notifications)
 
+> **Pre-implementation check:** This spec predates completed phases. Before starting, load `CONVENTIONS.md` and review phase recaps for any dependency phases listed above. Patterns, service boundaries, and data model decisions may affect assumptions in this spec.
+
+## Ideas to Evaluate
+
+> Review these before starting this phase. If they fit, create additional sub-tasks.
+
+- See TRIAGE.md note on "Automated Churn Response Workflows" — add trigger type: churn risk score > threshold → retention workflow
+- `ideas/customer-support-escalation.md` — Tiered LLM support (FAQ → slim LLM → large LLM → human)
+
 ## Goal
 Centralized notification system with three channels: in-app (real-time via Reverb), email (via Resend), and SMS (via Twilio). Staff alerts for internal operational events. Customer notifications for transactional events. Phase 8 adds a visual automation rules engine ("if/then" builder) for custom workflows. This module is architecturally important because it defines how every other module's events surface to users — the notification hookpoints established here affect how event handlers are structured across the entire platform.
 

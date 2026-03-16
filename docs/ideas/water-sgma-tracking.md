@@ -1,6 +1,6 @@
 # Water Usage & SGMA Compliance Tracking
 
-> Status: Idea — not in current pipeline
+> **🟡 TRIAGED → Phase 7 (extend Task 17)** — Deferred to Phase 7 as sub-tasks within Vineyard Management. Not yet written into the Task 17 spec. See Task 17's "Ideas to Evaluate" section.
 > Created: 2026-03-15
 > Source: Market research gap analysis
 > Priority: Medium — beachhead-critical for Paso Robles

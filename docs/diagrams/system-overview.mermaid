@@ -12,7 +12,6 @@ graph TB
         EventLog["Event Log<br/>(append-only)"]
         State["Materialized State<br/>(CRUD tables)"]
         Queue["Horizon Queue<br/>(background jobs)"]
-        WS["Reverb<br/>(WebSockets)"]
     end
 
     subgraph Data["Data Layer"]
@@ -48,4 +47,4 @@ graph TB
     Routes --> Meili
     Routes --> R2
 
-    WS -->|live updates| Portal
+    %% Planned: Reverb (WebSockets) for live dashboard updates
