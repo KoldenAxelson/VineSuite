@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
+use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\TransferController;
@@ -292,6 +293,17 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/locations', [LocationController::class, 'store'])->name('locations.store');
             Route::put('/locations/{location}', [LocationController::class, 'update'])->name('locations.update');
+        });
+
+        // ─── Inventory: Physical Counts ────────────────────────────────
+        Route::get('/physical-counts', [PhysicalCountController::class, 'index'])->name('physical-counts.index');
+        Route::get('/physical-counts/{physicalCount}', [PhysicalCountController::class, 'show'])->name('physical-counts.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/physical-counts/start', [PhysicalCountController::class, 'start'])->name('physical-counts.start');
+            Route::post('/physical-counts/{physicalCount}/record', [PhysicalCountController::class, 'recordCounts'])->name('physical-counts.record');
+            Route::post('/physical-counts/{physicalCount}/approve', [PhysicalCountController::class, 'approve'])->name('physical-counts.approve');
+            Route::post('/physical-counts/{physicalCount}/cancel', [PhysicalCountController::class, 'cancel'])->name('physical-counts.cancel');
         });
 
         // Team list — any authenticated user can view team members

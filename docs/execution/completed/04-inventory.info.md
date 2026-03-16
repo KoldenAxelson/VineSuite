@@ -159,3 +159,53 @@
 ### Open Questions
 - API endpoints for viewing movement history (GET /skus/{sku}/movements, GET /locations/{location}/movements) not yet built — will likely be needed for Sub-Task 4 (physical count variance report) or a standalone movement history feature.
 - The `returned` and `bottled` movement types are defined but not yet exercised by any service method. They will be wired up when the POS returns flow and bottling-run-to-inventory bridge are built.
+
+---
+
+## Sub-Task 4: Physical Inventory Count Tool
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200006_create_physical_counts_table.php` — Creates two tables: `physical_counts` (UUID PK, location_id FK cascade, status varchar 20 default 'in_progress', started_by UUID, started_at timestamp, completed_by UUID nullable, completed_at timestamp nullable, notes text nullable, timestamps; indexes on location, status, started_at) and `physical_count_lines` (UUID PK, physical_count_id FK cascade, sku_id FK cascade, system_quantity int, counted_quantity int nullable, variance int nullable, notes text nullable, timestamps; unique constraint on (physical_count_id, sku_id), index on sku_id).
+- `api/app/Models/PhysicalCount.php` — Eloquent model with `HasUuids`, `HasFactory` traits. Constants: STATUSES (in_progress, completed, cancelled). Relationships: `location()`, `starter()`, `completer()`, `lines()`. Scopes: `inProgress()`, `forLocation()`. Default status: in_progress.
+- `api/app/Models/PhysicalCountLine.php` — Eloquent model with `HasUuids`, `HasFactory` traits. Relationships: `physicalCount()`, `sku()`. Casts: system_quantity, counted_quantity, variance as integer.
+- `api/database/factories/PhysicalCountFactory.php` — Generates physical count sessions. State: `completed()`.
+- `api/database/factories/PhysicalCountLineFactory.php` — Generates count lines with random system/counted quantities, computes variance = counted - system.
+- `api/app/Services/PhysicalCountService.php` — Manages the full physical count workflow. Methods: `startCount()` creates a count session for a location, snapshots current system on_hand for all SKUs at that location into count lines, writes `stock_count_started` event; `recordCounts()` enters actual counted quantities per SKU, computes variance, supports discovering new SKUs not in the original snapshot (system_quantity=0); `approve()` writes `stock_adjusted` movements via InventoryService for each non-zero variance, marks count completed, writes `stock_counted` event; `cancel()` marks count cancelled with no stock adjustments. All operations wrapped in DB::transaction.
+- `api/app/Http/Resources/PhysicalCountResource.php` — Uses `@mixin \App\Models\PhysicalCount`. Serializes count session with nested lines including SKU data (wine_name, vintage, varietal, format, upc_barcode for barcode scanning). Uses `relationLoaded()` pattern.
+- `api/app/Http/Controllers/Api/V1/PhysicalCountController.php` — Six endpoints: `index()` with location_id and status filters + pagination, `show()` with eager-loaded lines and SKU data, `start()` to begin a new count session, `recordCounts()` to enter actual quantities, `approve()` to finalize and write adjustments, `cancel()` to abort without changes. Injects PhysicalCountService via constructor DI.
+- `api/app/Filament/Pages/PhysicalCount.php` — Custom Filament page (not a Resource) showing a table of count sessions with status badges, location names, started_at timestamps, and line counts. Under "Inventory" navigation group, sort 3, icon heroicon-o-clipboard-document-check.
+- `api/resources/views/filament/pages/physical-count.blade.php` — Blade template for the Filament page with section heading and description text.
+- `api/routes/api.php` — Added PhysicalCountController import and 6 routes: GET /physical-counts (index), GET /physical-counts/{physicalCount} (show), POST /physical-counts/start (winemaker+), POST /physical-counts/{physicalCount}/record (winemaker+), POST /physical-counts/{physicalCount}/approve (winemaker+), POST /physical-counts/{physicalCount}/cancel (winemaker+).
+
+### Key Decisions
+- **Snapshot-based counting**: When a count session starts, system on_hand quantities are snapshotted into count lines. This prevents count drift if stock moves during the counting process — variances are computed against the snapshot, not the live stock level.
+- **Discovered SKUs during count**: If a counter finds a SKU not in the original snapshot (e.g., misplaced inventory), it can be added with system_quantity=0. The variance then represents the full counted amount as a positive adjustment.
+- **Approval writes adjustments through InventoryService**: The approve workflow delegates stock mutations to `InventoryService::adjust()` so that all stock changes flow through the established SELECT FOR UPDATE path and generate proper stock_adjusted movements with physical_count reference_type and reference_id linkage.
+- **Custom Filament page instead of Resource**: Physical counts have a workflow-driven lifecycle (start → record → approve/cancel) that doesn't map cleanly to standard CRUD. A custom page with a table view is more appropriate than a full Filament Resource.
+- **Separate read and write route groups**: GET endpoints (index, show) are available to all authenticated users. Write endpoints (start, record, approve, cancel) require winemaker+ role, matching the pattern from other inventory routes.
+
+### Deviations from Spec
+- None significant. The physical count workflow follows the spec's described flow: start session → enter counts → review variances → approve adjustments.
+
+### Patterns Established
+- **Workflow service pattern**: PhysicalCountService orchestrates a multi-step workflow (start → record → approve/cancel) using status-based guards. Each method validates the current status before proceeding.
+- **Snapshot-then-compare**: Capturing system state at count start isolates the counting process from concurrent stock movements. This pattern can be reused for any reconciliation workflow.
+- **Reference linkage for audit**: All stock adjustments from a physical count share `reference_type='physical_count'` and `reference_id=count.id`, enabling full traceability back to the originating count session.
+
+### Test Summary
+- `tests/Feature/Inventory/PhysicalCountTest.php` (22 tests)
+  - Tier 1: event logging — stock_count_started event with inventory source and line_count payload, stock_counted event on approval with adjustments_made count (2 tests)
+  - Tier 1: tenant isolation — cross-tenant PhysicalCount/PhysicalCountLine access prevention (1 test)
+  - Tier 1: workflow integrity — system quantity snapshot on start (verifies correct on_hand values, null counted/variance initially), variance computation after recording counts, stock adjustments written only for non-zero variances on approval (stock levels verified), discovered new SKU during count (system_quantity=0, positive variance), cancel does not write adjustments (stock unchanged) (5 tests)
+  - Tier 2: API CRUD — list with pagination, filter by status, filter by location_id, show with nested lines and SKU data (4 tests)
+  - Tier 2: validation — missing location_id on start (422), non-existent location (422), negative counted_quantity (422), approve on non-in-progress count (500) (4 tests)
+  - Tier 2: RBAC — winemaker can start (201), read_only cannot start (403), cellar_hand cannot start (403), read_only can list and view (200) (4 tests)
+  - Tier 2: API envelope — correct structure on create (data, meta, errors), unauthenticated rejection (401) (2 tests)
+- Known gaps: Filament page not tested via Livewire (deferred per Phase 1-3 pattern). Concurrent count sessions for the same location not explicitly tested. Re-count workflow (starting a new count after cancellation) not tested.
+- Skipped (Tier 3): factory definitions, model scope tests, PhysicalCountResource serialization, PhysicalCountLine model tests.
+
+### Open Questions
+- Should there be a guard preventing multiple in-progress counts for the same location simultaneously? Currently not enforced — could lead to conflicting adjustments if two counts are approved for the same location.
+- Barcode scanning integration: The PhysicalCountResource includes `upc_barcode` in SKU data for future mobile scanning support. The actual scanning workflow is a frontend concern.
