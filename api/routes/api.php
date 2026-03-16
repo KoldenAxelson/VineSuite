@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\CaseGoodsSkuController;
+use App\Http\Controllers\Api\V1\DryGoodsController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FermentationChartController;
 use App\Http\Controllers\Api\V1\FermentationController;
@@ -20,8 +21,8 @@ use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
-use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
+use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
@@ -309,6 +310,15 @@ Route::middleware([
 
         // ─── Inventory: Stock Transfers ─────────────────────────────────
         Route::post('/stock/transfer', [StockTransferController::class, 'store'])->name('stock-transfers.store');
+
+        // ─── Inventory: Dry Goods ───────────────────────────────────────
+        Route::get('/dry-goods', [DryGoodsController::class, 'index'])->name('dry-goods.index');
+        Route::get('/dry-goods/{dryGoodsItem}', [DryGoodsController::class, 'show'])->name('dry-goods.show');
+
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::post('/dry-goods', [DryGoodsController::class, 'store'])->name('dry-goods.store');
+            Route::put('/dry-goods/{dryGoodsItem}', [DryGoodsController::class, 'update'])->name('dry-goods.update');
+        });
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {

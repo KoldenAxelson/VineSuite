@@ -250,3 +250,54 @@
 ### Open Questions
 - Should there be a transfer listing/history endpoint (GET /stock/transfers) to view past transfers? Currently transfers are visible only through the stock movement ledger.
 - The available-stock guard uses a non-locked read before the locked write in InventoryService. In extremely high-concurrency scenarios, a TOCTOU race is possible. For winery volumes this is negligible.
+
+---
+
+## Sub-Task 6: Dry Goods and Packaging Materials
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200007_create_dry_goods_items_table.php` — Creates the `dry_goods_items` table with UUID primary key, name (varchar 150), item_type (varchar 30), unit_of_measure (varchar 30), on_hand (decimal 12,2 default 0), reorder_point (decimal 12,2 nullable), cost_per_unit (decimal 10,4 nullable), vendor_name (varchar 200 nullable), vendor_id (UUID nullable for future FK), is_active (default true), notes (text nullable), timestamps. Indexes on item_type and is_active.
+- `api/app/Models/DryGoodsItem.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` (App\Traits\LogsActivity) traits. Constants: ITEM_TYPES (bottle, cork, screw_cap, capsule, label_front, label_back, label_neck, carton, divider, tissue), UNITS_OF_MEASURE (each, sleeve, pallet). Scopes: `active()`, `ofType()`, `belowReorderPoint()`. Helper method: `needsReorder()` returns true when on_hand <= reorder_point (false if no reorder_point set). Decimal casts: on_hand (2), reorder_point (2), cost_per_unit (4).
+- `api/database/factories/DryGoodsItemFactory.php` — Generates realistic names per item_type (e.g., "750ml Burgundy Green" for bottle, "Natural Cork Grade A" for cork). States: `inactive()`, `lowStock()`, `noReorderPoint()`.
+- `api/app/Http/Resources/DryGoodsItemResource.php` — Uses `@mixin \App\Models\DryGoodsItem`. Includes computed `needs_reorder` boolean from model helper. Numeric fields cast to float for consistent JSON serialization.
+- `api/app/Http/Requests/StoreDryGoodsItemRequest.php` — Required: name (max 150), item_type (in ITEM_TYPES), unit_of_measure (in UNITS_OF_MEASURE). Optional: on_hand (numeric ≥0), reorder_point, cost_per_unit, vendor_name, vendor_id (uuid), is_active, notes.
+- `api/app/Http/Requests/UpdateDryGoodsItemRequest.php` — Same rules as Store but all fields `sometimes`.
+- `api/app/Http/Controllers/Api/V1/DryGoodsController.php` — Four endpoints: `index()` with filters for is_active, item_type, below_reorder (reorder alert filter), `show()`, `store()` with EventLogger (`dry_goods_created`), `update()` with EventLogger (`dry_goods_updated`). Structured logging with tenant_id.
+- `api/app/Filament/Resources/DryGoodsItemResource.php` + Pages (List, Create, View, Edit) — Under "Inventory" navigation group, sort 4, icon heroicon-o-archive-box. Form: 3 sections (Item Details, Stock & Cost, Vendor & Notes). Table: searchable name, badge for item_type, on_hand, unit, reorder_point, cost, vendor. Filters: item_type select, is_active ternary, below-reorder-point toggle. Schema::hasTable guard on type filter.
+- `api/routes/api.php` — Added DryGoodsController import and 4 routes: GET /dry-goods (authenticated), GET /dry-goods/{item} (authenticated), POST /dry-goods (admin+), PUT /dry-goods/{item} (admin+).
+
+### Key Decisions
+- **Decimal storage for quantities**: on_hand uses decimal(12,2) rather than integer because dry goods units vary widely. Bottles are counted by each, corks by sleeve (1000/sleeve), capsules by bag. Partial units (2.5 pallets) are valid.
+- **cost_per_unit with 4 decimal places**: Sub-cent precision needed for high-volume low-cost items (e.g., corks at $0.0823 each). Feeds into COGS calculations later.
+- **vendor_name as simple string**: No Vendor model exists yet — vendor_id is a nullable UUID placeholder for the PurchaseOrder sub-task (Sub-Task 10). vendor_name provides human-readable vendor info in the meantime.
+- **Admin+ for create/update**: Per spec, dry goods management is admin+ (not winemaker). Winemakers and below can view but not modify inventory items.
+- **belowReorderPoint scope**: Uses `whereColumn('on_hand', '<=', 'reorder_point')` to push the comparison to the DB. Items without a reorder_point are excluded (they can't be "below" a threshold that doesn't exist).
+- **LogsActivity trait**: Uses `App\Traits\LogsActivity` (custom trait), not `Spatie\Activitylog\Traits\LogsActivity`. The codebase has its own lightweight activity logging that writes to an ActivityLog model.
+
+### Deviations from Spec
+- Spec mentions "Auto-deduct on bottling run completion" — this is deferred to when the bottling-to-inventory bridge is wired up. The model and stock fields are ready for deduction but no auto-deduct trigger exists yet.
+- Spec mentions "Receive PO: add quantity to stock" — deferred to Sub-Task 10 (Purchase Orders). Stock can be manually updated via the update endpoint for now.
+- Spec mentions "Reorder alerts" — the `belowReorderPoint` scope and `needsReorder()` helper are implemented. Actual notification/alert delivery (email, Filament notification) is deferred.
+
+### Patterns Established
+- **Decimal quantity pattern**: For inventory items measured in non-integer units, use decimal columns with appropriate precision. Cast in model via `'decimal:N'` for consistent PHP handling.
+- **Reorder point pattern**: `belowReorderPoint()` scope + `needsReorder()` helper provides both query-level and instance-level reorder detection. Reuse for RawMaterial in Sub-Task 7.
+
+### Test Summary
+- `tests/Feature/Inventory/DryGoodsTest.php` (22 tests)
+  - Tier 1: event logging — dry_goods_created with inventory source and payload, dry_goods_updated with inventory source (2 tests)
+  - Tier 1: tenant isolation — cross-tenant DryGoodsItem access prevention (1 test)
+  - Tier 1: data integrity — belowReorderPoint scope correctness, needsReorder() helper logic, decimal quantity storage precision (3 tests)
+  - Tier 2: CRUD — create with all fields, create with minimal fields (defaults verified), list with pagination, filter by item_type, filter by active status, filter by below_reorder, show detail, update with partial fields (8 tests)
+  - Tier 2: validation — missing required fields, invalid item_type, invalid unit_of_measure, negative on_hand (4 tests)
+  - Tier 2: RBAC — admin can create (201), winemaker cannot create (403), read_only cannot create (403), any user can list/view (200), winemaker cannot update (403) (5 tests)
+  - Tier 2: API envelope — correct structure with needs_reorder field, unauthenticated rejection (2 tests)
+  - Note: numeric assertions use `toEqual()` instead of `toBe()` because JSON encodes whole-number floats as integers (5000.0 → 5000)
+- Known gaps: Filament resource CRUD not tested via Livewire. Auto-deduct on bottling not wired. PO receipt flow not built. Notification delivery for reorder alerts not implemented.
+- Skipped (Tier 3): factory definitions, model scope edge cases, Filament filter interactions.
+
+### Open Questions
+- Auto-deduct trigger: When bottling run completion creates case goods, it should also deduct the corresponding dry goods (bottles, corks, capsules, labels, cartons per case_size). This requires a BOM (bill of materials) mapping from SKU → dry goods items + quantities. Where should this mapping live?
+- Reorder alert delivery: The scope and helper are ready, but how should alerts be surfaced? Options: Filament notification badge, email digest, dashboard widget. Deferred to a later sub-task or phase.
