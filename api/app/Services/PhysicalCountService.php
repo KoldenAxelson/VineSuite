@@ -211,6 +211,19 @@ class PhysicalCountService
             'completed_at' => now(),
         ]);
 
+        $this->eventLogger->log(
+            entityType: 'physical_count',
+            entityId: $physicalCount->id,
+            operationType: 'stock_count_cancelled',
+            payload: [
+                'location_id' => $physicalCount->location_id,
+                'location_name' => $physicalCount->location->name,
+                'lines_recorded' => $physicalCount->lines()->whereNotNull('counted_quantity')->count(),
+            ],
+            performedBy: $cancelledBy,
+            performedAt: now(),
+        );
+
         Log::info('Physical count cancelled', [
             'count_id' => $physicalCount->id,
             'location_id' => $physicalCount->location_id,

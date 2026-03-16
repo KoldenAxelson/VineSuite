@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RawMaterialResource\Pages;
+use App\Filament\Resources\RawMaterialResource\RelationManagers;
 use App\Models\RawMaterial;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -163,6 +164,13 @@ class RawMaterialResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\PurchaseOrderLinesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

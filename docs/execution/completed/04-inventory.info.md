@@ -598,5 +598,74 @@
 - **Maintenance log count**: Test expected ≥16 logs but seeder creates 15. Fixed assertion to `toBeGreaterThanOrEqual(15)`.
 
 ### Open Questions
-- Should `vintage=0` be displayed differently in the UI (e.g., "NV" instead of "0")? This would require a Filament accessor or resource formatting change.
-- The Physical Count Filament page's "View" action links back to itself with a `count_id` query param but has no drill-down logic to show count lines. This is a UX gap to address in a polish pass (Sub-Task 12).
+- ~~Should `vintage=0` be displayed differently in the UI (e.g., "NV" instead of "0")?~~ Resolved in Sub-Task 12 — vintage=0 now renders as "NV" in tables and filter dropdowns.
+- ~~The Physical Count Filament page's "View" action links back to itself with a `count_id` query param but has no drill-down logic to show count lines.~~ Resolved in Sub-Task 12 — full drill-down with stat cards and line-level detail table.
+
+---
+
+## Sub-Task 12: Filament Polish & Cross-Navigation (Impromptu)
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+
+**Physical Count drill-down (rewrite):**
+- `api/app/Filament/Pages/PhysicalCount.php` — Complete rewrite. Dual-mode page: list view (no count_id) vs detail view (with count_id query param). `mount()` reads from query string. `getTitle()` dynamically shows location + status when drilling in. `getCountSummary()` returns stat card data. `countsListTable()` is the original list with "View Lines" action. `countLinesTable()` shows PhysicalCountLine records with SKU wine_name (linked to CaseGoodsSkuResource view), varietal, format, system_quantity, counted_quantity, variance (color-coded), notes. Filters: "Variances Only", "Pending Only". Header action: "← All Counts" back link.
+- `api/resources/views/filament/pages/physical-count.blade.php` — Complete rewrite. Conditional stat cards (Status, Progress, Variances Found, Started/Completed info) + optional notes section when viewing a specific count.
+
+**Location → Stock Levels relation manager:**
+- `api/app/Filament/Resources/LocationResource/RelationManagers/StockLevelsRelationManager.php` — Shows stock at location with columns: sku.wine_name (linked to CaseGoodsSkuResource view), sku.varietal, sku.format, on_hand, committed, available (red if negative). Filter: "In Stock Only".
+- `api/app/Filament/Resources/LocationResource.php` — Registered StockLevelsRelationManager in `getRelations()`.
+
+**CaseGoodsSku → Stock by Location relation manager:**
+- `api/app/Filament/Resources/CaseGoodsSkuResource/RelationManagers/StockLevelsRelationManager.php` — Inverse of Location's RM. Shows stock levels per location with columns: location.name (linked to LocationResource view), location.location_type badge, on_hand, committed, available. Filter: "In Stock Only".
+- `api/app/Filament/Resources/CaseGoodsSkuResource.php` — Registered StockLevelsRelationManager in `getRelations()`. Also: vintage column now formats `0` as "NV", vintage filter dropdown shows "NV" for 0, vintage form input allows 0 with helper text.
+
+**Equipment → Maintenance History relation manager:**
+- `api/app/Filament/Resources/EquipmentResource/RelationManagers/MaintenanceLogsRelationManager.php` — Shows maintenance history with columns: performed_date, maintenance_type (color-coded badges), description, performer name, passed (boolean icon), cost, next_due_date, findings. Filter: maintenance_type select. Default sort: performed_date desc.
+- `api/app/Filament/Resources/EquipmentResource.php` — Registered MaintenanceLogsRelationManager in `getRelations()`.
+
+**PurchaseOrder → Order Lines relation manager:**
+- `api/app/Filament/Resources/PurchaseOrderResource/RelationManagers/LinesRelationManager.php` — Shows PO lines with columns: item_name (cross-linked to DryGoodsItemResource or RawMaterialResource via `getInventoryItemUrl()`), item_type badge, quantity_ordered, quantity_received (color-coded), cost_per_unit, computed line_total, computed remaining.
+- `api/app/Filament/Resources/PurchaseOrderResource.php` — Registered LinesRelationManager in `getRelations()`.
+
+**DryGoodsItem → Purchase Order History relation manager:**
+- `api/app/Models/DryGoodsItem.php` — Added `purchaseOrderLines()` HasMany relationship filtered by `item_type='dry_goods'`. Added PHPDoc `@property-read` and `HasMany` import.
+- `api/app/Filament/Resources/DryGoodsItemResource/RelationManagers/PurchaseOrderLinesRelationManager.php` — Shows PO lines referencing this item: PO number (linked to PurchaseOrderResource view), PO status badge, quantity_ordered, quantity_received, unit cost, order date. Default sort: ordered_at desc.
+- `api/app/Filament/Resources/DryGoodsItemResource.php` — Registered PurchaseOrderLinesRelationManager in `getRelations()`.
+
+**RawMaterial → Purchase Order History relation manager:**
+- `api/app/Models/RawMaterial.php` — Added `purchaseOrderLines()` HasMany relationship filtered by `item_type='raw_material'`. Added PHPDoc `@property-read` and `HasMany` import.
+- `api/app/Filament/Resources/RawMaterialResource/RelationManagers/PurchaseOrderLinesRelationManager.php` — Same pattern as DryGoodsItem's RM.
+- `api/app/Filament/Resources/RawMaterialResource.php` — Registered PurchaseOrderLinesRelationManager in `getRelations()`.
+
+**Event logging bug fix:**
+- `api/app/Services/PhysicalCountService.php` — Added `EventLogger::log()` call to `cancel()` method with operation_type `stock_count_cancelled`, including location_id, location_name, and lines_recorded count. Previously only wrote to Log::info.
+
+### Key Decisions
+- **Bidirectional stock visibility**: SKU view shows stock by location (where is this wine?), Location view shows stock by SKU (what's at this location?). Two separate RelationManagers, both linking to each other's view pages.
+- **Filtered HasMany for pseudo-polymorphic PO lines**: DryGoodsItem and RawMaterial use `hasMany(PurchaseOrderLine::class, 'item_id')->where('item_type', ...)` rather than Laravel's morph relationships. This matches the existing schema pattern where `item_type` + `item_id` act as a manual polymorphic pair.
+- **NV display is presentation-only**: `vintage=0` sentinel remains in the database. The "NV" string is applied via `formatStateUsing()` in Filament tables and `mapWithKeys()` in the filter dropdown. No model accessor — keeps it explicit at the view layer.
+- **cancel() event operation_type**: Used `stock_count_cancelled` prefix to auto-resolve to `event_source='inventory'` via `EventLogger::resolveSource()`.
+
+### Deviations from Spec
+- Sub-Task 12 was not in the original Phase 4 spec — it was an impromptu polish pass identified during review.
+- Added bidirectional SKU↔Location stock visibility and DryGoods/RawMaterial→PO history which were not in the original 6-item polish scope.
+
+### Patterns Established
+- **Bidirectional RelationManagers**: When two models have a many-to-many-like relationship through an intermediate table (StockLevel bridges SKU↔Location), create RelationManagers on both sides that cross-link to each other's view pages.
+- **Filtered HasMany for manual polymorphism**: When a table uses `item_type` + `item_id` columns instead of Laravel morphs, define the relationship with `->where('item_type', 'value')` on the HasMany.
+- **Presentation-layer sentinel formatting**: Sentinel values (vintage=0 → "NV") should be formatted via `formatStateUsing()` in Filament, not via model accessors. This keeps the data layer clean and the formatting explicit.
+
+### Test Summary
+- No new test files for Sub-Task 12 — all changes are Filament view-layer (Tier 3: UI/Filament).
+- Existing `make test G=inventory` suite should remain green — no model logic, controller, or service changes except the cancel() event logger addition.
+- The cancel() event log could be validated by an existing PhysicalCountTest if it has a cancel event assertion (to be verified on next test run).
+
+### Bugs Fixed During Development
+- **PhysicalCountService::cancel() audit trail gap**: The cancel method only wrote to `Log::info` but did not call `EventLogger::log()`, unlike `startCount()` and `approve()`. Added `stock_count_cancelled` event with location and line count metadata.
+- **vintage=0 rendering as "0"**: Non-vintage SKUs showed raw `0` in Filament tables and filter dropdowns instead of "NV". Fixed with `formatStateUsing()` and `mapWithKeys()`.
+- **Vintage form minValue(1900)**: Filament form blocked entry of `0` for non-vintage items. Changed to `minValue(0)` with helper text.
+
+### Open Questions
+- None — all prior open questions from Sub-Task 11 resolved in this sub-task.

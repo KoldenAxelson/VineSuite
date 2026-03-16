@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PurchaseOrderResource\Pages;
+use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
 use App\Models\PurchaseOrder;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -126,6 +127,13 @@ class PurchaseOrderResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\LinesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

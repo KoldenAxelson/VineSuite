@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\EquipmentResource\Pages;
+use App\Filament\Resources\EquipmentResource\RelationManagers;
 use App\Models\Equipment;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -174,7 +175,9 @@ class EquipmentResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\MaintenanceLogsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

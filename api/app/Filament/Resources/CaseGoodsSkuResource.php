@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\CaseGoodsSkuResource\Pages;
+use App\Filament\Resources\CaseGoodsSkuResource\RelationManagers;
 use App\Models\CaseGoodsSku;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -42,8 +43,9 @@ class CaseGoodsSkuResource extends Resource
                         Forms\Components\TextInput::make('vintage')
                             ->required()
                             ->numeric()
-                            ->minValue(1900)
-                            ->maxValue(2100),
+                            ->minValue(0)
+                            ->maxValue(2100)
+                            ->helperText('Use 0 for non-vintage items'),
 
                         Forms\Components\TextInput::make('varietal')
                             ->required()
@@ -141,7 +143,8 @@ class CaseGoodsSkuResource extends Resource
                     ->limit(40),
 
                 Tables\Columns\TextColumn::make('vintage')
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? 'NV' : (string) $state),
 
                 Tables\Columns\TextColumn::make('varietal')
                     ->searchable()
@@ -184,6 +187,7 @@ class CaseGoodsSkuResource extends Resource
                             ->distinct()
                             ->orderByDesc('vintage')
                             ->pluck('vintage', 'vintage')
+                            ->mapWithKeys(fn (int $v, int $k) => [$k => $v === 0 ? 'NV' : (string) $v])
                             ->toArray();
                     }),
 
@@ -218,6 +222,13 @@ class CaseGoodsSkuResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\StockLevelsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

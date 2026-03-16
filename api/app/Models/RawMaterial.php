@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Raw material / cellar supply inventory item.
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $notes
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseOrderLine> $purchaseOrderLines
  */
 class RawMaterial extends Model
 {
@@ -91,6 +93,19 @@ class RawMaterial extends Model
             'expiration_date' => 'date',
             'is_active' => 'boolean',
         ];
+    }
+
+    // ─── Relationships ──────────────────────────────────────────────
+
+    /**
+     * Purchase order lines referencing this raw material.
+     *
+     * @return HasMany<PurchaseOrderLine, $this>
+     */
+    public function purchaseOrderLines(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderLine::class, 'item_id')
+            ->where('item_type', 'raw_material');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────

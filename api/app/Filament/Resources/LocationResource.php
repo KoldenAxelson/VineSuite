@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LocationResource\Pages;
+use App\Filament\Resources\LocationResource\RelationManagers;
 use App\Models\Location;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -85,6 +86,13 @@ class LocationResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\StockLevelsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

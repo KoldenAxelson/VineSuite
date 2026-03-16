@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Dry goods / packaging material inventory item.
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $notes
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseOrderLine> $purchaseOrderLines
  */
 class DryGoodsItem extends Model
 {
@@ -88,6 +90,19 @@ class DryGoodsItem extends Model
             'cost_per_unit' => 'decimal:4',
             'is_active' => 'boolean',
         ];
+    }
+
+    // ─── Relationships ──────────────────────────────────────────────
+
+    /**
+     * Purchase order lines referencing this dry goods item.
+     *
+     * @return HasMany<PurchaseOrderLine, $this>
+     */
+    public function purchaseOrderLines(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderLine::class, 'item_id')
+            ->where('item_type', 'dry_goods');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\DryGoodsItemResource\Pages;
+use App\Filament\Resources\DryGoodsItemResource\RelationManagers;
 use App\Models\DryGoodsItem;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -152,6 +153,13 @@ class DryGoodsItemResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\PurchaseOrderLinesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
