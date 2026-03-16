@@ -30,7 +30,7 @@ Future directories (not yet built): `shared/` (KMP), `cellar-app/`, `pos-app/`, 
 
 **Data pattern:** Immutable append-only event log. Every winery operation writes an event; materialized tables are derived state. PostgreSQL trigger enforces immutability at DB level.
 
-**Testing:** Pest + PHPStan (level 6) + Pint. 478 tests across 26 test files. All against real PostgreSQL (no SQLite).
+**Testing:** Pest + PHPStan (level 6) + Pint. ~680 tests across 37 test files. All against real PostgreSQL (no SQLite).
 
 **CI/CD:** GitHub Actions — Pint → PHPStan → Pest on every push.
 
@@ -72,16 +72,18 @@ make fresh        # Flush Redis + reset DB + re-seed
 | 1. Foundation | Complete | 15/15 | 141 |
 | 2. Production Core | Complete | 14/14 | 213 |
 | 3. Lab & Fermentation | Complete | 7/7 | 124 |
-| 4. Inventory | Not started | 0/11 | — |
-| 5. Cost Accounting | Not started | 0/8 | — |
+| 4. Inventory | Complete | 12/12 | 265 |
+| 5. Cost Accounting | Up Next | 0/8 | — |
 
 ## Demo Data
 
-Running `make fresh` creates a demo winery ("Paso Robles Cellars") with realistic production data spanning grape reception through bottling, plus full lab and fermentation tracking:
+Running `make fresh` creates a demo winery ("Paso Robles Cellars") with realistic production data spanning grape reception through bottling, full lab and fermentation tracking, and a complete inventory with stock levels and purchase orders:
 
 **Production:** 38 lots across 4 vintages, 67 vessels (24 tanks + 43 barrels), 65+ chemical additions, 18 transfers, 30 work orders, 2 blend trials, 4 bottling runs.
 
 **Lab & Fermentation:** 30+ lab analyses across 6 test types (Brix, pH, TA, VA, free SO2, malic acid), 17 industry-standard alert thresholds including VA at the 27 CFR 4.21 legal limit, 10 fermentation rounds (8 primary + 2 ML, including one fresh in-progress round with recent entries) with daily Brix/temperature entries, and 10 sensory tasting notes with 5-point and 100-point scales.
+
+**Inventory:** Case goods SKUs across multiple vintages and formats (including NV), 4+ warehouse/cellar locations with stock levels, stock movements (receives, sales, adjustments, transfers), dry goods and raw materials with purchase order history, equipment with maintenance logs, and a completed physical inventory count with variance reconciliation.
 
 Everything writes to a fully consistent immutable event log. Enough to demo to a winemaker.
 
@@ -93,7 +95,7 @@ For development workflow (how tasks move from spec to shipped code): `docs/WORKF
 
 Key reference docs:
 
-- `docs/references/event-log.md` — How the event log works, all 17 operation types, querying patterns
+- `docs/references/event-log.md` — How the event log works, all 33 operation types, querying patterns
 - `docs/references/widget-development.md` — Filament widget patterns (Alpine.js + Livewire SPA gotchas)
 - `docs/references/test-groups.md` — Test group convention and Makefile `G=` usage
 - `docs/references/event-source-partitioning.md` — Event source labeling for future partitioning
@@ -108,9 +110,9 @@ Phase recaps (compressed context for AI handoff): `docs/execution/phase-recaps/`
 
 **Schema-per-tenant:** Each winery gets its own PostgreSQL schema. No `WHERE winery_id = ?` anywhere. Clean isolation, simple queries, works to ~500 tenants.
 
-**Event log as source of truth:** Every cellar operation (addition, transfer, blend, bottling, lab analysis, fermentation entry, sensory note) writes an immutable event with self-contained payloads (human-readable names alongside foreign keys). TTB compliance reporting becomes a downstream aggregation query, not manual data entry. The event log also enables offline sync from mobile apps — idempotency keys prevent duplicate writes on retry.
+**Event log as source of truth:** Every business operation (cellar work, lab analysis, fermentation tracking, inventory mutations, purchase orders, physical counts) writes an immutable event with self-contained payloads (human-readable names alongside foreign keys). 33 event types across 4 source partitions (production, lab, inventory, accounting). TTB compliance reporting becomes a downstream aggregation query, not manual data entry. The event log also enables offline sync from mobile apps — idempotency keys prevent duplicate writes on retry.
 
-**Filament portal on tenant subdomains:** The management portal runs Filament v3 on per-winery subdomains (e.g., `paso-robles-cellars.vinesuite.com`). Navigation groups: Production, Lab, Settings. Custom Livewire widgets use inline Alpine.js with the `@assets` directive for CDN scripts (Chart.js). Required three non-obvious middleware fixes to integrate with stancl/tenancy — documented in `docs/guides/filament-tenancy.md`.
+**Filament portal on tenant subdomains:** The management portal runs Filament v3 on per-winery subdomains (e.g., `paso-robles-cellars.vinesuite.com`). Navigation groups: Production, Lab, Inventory, Settings. 6 inventory resources with 5 relation managers for cross-entity drill-down (stock by location, PO history per item). Custom Livewire widgets use inline Alpine.js with the `@assets` directive for CDN scripts (Chart.js). Required three non-obvious middleware fixes to integrate with stancl/tenancy — documented in `docs/guides/filament-tenancy.md`.
 
 ---
 

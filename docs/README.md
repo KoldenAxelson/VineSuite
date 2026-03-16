@@ -107,6 +107,32 @@ All surfaces talk to a single **Laravel API** (the brain). Events from the cella
 
 ---
 
+## Build Progress
+
+The platform is being built in phased milestones. Each phase produces a phase recap (in `execution/phase-recaps/`) that summarizes what was delivered, architecture decisions, and known debt. Future AI sessions should load the relevant phase recaps — not individual INFO files — for context.
+
+| Phase | Name | Status | Tests | Key Deliverables |
+|---|---|---|---|---|
+| 1 | Foundation | Complete | ~141 | Multi-tenancy (schema-per-tenant), auth (Sanctum + RBAC via Spatie), immutable event log with PostgreSQL trigger, API envelope format, Filament management portal shell |
+| 2 | Production Core | Complete | ~213 | Lots, vessels, transfers, additions, work orders, blending, bottling runs, barrel management, pressing/filtering, 12 production event types |
+| 3 | Lab & Fermentation | Complete | ~124 | Lab analyses (manual + CSV import), fermentation tracking (alcoholic + ML), sensory notes, configurable alert thresholds, VA compliance at 27 CFR 4.21 legal limits |
+| 4 | Inventory Management | Complete | ~265 | Case goods SKU registry with Meilisearch search, multi-location stock levels (on_hand/committed/available), append-only stock movement ledger, inter-location transfers, dry goods and raw materials registries, equipment with maintenance logs, purchase order lifecycle (draft→submitted→partial→received), physical inventory counts with variance reconciliation, bulk wine inventory view, event source partitioning |
+| 5 | Cost Accounting & COGS | Up Next | — | Cost layers, COGS per bottle, material cost flow from inventory, TTB report foundations |
+
+**Current totals:** ~680+ tests across 37 test files, 33 event types, PHPStan level 6 with zero errors, Pint with zero style issues.
+
+### Key Architecture Patterns (established across Phases 1-4)
+
+These patterns are mandatory for all new code. See `references/` docs for details.
+
+- **Event log is the audit trail.** All business operations write immutable events via `EventLogger::log()`. Never insert Event records directly. Corrections are new events, not edits.
+- **InventoryService is the single entry point for stock mutations.** All stock-modifying operations (receive, sell, adjust, transfer) go through `InventoryService` methods with `lockForUpdate()` row-level locking. Never modify StockLevel directly.
+- **Self-contained event payloads.** Every event includes human-readable names (lot_name, sku_name, location_name, taster_name) alongside foreign keys for data portability and TTB audit readability.
+- **API envelope format.** All responses use `ApiResponse::success()`, `created()`, `paginated()`, `error()`. Pagination meta is flat (`meta.total`, `meta.current_page`).
+- **Test groups.** Every test file belongs to exactly one group (`foundation`, `production`, `lab`, `inventory`, `accounting`). Run subsets with `make test G=inventory`.
+
+---
+
 ## Companion Documents
 
 ### `architecture.md`
@@ -114,6 +140,15 @@ The full technical blueprint. Covers stack decisions, the event log data pattern
 
 ### `Task-Generation-Overview-Planning.md`
 A comprehensive feature inventory organized by module, with pricing tier tags ([STARTER] / [GROWTH] / [PRO]) on every feature. Designed to be fed into a large language model to generate granular, atomic task files per module. Also contains a suggested build order (Section 20) and cross-module dependency notes (Section 21) that should inform task sequencing.
+
+### `WORKFLOW.md`
+How tasks move from spec to shipped code. Defines the LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE lifecycle, the INFO file format, phase recap process, and context loading cheat sheet. Read this before starting any new phase.
+
+### `execution/phase-recaps/`
+Condensed summaries of each completed phase. **Load these instead of individual INFO files** when starting work on a new phase. Each recap covers: what was delivered, architecture decisions, deviations from spec, patterns established, known debt, and metrics.
+
+### `references/`
+Quick-load context docs for specific subsystems: `event-log.md`, `multi-tenancy.md`, `test-groups.md`, etc. These reflect the current state of the code (not the original spec) and are updated at the end of each phase.
 
 ---
 

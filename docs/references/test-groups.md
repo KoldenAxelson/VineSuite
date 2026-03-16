@@ -36,7 +36,7 @@ Every `describe()` block at the top level of a test file should have a `->group(
 | `foundation` | Foundation (Phase 1) | Auth, tenant, RBAC, event log core | ~141 |
 | `production` | Production Core (Phase 2) | Lots, vessels, transfers, additions, work orders, blending, bottling | ~213 |
 | `lab` | Lab & Fermentation (Phase 3) | Lab analyses, fermentation, sensory, thresholds, demo data | ~124 |
-| `inventory` | Inventory (Phase 4) | TBD | — |
+| `inventory` | Inventory (Phase 4) | SKUs, stock levels/movements/transfers, dry goods, raw materials, equipment, POs, physical counts, bulk wine, seeder | ~200+ |
 | `accounting` | Cost Accounting (Phase 5) | TBD | — |
 
 **Convention:** Group names are lowercase, singular, one-word. They map 1:1 to build phases.
@@ -118,3 +118,4 @@ describe('Inventory Stock Movements', function () {
 
 ## History
 - 2026-03-15: Created during Phase 3 retrospective. Makefile `G=` support added. Group annotations to be applied organically starting Phase 4.
+- 2026-03-15: Phase 4 complete. All 11 inventory test files annotated with `->group('inventory')`. ~200+ tests in inventory group.

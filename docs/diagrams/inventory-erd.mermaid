@@ -1,0 +1,148 @@
+erDiagram
+    CaseGoodsSku {
+        uuid id PK
+        string wine_name
+        int vintage "0 = non-vintage"
+        string varietal
+        string format "750ml default"
+        int case_size "6 or 12"
+        string upc_barcode
+        decimal price
+        decimal cost_per_bottle
+        boolean is_active
+        uuid lot_id FK
+        uuid bottling_run_id FK
+    }
+
+    Location {
+        uuid id PK
+        string name
+        string location_type "warehouse, tasting_room, offsite, production"
+        boolean is_active
+    }
+
+    StockLevel {
+        uuid id PK
+        uuid sku_id FK
+        uuid location_id FK
+        int on_hand
+        int committed
+        int available "computed: on_hand - committed"
+    }
+
+    StockMovement {
+        uuid id PK
+        uuid sku_id FK
+        uuid location_id FK
+        string movement_type "received, sold, transferred_in, transferred_out, adjusted, bottled"
+        int quantity "signed: positive in, negative out"
+        uuid performed_by FK
+        string reference_type
+        uuid reference_id
+        timestamp performed_at
+    }
+
+    DryGoodsItem {
+        uuid id PK
+        string name
+        string item_type "bottle, cork, capsule, label, carton, etc."
+        string unit_of_measure "each, sleeve, pallet"
+        decimal on_hand
+        decimal reorder_point
+        decimal cost_per_unit
+        string vendor_name
+        boolean is_active
+    }
+
+    RawMaterial {
+        uuid id PK
+        string name
+        string category "additive, yeast, nutrient, fining_agent, acid, enzyme, oak_alternative"
+        string unit_of_measure "g, kg, L, each"
+        decimal on_hand
+        decimal reorder_point
+        decimal cost_per_unit
+        date expiration_date
+        string vendor_name
+        boolean is_active
+    }
+
+    Equipment {
+        uuid id PK
+        string name
+        string equipment_type
+        string serial_number
+        string location_description
+        date purchase_date
+        decimal purchase_cost
+        boolean is_active
+    }
+
+    MaintenanceLog {
+        uuid id PK
+        uuid equipment_id FK
+        string maintenance_type "cleaning, calibration, inspection, repair, preventive"
+        date performed_date
+        string performed_by_name
+        boolean passed
+        decimal cost
+        date next_due_date
+        text description
+        text findings
+    }
+
+    PurchaseOrder {
+        uuid id PK
+        string po_number
+        string vendor_name
+        string status "draft, submitted, partial, received, cancelled"
+        date ordered_at
+        date expected_at
+        decimal total_amount
+        uuid created_by FK
+    }
+
+    PurchaseOrderLine {
+        uuid id PK
+        uuid purchase_order_id FK
+        string item_type "dry_goods, raw_material"
+        uuid item_id FK "polymorphic: DryGoodsItem or RawMaterial"
+        string item_name
+        decimal quantity_ordered
+        decimal quantity_received
+        decimal cost_per_unit
+    }
+
+    PhysicalCount {
+        uuid id PK
+        uuid location_id FK
+        string status "in_progress, completed, cancelled"
+        uuid started_by FK
+        timestamp started_at
+        uuid completed_by FK
+        timestamp completed_at
+        text notes
+    }
+
+    PhysicalCountLine {
+        uuid id PK
+        uuid physical_count_id FK
+        uuid sku_id FK
+        int system_quantity
+        int counted_quantity
+        int variance "computed: counted - system"
+        text notes
+    }
+
+    %% Relationships
+    CaseGoodsSku ||--o{ StockLevel : "has stock at"
+    Location ||--o{ StockLevel : "holds"
+    CaseGoodsSku ||--o{ StockMovement : "tracks"
+    Location ||--o{ StockMovement : "records"
+    Equipment ||--o{ MaintenanceLog : "has"
+    PurchaseOrder ||--o{ PurchaseOrderLine : "contains"
+    DryGoodsItem ||--o{ PurchaseOrderLine : "ordered via"
+    RawMaterial ||--o{ PurchaseOrderLine : "ordered via"
+    Location ||--o{ PhysicalCount : "counted at"
+    PhysicalCount ||--o{ PhysicalCountLine : "has"
+    CaseGoodsSku ||--o{ PhysicalCountLine : "counted"
