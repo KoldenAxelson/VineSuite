@@ -10,9 +10,21 @@ Phase 2
 
 > **Before starting:** This spec was written before Phases 1-4 were implemented. Verify assumptions against:
 > - `CONVENTIONS.md` — established code patterns (InventoryService, EventLogger, Filament conventions)
-> - `execution/phase-recaps/phase-4-inventory.md` — InventoryService is the sole stock mutation path; auto-deduction from production is listed as known debt (not yet wired)
+> - `execution/phase-recaps/phase-4-inventory.md` — InventoryService is the sole stock mutation path
 > - `execution/phase-recaps/phase-2-production-core.md` — UUID pivot tables need manual ID generation; immutable operation logs pattern
 > - `references/event-source-partitioning.md` — new event types need `event_source` mapping (prefix `cost_` → `accounting`)
+>
+> **Carry-over debt from Phase 4:**
+> - Auto-deduction from production is NOT wired. `InventoryService` methods (`receive`, `sell`, `adjust`) exist, but hooks into BottlingRun completion (deduct dry goods) and Addition creation (deduct raw materials) are not implemented. Sub-Task 6 (per-bottle COGS at bottling) is the natural place to wire this — at bottling, the system needs to know exactly which packaging materials were consumed and their costs.
+>
+> **Key integration points for cost tracking:**
+> - `DryGoodsItem.cost_per_unit` — packaging material costs (bottle, cork, capsule, label, carton) for bottling COGS
+> - `RawMaterial.cost_per_unit` — cellar supply costs for addition-based cost entries
+> - `CaseGoodsSku.cost_per_bottle` — field exists, awaiting population from COGS calculation
+> - `WorkOrder` has hours/labor fields. `BottlingRun` links to `CaseGoodsSku`. `BlendTrial` has proportional component volumes.
+>
+> **Deferred items from previous phases (not blocking, informational):**
+> Token ability endpoint enforcement, Filament Livewire CRUD tests, dashboard overview widgets, low stock alert notifications, CSV import partial failure handling, `confirmMlDryness()` API endpoint (service method exists, no route).
 
 ## Goal
 Track the true cost of producing every bottle of wine. Costs accumulate per lot through all operations — fruit purchase, material additions, labor on work orders, overhead allocation — and roll through blends proportionally. At bottling, the system calculates per-bottle and per-case COGS. This gives winemakers and owners margin visibility they've never had without a spreadsheet and an accountant.

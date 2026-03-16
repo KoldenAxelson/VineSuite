@@ -8,7 +8,8 @@ docs/
 ├── execution/
 │   ├── tasks/{NN}-{module}.md         # Task specs (input)
 │   ├── completed/{NN}-{module}.info.md # Completion records (output)
-│   └── phase-recaps/phase-{N}-{name}.md
+│   ├── phase-recaps/phase-{N}-{name}.md
+│   └── handoffs/{NN}-{module}-handoff.md  # Phase onboarding docs
 ├── references/                # Subsystem context (load per-task)
 ├── guides/                    # How-to docs
 ├── business/                  # Pricing, revenue, competitors, glossary
@@ -41,7 +42,11 @@ LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE
 
 ## Phase Completion
 
-Synthesize recap using `templates/phase-recap.template.md`. Condensed summary (not copy-paste of INFO files): deliverables, decisions, deviations, patterns, debt, metrics. Future sessions load recaps instead of individual INFO files.
+Three artifacts, in this order:
+
+1. **Phase recap** — Synthesize using `templates/phase-recap.template.md`. Condensed summary (not copy-paste of INFO files): deliverables, decisions, deviations, patterns, debt. Future sessions load recaps instead of individual INFO files.
+2. **Handoff for next phase** — Write using `templates/handoff.template.md`. Save to `execution/handoffs/{NN}-{module}-handoff.md`. Covers: what to read, relevant context from completed phases, carry-over debt, phase-specific notes. This is the first file the next agent reads.
+3. **Starter prompt** — Draft using `templates/starter-prompt.template.md`. A 3-sentence prompt the human pastes into the next AI session. Points agent to the handoff doc.
 
 ## Ideas Triage
 
@@ -55,7 +60,7 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 |---|---|
 | New sub-task | TASK + INFO + relevant references |
 | Debugging | INFO + reference docs |
-| New phase | All phase recaps + TASK files + `ideas/TRIAGE.md` |
+| New phase | Handoff doc → README → CONVENTIONS → TASK file (handoff points to everything else) |
 | Cross-module | Both INFO files + `architecture.md` |
 | New event type | `references/event-log.md` + module TASK/INFO |
 
@@ -66,6 +71,7 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 | Task spec | `execution/tasks/{NN}-{module}.md` | `05-cost-accounting.md` |
 | Completion | `execution/completed/{NN}-{module}.info.md` | `04-inventory.info.md` |
 | Phase recap | `execution/phase-recaps/phase-{N}-{name}.md` | `phase-4-inventory.md` |
+| Handoff | `execution/handoffs/{NN}-{module}-handoff.md` | `05-cost-accounting-handoff.md` |
 | Reference | `references/{topic}.md` | `event-log.md` |
 | Guide | `guides/{topic}.md` | `testing-and-logging.md` |
 
@@ -75,7 +81,7 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 
 1. Never skip the INFO file.
 2. Keep references current. Stale context is worse than no context.
-3. Phase recaps mandatory before starting next phase.
+3. Phase recaps + handoff + starter prompt mandatory before starting next phase.
 4. Triage ideas at phase boundaries.
 5. Load narrow (3-5 files), not wide.
 6. Record decisions — code is readable, the *why* isn't.

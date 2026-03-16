@@ -32,6 +32,7 @@ Load only what you need. 3-5 files per session max.
 - `guides/stripe-setup.md` — Stripe Connect setup and configuration.
 
 ### Execution
+- `execution/handoffs/{NN}-{module}-handoff.md` — **Start here when beginning a new phase.** Phase-specific onboarding.
 - `execution/tasks/00-index.md` — Master task index. Load to see what's next.
 - `execution/tasks/{NN}-{module}.md` — Task specs. Load the one you're working on.
 - `execution/completed/{NN}-{module}.info.md` — Completion records with past decisions.
@@ -45,10 +46,9 @@ Load only what you need. 3-5 files per session max.
 
 ### Other
 - `diagrams/` — Mermaid visualizations (ERDs, data flows, architecture).
-- `templates/` — Templates for INFO files, phase recaps, reference docs, sub-tasks.
+- `templates/` — Templates for handoffs, starter prompts, INFO files, phase recaps, reference docs, sub-tasks.
 - `ideas/` — Feature ideas backlog. See `ideas/TRIAGE.md`.
 - `refactors/` — Active refactor specs. Check before overlapping work.
-- `legacy/` — `PHASE_5_HANDOFF.md` is the active handoff for next phase.
 
 ---
 
