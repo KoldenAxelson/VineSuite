@@ -1,7 +1,6 @@
-# Task-Generation-Overview-Planning.md
-# Winery SaaS — Comprehensive Feature Overview
-> This document is a master feature reference to be used for generating granular task files.
-> Organized by module. Each feature is written as a discrete, implementable unit.
+# VineSuite — Comprehensive Feature Inventory
+> Master feature reference organized by module. Each feature is a discrete, implementable unit.
+> Originally used to generate the task files in `execution/tasks/`.
 > Pricing tiers: [STARTER] [GROWTH] [PRO]
 
 ---

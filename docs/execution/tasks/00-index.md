@@ -1,21 +1,21 @@
 # VineSuite — Master Task Index
 
 > This document maps all task files, their phases, dependencies, and the build sequence.
-> Read `architecture.md` Section 15 for the rationale behind this phasing.
+> See `architecture.md` Key Architectural Decisions table and `to-be-deleted/architecture-original.md` Section 15 for the rationale behind this phasing.
 
 ---
 
 ## Build Sequence Overview
 
 ```
-Phase 1: Foundation ──────────────────────────────────── (~2 weeks)
-  └── 01-foundation.md
+Phase 1: Foundation ──────────────────────────────────── COMPLETE
+  └── 01-foundation.md (moved to completed/)
 
-Phase 2: Production Module + Portal ──────────────────── (~6-8 weeks)
-  ├── 02-production-core.md
-  ├── 03-lab-fermentation.md
-  ├── 04-inventory.md
-  └── 05-cost-accounting.md
+Phase 2: Production Module + Portal ──────────────────── Phases 2a-2c COMPLETE
+  ├── 02-production-core.md (moved to completed/)
+  ├── 03-lab-fermentation.md (moved to completed/)
+  ├── 04-inventory.md (moved to completed/)
+  └── 05-cost-accounting.md  ← UP NEXT
 
 Phase 3: TTB Compliance ──────────────────────────────── (~2-3 weeks)
   └── 06-ttb-compliance.md
@@ -64,10 +64,10 @@ Phase 8: Pro Tier + VineBook ─────────────────
 
 | # | File | Phase | Est. Sub-Tasks | Description |
 |---|------|-------|----------------|-------------|
-| 01 | `01-foundation.md` | 1 | 15 | Docker, Laravel 12, multi-tenancy, auth/RBAC, event log, Stripe billing, Filament shell, CI/CD |
-| 02 | `02-production-core.md` | 2 | 14 | Lots, vessels, barrels, work orders, additions, transfers, pressing, filtering, blending, bottling |
-| 03 | `03-lab-fermentation.md` | 2 | 7 | Lab analysis entry/import, threshold alerts, fermentation tracking, fermentation curves |
-| 04 | `04-inventory.md` | 2 | 11 | Case goods SKUs, multi-location stock, dry goods, raw materials, equipment, physical counts |
+| 01 | `completed/01-foundation.md` | 1 | 15 | COMPLETE — Docker, Laravel 12, multi-tenancy, auth/RBAC, event log, Stripe billing, Filament shell, CI/CD |
+| 02 | `completed/02-production-core.md` | 2 | 14 | COMPLETE — Lots, vessels, barrels, work orders, additions, transfers, pressing, filtering, blending, bottling |
+| 03 | `completed/03-lab-fermentation.md` | 2 | 7 | COMPLETE — Lab analysis entry/import, threshold alerts, fermentation tracking, fermentation curves |
+| 04 | `completed/04-inventory.md` | 2 | 11 | COMPLETE — Case goods SKUs, multi-location stock, dry goods, raw materials, equipment, physical counts |
 | 05 | `05-cost-accounting.md` | 2 | 8 | Per-lot cost ledger, labor costs, overhead allocation, blend/split cost rollthrough, COGS |
 | 06 | `06-ttb-compliance.md` | 3 | 9 | TTB 5120.17 auto-generation, PDF export, verification tests, DTC compliance, lot traceability |
 | 07 | `07-kmp-shared-core.md` | 4 | 8 | SQLDelight, event queue, sync engine, Ktor client, conflict resolution, JVM test suite |
