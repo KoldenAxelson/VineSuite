@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Scout\Searchable;
 
 /**
@@ -39,6 +40,7 @@ use Laravel\Scout\Searchable;
  * @property \Illuminate\Support\Carbon $updated_at
  * @property-read Lot|null $lot
  * @property-read BottlingRun|null $bottlingRun
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, StockLevel> $stockLevels
  */
 class CaseGoodsSku extends Model
 {
@@ -154,6 +156,16 @@ class CaseGoodsSku extends Model
     public function bottlingRun(): BelongsTo
     {
         return $this->belongsTo(BottlingRun::class);
+    }
+
+    /**
+     * Stock levels across all locations.
+     *
+     * @return HasMany<StockLevel, $this>
+     */
+    public function stockLevels(): HasMany
+    {
+        return $this->hasMany(StockLevel::class, 'sku_id');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────

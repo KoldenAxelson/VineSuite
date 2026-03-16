@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\FilterLogController;
 use App\Http\Controllers\Api\V1\LabAnalysisController;
 use App\Http\Controllers\Api\V1\LabImportController;
 use App\Http\Controllers\Api\V1\LabThresholdController;
+use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PressLogController;
@@ -282,6 +283,15 @@ Route::middleware([
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/skus', [CaseGoodsSkuController::class, 'store'])->name('skus.store');
             Route::put('/skus/{sku}', [CaseGoodsSkuController::class, 'update'])->name('skus.update');
+        });
+
+        // ─── Inventory: Locations ───────────────────────────────────────
+        Route::get('/locations', [LocationController::class, 'index'])->name('locations.index');
+        Route::get('/locations/{location}', [LocationController::class, 'show'])->name('locations.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/locations', [LocationController::class, 'store'])->name('locations.store');
+            Route::put('/locations/{location}', [LocationController::class, 'update'])->name('locations.update');
         });
 
         // Team list — any authenticated user can view team members

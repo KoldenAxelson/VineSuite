@@ -59,3 +59,56 @@
 ### Open Questions
 - `bottling_run_id` FK constraint is deferred — should be added when BottlingRun model is confirmed present (Phase 2 Sub-Task 11 or later).
 - S3 migration for file uploads is planned but not yet configured. When switching, update the disk in CaseGoodsSkuController and the Filament FileUpload components.
+
+---
+
+## Sub-Task 2: Location and Stock Level Tracking
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200003_create_locations_table.php` — Creates the `locations` table with UUID primary key, name (varchar 100), address (varchar 500 nullable), is_active (default true), timestamps. Index on is_active.
+- `api/database/migrations/tenant/2026_03_15_200004_create_stock_levels_table.php` — Creates the `stock_levels` table with UUID primary key, sku_id FK (cascade delete to case_goods_skus), location_id FK (cascade delete to locations), on_hand (integer, default 0), committed (integer, default 0), timestamps. Unique constraint on (sku_id, location_id) to enforce one stock level record per SKU per location.
+- `api/app/Models/Location.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` traits. Relationship: `stockLevels()` HasMany. Scope: `active()`. Default: is_active=true.
+- `api/app/Models/StockLevel.php` — Eloquent model with `HasUuids`, `HasFactory` traits. Computed accessor: `available` (on_hand - committed, can go negative per spec). Relationships: `sku()`, `location()`. Scopes: `inStock()`, `forSku()`, `atLocation()`. Defaults: on_hand=0, committed=0.
+- `api/database/factories/LocationFactory.php` — Generates realistic location names (Tasting Room Floor, Back Stock, Offsite Warehouse, etc.). States: `inactive()`.
+- `api/database/factories/StockLevelFactory.php` — Generates random on_hand/committed quantities. States: `empty()`, `wellStocked()`.
+- `api/app/Models/CaseGoodsSku.php` — Added `stockLevels()` HasMany relationship and `@property-read` PHPDoc for the collection.
+- `api/app/Http/Controllers/Api/V1/LocationController.php` — Four endpoints: `index()` with active filter and eager-loaded stock levels, `show()` with nested stock levels + SKU data, `store()` with EventLogger (`stock_location_created`), `update()` with EventLogger (`stock_location_updated`). Structured logging with tenant_id.
+- `api/app/Http/Requests/StoreLocationRequest.php` — Required: name (max 100). Optional: address (max 500), is_active.
+- `api/app/Http/Requests/UpdateLocationRequest.php` — Same rules as Store but all fields `sometimes`.
+- `api/app/Http/Resources/LocationResource.php` — Uses `@mixin \App\Models\Location` for PHPStan. Serializes stock_levels as nested array with SKU summaries and computed available field. Uses `relationLoaded()` pattern.
+- `api/app/Http/Resources/StockLevelResource.php` — Uses `@mixin \App\Models\StockLevel` for PHPStan. Includes computed `available` field, nested sku and location when loaded. Uses `relationLoaded()` pattern (no redundant null checks on non-nullable BelongsTo relationships per PHPStan level 6).
+- `api/app/Filament/Resources/LocationResource.php` + Pages (List, Create, View, Edit) — Under "Inventory" navigation group, sort 2, icon heroicon-o-map-pin. Table shows stock_levels_count via `withCount`. Filter: is_active ternary.
+- `api/routes/api.php` — Added 4 location routes: GET /locations, GET /locations/{location}, POST /locations (winemaker+), PUT /locations/{location} (winemaker+).
+
+### Key Decisions
+- **Computed `available` attribute**: Implemented as a PHP accessor (`getAvailableAttribute()`) rather than a database-generated column. Available = on_hand - committed. Per spec, available can go negative (overselling happens in tasting rooms — warn but don't hard-block).
+- **Unique constraint on (sku_id, location_id)**: Prevents duplicate stock level records. Each SKU has exactly one stock level row per location. The InventoryService (Sub-Task 3) will use this as the target for atomic updates.
+- **Cascade deletes on both FKs**: Deleting a SKU removes all its stock levels; deleting a location removes all stock levels at that location. This keeps the stock_levels table referentially clean without orphaned rows.
+- **EventLogger for location lifecycle**: Location create/update events use `stock_location_created` and `stock_location_updated` operation types, which resolve to `event_source=inventory` via the `stock_` prefix mapping established in Sub-Task 1.
+- **PHPStan-clean resource pattern**: Non-nullable BelongsTo relationships (sku, location on StockLevel) use `relationLoaded()` without redundant `&& $this->sku` null checks. Non-nullable timestamps use `->` not `?->`. This avoids PHPStan `booleanAnd.rightAlwaysTrue` and `nullsafe.neverNull` errors at level 6.
+
+### Deviations from Spec
+- Spec lists `available` as a field on StockLevel — implemented as a computed accessor rather than a stored column. This avoids needing to keep three columns in sync and eliminates the risk of available drifting from on_hand - committed.
+
+### Patterns Established
+- **Non-nullable relationship resource pattern**: When a BelongsTo relationship is non-nullable (FK has a constraint), use `$this->relationLoaded('rel') ? [...] : null` without the `&& $this->rel` check. This keeps PHPStan clean at level 6.
+- **Stock level per SKU per location**: The unique constraint enforces the one-row-per-pair invariant. Future InventoryService operations should `firstOrCreate` on (sku_id, location_id) to get or initialize the row, then update atomically.
+
+### Test Summary
+- `tests/Feature/Inventory/LocationStockLevelTest.php` (22 tests)
+  - Tier 1: event logging — stock_location_created with inventory source and self-contained payload, stock_location_updated with inventory source (2 tests)
+  - Tier 1: tenant isolation — cross-tenant Location + StockLevel access prevention (1 test)
+  - Tier 1: data integrity — available = on_hand - committed computation, negative available allowed (overselling), unique constraint on (sku_id, location_id) enforced (3 tests)
+  - Tier 2: CRUD — create with all fields, create with minimal fields (defaults verified), list with pagination, filter by active status, show with nested stock levels + SKU data, update with partial fields (6 tests)
+  - Tier 2: validation — missing required name, name exceeding max length (2 tests)
+  - Tier 2: RBAC — winemaker can create (201), read_only cannot create (403), cellar_hand cannot create (403), read_only can list and view (200), read_only cannot update (403) (5 tests)
+  - Tier 2: relationships — multi-location stock tracking (SKU at 2 locations), cascade delete on SKU, cascade delete on Location (3 tests)
+  - Tier 2: API envelope — correct structure, unauthenticated rejection (2 tests)
+- Known gaps: Filament resource CRUD not tested via Livewire (deferred per Phase 1-3 pattern). StockLevel has no direct API endpoints yet — stock levels are managed via InventoryService (Sub-Task 3), not direct writes.
+- Skipped (Tier 3): model accessor tests (available is Tier 1, tested above), factory definitions, migration schema assertions.
+
+### Open Questions
+- StockLevel rows are currently created manually in tests. Sub-Task 3 (InventoryService) will be the sole entry point for stock level mutations, using SELECT FOR UPDATE for atomic operations.
+- No direct API endpoints for StockLevel CRUD — stock levels are read via the Location show endpoint (nested) and will be modified via stock movements (Sub-Task 3).
