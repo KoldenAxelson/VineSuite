@@ -192,6 +192,66 @@ if ($tenant->hasPlanAtLeast('pro')) {
 
 The Free tier is the wedge. No competitor offers a free tier. A winery can run their entire small operation on VineSuite Free and only pay when they outgrow it. That's a fundamentally different sales conversation than "pay us $149/month and hope it works."
 
+## Annual Billing Discount
+
+All paid tiers offer a 2-months-free discount on annual billing. This is a standard SaaS practice that improves cash flow predictability and reduces churn.
+
+### Annual Prices
+
+| Tier | Monthly | Annual (per month) | Annual (total) | Savings |
+|------|---------|-------------------|----------------|---------|
+| Basic | $99/month | $82.50/month | $990/year | $198 saved |
+| Pro | $179/month | $149.17/month | $1,790/year | $358 saved |
+| Max | $299/month | $249.17/month | $2,990/year | $598 saved |
+
+### Why This Matters for Wineries
+
+Winery cash flow is seasonal. Revenue peaks after harvest (October-December) and during spring/summer tasting room season. January-February is when wineries have cash from holiday sales and are planning the year's budget. Annual billing lets them lock in during a flush period rather than facing a monthly charge during lean months (April-August) when they might consider canceling.
+
+### Implementation
+
+Stripe handles this natively through billing intervals on the same Price object. The Cashier integration in Task 01 already supports monthly vs. yearly intervals. Implementation is:
+
+1. Create annual Price objects in Stripe for each tier (alongside existing monthly prices)
+2. Add billing interval toggle to the checkout flow (Stripe Checkout supports this out of the box)
+3. `PlanFeatureService` doesn't care about billing interval — it only checks `plan` enum
+4. Stripe webhook for `customer.subscription.updated` already handles plan changes
+
+No new models, no new migrations, no new middleware. Just Stripe configuration and a UI toggle.
+
+### Upgrade/Downgrade with Mixed Intervals
+
+- Monthly → Annual: Stripe prorates the remaining monthly period, then starts the annual subscription
+- Annual → Monthly: Takes effect at end of the annual period (no mid-year refund)
+- Annual tier change (e.g., Basic Annual → Pro Annual): Stripe prorates the difference for the remaining annual period
+
+All of this is handled by Stripe's `swap()` method in Cashier. No custom logic needed.
+
+---
+
+## Pricing Strategy & Acquisition Context
+
+### Current Prices Are the Floor
+
+These prices are intentionally below market value. The strategy is market capture, not margin optimization. At full scope, VineSuite replaces a $2,000-$15,000+/year software stack for $1,188-$3,588/year. That's a 60-75% cost reduction for the customer.
+
+**Why undercut deliberately:**
+
+1. **Lower the trust barrier.** New software from a new vendor is risky. A price that feels almost too good removes one objection from the sales conversation.
+2. **Maximize adoption speed.** In a market of ~11,000 US wineries, speed of capture matters more than per-customer revenue. Every winery on VineSuite is one a competitor can't reclaim without a painful data migration.
+3. **Build the data moat.** Community Insights, grower-winery data flow, and AP portal network effects all compound with customer count. The 500th customer makes the platform meaningfully better for the first 499.
+4. **Make acquisition math compelling.** An acquirer doesn't just buy current ARR — they buy a customer base with massive pricing headroom. If VineSuite has 500 wineries at current prices, an acquirer can reasonably 2-3x prices and still leave customers saving money vs. alternatives. That makes VineSuite's value to an acquirer a multiple of its current revenue, not just a multiple of ARR.
+
+### Max Tier Will Increase
+
+Max pricing is partly tied to AI token costs (Anthropic API for weekly digests, demand forecasting, churn scoring, fermentation prediction). As usage scales and AI features expand, Max will increase. Basic and Pro are less cost-sensitive — their marginal infrastructure cost per tenant is negligible.
+
+### International Expansion as Growth Multiplier
+
+The US has ~11,000 wineries. Globally there are 60,000+ wineries across the EU, Australia, South America, and South Africa. The TTB compliance module is US-specific, but production management, inventory, DTC, wine club, and cost accounting are universal. Localization of compliance modules (EU wine regulations, Australian WET, etc.) opens a market 5-6x larger than the US alone. This is a significant valuation multiplier for any acquirer evaluating growth potential beyond the current customer base.
+
+---
+
 ## Community Insights (BI Feature)
 
 Aggregated, anonymized data across the VineSuite customer base becomes a valuable product in itself — average COGS by variety, regional pricing trends, club retention benchmarks, seasonal production patterns. Individual wineries can't generate this data alone.
