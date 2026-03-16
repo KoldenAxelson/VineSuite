@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
+use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
@@ -305,6 +306,9 @@ Route::middleware([
             Route::post('/physical-counts/{physicalCount}/approve', [PhysicalCountController::class, 'approve'])->name('physical-counts.approve');
             Route::post('/physical-counts/{physicalCount}/cancel', [PhysicalCountController::class, 'cancel'])->name('physical-counts.cancel');
         });
+
+        // ─── Inventory: Stock Transfers ─────────────────────────────────
+        Route::post('/stock/transfer', [StockTransferController::class, 'store'])->name('stock-transfers.store');
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {

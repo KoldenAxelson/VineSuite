@@ -28,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $performed_by FK to users
  * @property \Illuminate\Support\Carbon $performed_at When the movement occurred
  * @property string|null $notes Free-text notes
- * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon|null $created_at
  * @property-read CaseGoodsSku $sku
  * @property-read Location $location
  * @property-read User|null $performer

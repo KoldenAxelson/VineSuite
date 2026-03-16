@@ -209,3 +209,44 @@
 ### Open Questions
 - Should there be a guard preventing multiple in-progress counts for the same location simultaneously? Currently not enforced — could lead to conflicting adjustments if two counts are approved for the same location.
 - Barcode scanning integration: The PhysicalCountResource includes `upc_barcode` in SKU data for future mobile scanning support. The actual scanning workflow is a frontend concern.
+
+---
+
+## Sub-Task 5: Stock Transfer Between Locations
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Http/Controllers/Api/V1/StockTransferController.php` — Single `store()` endpoint for point-to-point stock transfers. Validates available stock at source (on_hand - committed) before executing. Delegates to `InventoryService::transfer()` for atomic paired movements. Returns both from/to movements with eager-loaded SKU and location data, plus the shared transfer_id.
+- `api/routes/api.php` — Added StockTransferController import and 1 route: POST /stock/transfer (any authenticated user, per spec).
+- `api/app/Http/Resources/StockMovementResource.php` — Fixed `created_at` serialization: changed `->toIso8601String()` to `?->toIso8601String()` because StockMovement has `$timestamps = false` so Eloquent doesn't populate `created_at` on the in-memory model (the DB column uses `useCurrent()` default).
+- `api/app/Models/StockMovement.php` — Updated PHPDoc: `@property \Illuminate\Support\Carbon|null $created_at` to match the nullable runtime behavior for PHPStan level 6 compliance.
+
+### Key Decisions
+- **Available stock validation**: The controller checks `available` (on_hand - committed) at the source before calling `InventoryService::transfer()`. This enforces the spec's "cannot transfer more than available at source" rule, which is stricter than the sell flow (which allows overselling for tasting room POS scenarios).
+- **Any authenticated user can transfer**: Per the spec's API endpoint table, transfers are available to all authenticated users (not just winemaker+). This makes sense — cellar hands and tasting room staff routinely move stock between locations.
+- **No in-transit state**: Per spec, this is a simple point-to-point transfer for v1. The source decreases and destination increases atomically in a single transaction.
+- **Response includes both movements**: The API returns the transfer_id (shared reference_id), plus both from and to movements with eager-loaded relationships. This gives the caller full visibility into what happened.
+
+### Deviations from Spec
+- Spec endpoint path is `POST /api/v1/stock/transfer` — implemented as specified.
+- The `different:from_location_id` validation rule on `to_location_id` catches same-location transfers at the request level, before reaching InventoryService's own check.
+
+### Patterns Established
+- **Available-stock guard for transfers**: Unlike sells (which allow overselling), transfers enforce available ≥ quantity. This two-tier approach (soft limit for POS, hard limit for transfers) can be reused for other operations that should respect committed allocations.
+
+### Test Summary
+- `tests/Feature/Inventory/StockTransferTest.php` (15 tests)
+  - Tier 1: event logging — stock_transferred event with inventory source, location names, wine_name, and quantity (1 test)
+  - Tier 1: data integrity — source decreases/destination increases correctly, paired movements with shared reference_id and notes, rejects transfer exceeding available stock, rejects transfer when source has no stock level (4 tests)
+  - Tier 1: tenant isolation — cannot transfer using another tenant's location IDs (exists validation catches cross-tenant references) (1 test)
+  - Tier 2: validation — missing required fields (sku_id, from_location_id, to_location_id, quantity), same location rejected (different rule), zero/negative quantity rejected, non-existent IDs rejected (4 tests)
+  - Tier 2: RBAC — cellar_hand can transfer (201), read_only can transfer (201), unauthenticated rejected (401) (3 tests)
+  - Tier 2: API envelope — correct structure with transfer_id, from/to movements with eager-loaded SKU and location (1 test)
+  - Tier 1 bug fix: helper functions renamed to `createStockTransferTestTenant` / `createStockTransferFixtures` to avoid collision with existing `Production/TransferTest.php` which declares `createTransferTestTenant`
+- Known gaps: Concurrent transfer race condition (two users transferring same stock simultaneously) not tested in Pest. Transfer history/listing endpoint not built (movements can be queried via the movement ledger).
+- Skipped (Tier 3): factory definitions, edge case of transferring exact available amount (boundary).
+
+### Open Questions
+- Should there be a transfer listing/history endpoint (GET /stock/transfers) to view past transfers? Currently transfers are visible only through the stock movement ledger.
+- The available-stock guard uses a non-locked read before the locked write in InventoryService. In extremely high-concurrency scenarios, a TOCTOU race is possible. For winery volumes this is negligible.
