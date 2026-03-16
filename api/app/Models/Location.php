@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, StockLevel> $stockLevels
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, StockMovement> $stockMovements
  */
 class Location extends Model
 {
@@ -73,6 +74,16 @@ class Location extends Model
     public function stockLevels(): HasMany
     {
         return $this->hasMany(StockLevel::class);
+    }
+
+    /**
+     * Stock movements at this location.
+     *
+     * @return HasMany<StockMovement, $this>
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────

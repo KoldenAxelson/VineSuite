@@ -110,5 +110,52 @@
 - Skipped (Tier 3): model accessor tests (available is Tier 1, tested above), factory definitions, migration schema assertions.
 
 ### Open Questions
-- StockLevel rows are currently created manually in tests. Sub-Task 3 (InventoryService) will be the sole entry point for stock level mutations, using SELECT FOR UPDATE for atomic operations.
-- No direct API endpoints for StockLevel CRUD — stock levels are read via the Location show endpoint (nested) and will be modified via stock movements (Sub-Task 3).
+- No direct API endpoints for StockLevel CRUD — stock levels are read via the Location show endpoint (nested) and modified via InventoryService (Sub-Task 3).
+
+---
+
+## Sub-Task 3: Stock Movement Logging
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200005_create_stock_movements_table.php` — Creates the `stock_movements` table with UUID primary key, sku_id FK (cascade delete), location_id FK (cascade delete), movement_type (varchar 30), quantity (integer, signed), reference_type (varchar 50 nullable), reference_id (UUID nullable), performed_by (UUID nullable), performed_at (timestamp), notes (text nullable), created_at (timestamp, auto). Indexes on sku_id, location_id, movement_type, performed_at, and composite (reference_type, reference_id).
+- `api/app/Models/StockMovement.php` — Immutable ledger model with `HasUuids`, `HasFactory` traits. No `updated_at` (ledger entries are immutable). Constants: `MOVEMENT_TYPES` (received, sold, transferred, adjusted, returned, bottled), `REFERENCE_TYPES` (order, bottling_run, transfer, adjustment, physical_count). Relationships: `sku()`, `location()`, `performer()`. Scopes: `forSku()`, `atLocation()`, `ofType()`, `performedBetween()`.
+- `api/database/factories/StockMovementFactory.php` — Generates random movement data. States: `received()`, `sold()`, `adjusted()`.
+- `api/app/Services/InventoryService.php` — The single entry point for all stock level mutations. Methods: `receive()` (positive inflow, writes `stock_received` event), `sell()` (negative outflow with auto-negation, writes `stock_sold` event), `adjust()` (positive or negative, writes `stock_adjusted` event), `transfer()` (paired movements in a single transaction with shared reference_id, writes `stock_transferred` event). All methods use `SELECT FOR UPDATE` (lockForUpdate) on the StockLevel row to prevent race conditions from concurrent POS sales. Auto-creates StockLevel rows via `create()` if no row exists for the (sku_id, location_id) pair. Self-contained event payloads include wine_name and location_name alongside FK IDs.
+- `api/app/Http/Resources/StockMovementResource.php` — Uses `@mixin \App\Models\StockMovement` for PHPStan. Serializes movement data with nested sku/location when loaded. Uses `relationLoaded()` pattern without redundant null checks on non-nullable BelongsTo relationships.
+- `api/app/Models/CaseGoodsSku.php` — Added `stockMovements()` HasMany relationship and `@property-read` PHPDoc.
+- `api/app/Models/Location.php` — Added `stockMovements()` HasMany relationship and `@property-read` PHPDoc.
+
+### Key Decisions
+- **SELECT FOR UPDATE locking**: Every stock mutation acquires a row-level lock on the StockLevel row before reading and updating `on_hand`. This prevents race conditions when concurrent POS sales or sync operations target the same SKU+location pair. The lock is held for the duration of the DB::transaction.
+- **Auto-create StockLevel**: If no StockLevel row exists for a (sku_id, location_id) pair, the service creates one with on_hand=0 before applying the movement. This avoids requiring pre-seeding of stock level rows.
+- **Immutable ledger**: StockMovement has no `updated_at` — records are append-only. Corrections are modeled as new adjustment movements, not edits to existing records.
+- **Transfer as paired movements**: A transfer creates two StockMovement rows (negative at source, positive at destination) sharing the same `reference_id`. A single `stock_transferred` event is written for the pair, not two separate events.
+- **Sell auto-negates quantity**: Callers pass a positive quantity to `sell()` — the service negates it internally. This prevents sign confusion at the API boundary. Same pattern for the outflow side of `transfer()`.
+- **PHPStan `@var StockLevel|null`**: The `lockForUpdate()->first()` result must be annotated as `StockLevel|null` for PHPStan to accept the subsequent null check. Without the `|null`, PHPStan infers the type from the `@var` annotation and flags the null check as always-false.
+
+### Deviations from Spec
+- Spec mentions `stock_counted` event type — deferred to Sub-Task 4 (Physical Inventory Count). The InventoryService currently handles receive, sell, adjust, and transfer. The `stock_counted` event will be added when PhysicalCountService is built.
+- Added `stock_sold` event type not explicitly listed in the spec's four event types, but logically necessary since `sell()` is a distinct operation from `adjust()`.
+
+### Patterns Established
+- **InventoryService as sole mutation entry point**: All stock level changes must go through InventoryService. Direct `StockLevel::update()` calls are prohibited. This ensures every mutation has a corresponding ledger entry and event.
+- **SELECT FOR UPDATE for atomic stock operations**: Any service that mutates stock levels should use `lockForUpdate()` within a `DB::transaction()` to prevent concurrent access issues.
+- **Paired movements for transfers**: Transfers create two ledger entries linked by `reference_id`. Future operations that affect multiple locations (e.g., cross-dock) should follow this pattern.
+- **Positive-quantity API, internal negation**: Service methods accept positive quantities and handle sign internally. This keeps the caller's interface clean and prevents sign errors.
+
+### Test Summary
+- `tests/Feature/Inventory/StockMovementTest.php` (22 tests)
+  - Tier 1: event logging — stock_received, stock_adjusted, stock_transferred, stock_sold events with inventory source and self-contained payloads (4 tests)
+  - Tier 1: inventory math — receive increases on_hand (cumulative), sell decreases on_hand, adjust increases/decreases on_hand, transfer moves stock atomically between two locations with paired reference_id, auto-creates StockLevel if absent, overselling allowed (on_hand goes negative) (6 tests)
+  - Tier 1: tenant isolation — cross-tenant StockMovement access prevention (1 test)
+  - Tier 2: movement ledger — immutable audit trail (3 movements in sequence with correct types/quantities), reference_type/reference_id traceability for order links, paired transfer movements with shared reference_id and propagated notes (3 tests)
+  - Tier 2: validation — receive rejects ≤0 quantity, sell rejects ≤0 quantity, transfer rejects ≤0 quantity, transfer rejects same-location (4 tests)
+  - All tests exercise InventoryService directly within tenant context (not mocking own services per testing guide)
+- Known gaps: No API endpoints for creating movements directly — movements are created via InventoryService from other controllers (POS, bottling, physical count). Filament UI for viewing movement history not yet built. Concurrency stress test (parallel transactions) not tested in Pest (requires multi-process setup).
+- Skipped (Tier 3): factory definitions, model scope tests, StockMovementResource serialization.
+
+### Open Questions
+- API endpoints for viewing movement history (GET /skus/{sku}/movements, GET /locations/{location}/movements) not yet built — will likely be needed for Sub-Task 4 (physical count variance report) or a standalone movement history feature.
+- The `returned` and `bottled` movement types are defined but not yet exercised by any service method. They will be wired up when the POS returns flow and bottling-run-to-inventory bridge are built.

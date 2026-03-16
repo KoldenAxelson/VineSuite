@@ -41,6 +41,7 @@ use Laravel\Scout\Searchable;
  * @property-read Lot|null $lot
  * @property-read BottlingRun|null $bottlingRun
  * @property-read \Illuminate\Database\Eloquent\Collection<int, StockLevel> $stockLevels
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, StockMovement> $stockMovements
  */
 class CaseGoodsSku extends Model
 {
@@ -166,6 +167,16 @@ class CaseGoodsSku extends Model
     public function stockLevels(): HasMany
     {
         return $this->hasMany(StockLevel::class, 'sku_id');
+    }
+
+    /**
+     * Stock movements (ledger entries) across all locations.
+     *
+     * @return HasMany<StockMovement, $this>
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class, 'sku_id');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────
