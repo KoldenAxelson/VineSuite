@@ -73,6 +73,9 @@ class DemoWinerySeeder extends Seeder
             // Seed realistic production data (lots, vessels, barrels, work orders, etc.)
             $this->call(ProductionSeeder::class);
 
+            // Seed inventory data (case goods, dry goods, raw materials, equipment, POs)
+            $this->call(InventorySeeder::class);
+
             // Seed default lab thresholds (industry-standard VA, pH, SO2, etc.)
             $this->call(DefaultLabThresholdsSeeder::class);
         });
