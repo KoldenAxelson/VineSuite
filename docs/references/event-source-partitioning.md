@@ -1,24 +1,12 @@
 # Event Source Partitioning
 
-> Last updated: 2026-03-15
-> Relevant source: `api/app/Services/EventLogger.php`, `api/app/Models/Event.php`, events migration
-> Status: **Pre-wired, not activated.** The column exists and is populated, but no routing, partitioning, or sharding logic is built.
+> Column `event_source` labels origin of each event. Zero-cost wiring for future scalability — no partitioning infrastructure built yet.
 
 ---
 
 ## Why This Exists
 
-The event log is append-only and grows linearly with winery operations. As of Phase 3, there are 17 operation types across 3 modules (production, lab, inventory incoming). Phase 4 (Inventory) will add high-frequency stock movement events — potentially dozens per day per winery vs. a handful for cellar operations.
-
-Rather than build partitioning infrastructure we may never need, we're adding a single `event_source` column that labels where each event originates. This is zero-cost wiring that gives us massive optionality later:
-
-- Partition by source if one module dominates volume
-- Archive old events from high-volume sources independently
-- Route specific sources to a separate table or database
-- Build source-specific dashboards and analytics
-- Apply different retention policies per source
-
-All of these become a `WHERE event_source = ?` query away, rather than regex-over-payloads or operation-type-prefix parsing.
+Event table grows linearly. Phase 4 adds high-frequency stock movements (potentially dozens/day/winery vs. a handful for cellar ops). Rather than build partitioning we may never need, we wire a single column now. Enables future: per-source partitioning, archival, routing, retention policies.
 
 ---
 
@@ -26,11 +14,6 @@ All of these become a `WHERE event_source = ?` query away, rather than regex-ove
 
 ```sql
 event_source VARCHAR(30) NOT NULL DEFAULT 'production'
-```
-
-Indexed for efficient filtering:
-
-```sql
 CREATE INDEX idx_events_source ON events (event_source);
 ```
 
@@ -40,23 +23,20 @@ CREATE INDEX idx_events_source ON events (event_source);
 
 | Source | Operations | Phase |
 |---|---|---|
-| `production` | lot_created, lot_split, addition_made, transfer_executed, rack_completed, blend_finalized, barrel_filled, barrel_topped, barrel_racked, pressing_logged, filtering_logged, bottling_completed | 2 |
-| `lab` | lab_analysis_entered, fermentation_round_created, fermentation_data_entered, fermentation_completed, sensory_note_recorded | 3 |
-| `inventory` | TBD — stock movements, adjustments, purchase orders, equipment maintenance | 4 |
-| `accounting` | TBD — cost allocations, COGS calculations | 5 |
-| `sales` | TBD — orders, fulfillment, club shipments | Future |
-| `system` | TBD — scheduled jobs, automated alerts, data corrections | Future |
-
-**Convention:** Source names are lowercase, singular, one-word. They correspond to navigation groups in the Filament portal.
+| `production` | lot_*, addition, transfer, rack, blend, barrel, pressing, filtering, bottling | 2 |
+| `lab` | lab_analysis, fermentation_*, sensory_note | 3 |
+| `inventory` | stock_*, purchase_*, equipment_*, dry_goods_*, raw_material_* | 4 |
+| `accounting` | cost_*, cogs_* | 5 |
+| `sales` | orders, fulfillment, club shipments | Future |
+| `system` | scheduled jobs, automated alerts, corrections | Future |
 
 ---
 
-## EventLogger Integration
+## Auto-Resolution in EventLogger
 
-The `event_source` is derived automatically from `operationType` inside `EventLogger::log()`. Callers don't pass it explicitly — this keeps the API surface unchanged and prevents inconsistency.
+Derived from `operationType` prefix — callers never set explicitly:
 
 ```php
-// EventLogger::log() internally maps operation type → source
 private function resolveSource(string $operationType): string
 {
     return match (true) {
@@ -76,11 +56,7 @@ private function resolveSource(string $operationType): string
 }
 ```
 
-This means:
-- No changes to any existing `EventLogger::log()` call site
-- No changes to seeders, services, or controllers
-- New operation types automatically get the right source if they follow the naming convention
-- The `default => 'production'` fallback means all existing events get the correct source without migration
+**Result:** No changes to existing log() call sites. New operation types get correct source if they follow the naming convention.
 
 ---
 
@@ -100,59 +76,26 @@ Event::selectRaw('event_source, count(*) as total')
 
 ---
 
-## What We're NOT Doing (Yet)
+## Future Upgrades (Not Yet Planned)
 
-These are all possible future upgrades that the `event_source` column enables. None are planned or needed now.
+These are all possible — the column makes them tractable:
 
-1. **Table partitioning** — PostgreSQL declarative partitioning by `event_source`. Would split the physical table into per-source partitions while keeping the same query interface.
-
-2. **Separate tables** — Moving high-volume sources (e.g., `inventory`) to their own table with a different retention policy. The EventLogger would route writes, and a union view would provide backward compatibility.
-
-3. **Sharding** — Distributing event sources across different database instances. Extreme scale measure, unlikely needed below 500 tenants.
-
-4. **Tiered retention** — Keeping `production` events forever (TTB compliance) while archiving `inventory` events after 2 years.
-
-5. **Source-specific indexes** — Partial indexes like `CREATE INDEX ... WHERE event_source = 'inventory'` for high-volume query paths.
-
----
-
-## Migration
-
-The migration adds the column with a default value so existing rows are backfilled automatically:
-
-```php
-Schema::table('events', function (Blueprint $table) {
-    $table->string('event_source', 30)->default('production')->after('operation_type');
-    $table->index('event_source', 'idx_events_source');
-});
-```
-
-Existing events get `'production'` as their source. A one-time backfill command updates Phase 3 events to `'lab'`:
-
-```sql
-UPDATE events SET event_source = 'lab'
-WHERE operation_type IN (
-    'lab_analysis_entered',
-    'fermentation_round_created',
-    'fermentation_data_entered',
-    'fermentation_completed',
-    'sensory_note_recorded'
-);
-```
-
-Note: This UPDATE requires temporarily disabling the immutability trigger for the backfill migration, then re-enabling it. The migration handles this in a transaction.
+1. **Table partitioning** — Declarative PostgreSQL partitioning by source
+2. **Separate tables** — Move high-volume sources to their own table with different retention
+3. **Sharding** — Distribute sources across DB instances (extreme scale, unlikely needed)
+4. **Tiered retention** — Keep production forever (TTB), archive inventory after 2 years
+5. **Source-specific indexes** — Partial indexes for high-volume paths
 
 ---
 
 ## Rules
 
-1. `event_source` is **never set by callers** — it's derived from `operationType` inside EventLogger
-2. New operation types must follow the prefix convention so `resolveSource()` maps them correctly
-3. If a new module doesn't fit any prefix, add an explicit match arm — don't rely on the default
-4. The column is NOT nullable — every event has a source
-5. Don't build partitioning, routing, or archival infrastructure until volume data proves the need
+1. `event_source` **never set by callers** — derived from operationType
+2. New operation types must follow prefix convention
+3. If new module doesn't fit any prefix, add explicit match arm
+4. Column NOT nullable — every event has a source
+5. Don't build partitioning/routing/archival until volume data proves the need
 
 ---
 
-## History
-- 2026-03-15: Reference doc created during Phase 3 retrospective. Column and auto-resolution to be implemented in Phase 4 Sub-Task 1 (migration setup).
+*Implemented in Phase 4. Pre-wired, not activated.*

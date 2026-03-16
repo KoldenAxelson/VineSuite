@@ -1,126 +1,110 @@
 # Testing & Logging Standards
 
-What to test, what to log, and what to skip — across every surface of VineSuite.
-
-This guide applies to all languages in the stack: PHP (Laravel API), Kotlin (KMP shared core + Android), Swift (iOS), and TypeScript (widgets + VineBook). The principles are universal; the tooling section at the end covers language-specific details.
-
----
-
-## Testing Philosophy
-
-Not everything deserves a test. Tests are documentation — they tell the next developer (or AI session) what behavior is guaranteed. Write tests for behavior that would be expensive to fix if broken. Skip tests for behavior that's obvious on sight or covered by the framework itself.
-
-The guiding question: **"If someone quietly broke this, how long until we'd notice and how bad would the damage be?"** If the answer is "immediately, and it's catastrophic," that's Tier 1. If the answer is "maybe never, and it doesn't matter," don't write a test for it.
+What to test, what to log, and what to skip — across PHP (Laravel), Kotlin (KMP), Swift, and TypeScript.
 
 ---
 
 ## Test Tiers
 
-### Tier 1 — Must Have (block the PR if missing)
+**Guiding question:** If this broke silently, how long until we'd notice and how bad would the damage be?
 
-These protect money, data integrity, compliance, and core business logic. If any of these break silently, a winery loses revenue, gets a TTB violation, or ships corrupted data to a customer.
+### Tier 1 — Must Have (block PR if missing)
 
-**What falls here:**
-- Event log writes — every operation that should produce an event gets a test verifying the event was written with the correct `entity_type`, `operation_type`, and payload structure
-- Financial calculations — cost-per-unit, COGS rollup, tax computation, payment totals, club billing amounts, gift card balance math
-- TTB compliance — report generation, volume tracking, bonded/taxpaid transitions, 5120.17 form field calculations
-- Inventory math — additions, subtractions, transfers, blend proportions, unit conversions (gallons ↔ liters ↔ cases)
-- Authentication and authorization — login/logout, token issuance, role gates (owner can do X, cellar_hand cannot), tenant isolation (Tenant A cannot see Tenant B's data)
-- Payment flows — charge, refund, partial refund, stored card usage, webhook signature verification
-- Sync engine — event outbox drain, idempotency key dedup, conflict resolution, offline queue ordering
-- Data migrations — any migration that transforms existing data (not just schema changes)
+Protects money, data integrity, compliance, core business logic.
 
-**Test type:** Integration/Feature tests that exercise the full request-to-database path. Mocking external APIs (Stripe, QuickBooks) is fine; mocking your own services is not.
+- Event log writes (correct entity_type, operation_type, payload structure)
+- Financial calculations (cost-per-unit, COGS, tax, payment totals, club billing, gift card math)
+- TTB compliance (report generation, volume tracking, bonded/taxpaid transitions, form field calculations)
+- Inventory math (adds, subtracts, transfers, blend proportions, unit conversions)
+- Authentication and authorization (login/logout, token issuance, role gates, tenant isolation)
+- Payment flows (charge, refund, stored card usage, webhook signature verification)
+- Sync engine (event outbox drain, idempotency dedup, conflict resolution, offline queue ordering)
+- Data migrations (transforming existing data, not just schema changes)
 
-**Coverage target:** 100% of Tier 1 scenarios. No exceptions, no "we'll add it later."
+**Test type:** Integration/Feature tests exercising full request-to-database path. Mock external APIs (Stripe, QuickBooks); never mock your own services.
+
+**Coverage target:** 100% of Tier 1 scenarios. No exceptions.
 
 ### Tier 2 — Should Have (expected in PR, negotiable if time-boxed)
 
-These protect user-facing workflows and catch regressions in standard CRUD operations. Important but not catastrophic if briefly broken.
+Protects user workflows, catches regressions in standard CRUD.
 
-**What falls here:**
-- API endpoint contracts — correct HTTP status codes, response shape, pagination, filtering, sorting
-- Filament resource CRUD — create, read, update, soft-delete for each admin resource (use Livewire test helpers)
-- Service layer business logic — non-financial business rules (e.g., "a lot in FERMENTING status cannot be marked BOTTLED without going through AGING first")
-- Notification dispatch — verify the right notification class is dispatched to the right channel for the right event (not that the email renders correctly)
-- Scheduled jobs — verify jobs run, process the expected records, and handle empty state gracefully
-- KMP repository layer — verify SQLDelight queries return expected results, offline cache hydrates correctly
-- Webhook ingestion — verify incoming webhooks from external services are validated and dispatched to the right handler
+- API endpoint contracts (status codes, response shape, pagination, filtering, sorting)
+- Filament resource CRUD (create, read, update, soft-delete via Livewire)
+- Service layer business logic (status transition rules, validators)
+- Notification dispatch (correct class to correct channel for correct event)
+- Scheduled jobs (run, process expected records, handle empty state)
+- KMP repository layer (SQLDelight query results, offline cache hydration)
+- Webhook ingestion (validate and dispatch to correct handler)
 
-**Test type:** Mix of unit and integration. Unit tests for pure logic (status transitions, validators). Integration tests for anything touching the database or external boundaries.
+**Test type:** Mix of unit and integration. Unit for pure logic; integration for database or external boundaries.
 
-**Coverage target:** 80%+ of Tier 2 scenarios. Skip if the logic is truly trivial (a getter that returns a field).
+**Coverage target:** 80%+ of Tier 2 scenarios. Skip trivial getters.
 
-### Tier 3 — Nice to Have (don't write unless the code is unusually complex)
+### Tier 3 — Nice to Have (don't write unless complex)
 
-These cover code that's either framework-standard, visually verifiable, or so simple that a test would just repeat the implementation.
+Framework-standard, visually verifiable, or so simple a test just repeats the implementation.
 
-**What falls here:**
-- Simple model accessors, mutators, and scopes (unless they contain math or branching logic)
-- Filament form field definitions and table column definitions (the framework tests these)
-- View/Blade rendering (test the logic feeding the view, not the view itself)
-- Simple config retrieval
-- Migration structure (schema assertions — the migration either runs or it doesn't)
-- CSS/styling, layout concerns
-- Factory definitions (factories are test infrastructure, not test subjects)
+- Simple model accessors, mutators, scopes (unless they contain math/branching)
+- Filament form field and table column definitions (framework tests these)
+- View/Blade rendering (test the logic feeding the view, not the view)
+- Simple config retrieval, migration structure, CSS/styling
+- Factory definitions
 
-**When Tier 3 gets promoted:** If a "simple" accessor has a conditional (`return $this->is_club_member ? $this->discount_price : $this->retail_price`), that's Tier 2 business logic. The tier is about the complexity of the behavior, not the type of code.
+**When promoted:** If an accessor has a conditional (`is_club_member ? discount_price : retail_price`), that's Tier 2 business logic.
 
-### What to Never Test
+### Never Test
 
-- Framework behavior (Laravel's `belongsTo()` works — don't test that it returns the right model)
-- Third-party package internals (don't test that Spatie Permission assigns roles correctly — test that YOUR seeder creates the roles you expect)
+- Framework behavior (`belongsTo()` works — don't test it)
+- Third-party package internals (don't test Spatie Permission; test YOUR seeder creates the roles)
 - Private methods directly (test the public method that calls them)
-- Constructor assignment (if a service takes `EventLogger` in its constructor, don't test that `$this->logger` is set)
+- Constructor assignment
 
 ---
 
 ## Logging Standards
 
-### Log Levels
-
-VineSuite uses the standard RFC 5424 severity levels. Here's what each level means in this project specifically:
+### Log Levels (RFC 5424)
 
 | Level | When to Use | Examples | Alert? |
 |-------|-------------|----------|--------|
-| **EMERGENCY** | System is unusable | Database connection pool exhausted, tenant schema creation loop | PagerDuty |
-| **CRITICAL** | Action must be taken immediately | Payment processor unreachable during club billing run, event log write failure | PagerDuty |
-| **ERROR** | Runtime error that doesn't require immediate action | Stripe webhook signature invalid, sync batch failed for one tenant, accounting push failed | Error tracker (Sentry/Flare) |
-| **WARNING** | Exceptional occurrence that isn't an error | API rate limit approaching 80%, tenant approaching storage quota, deprecated endpoint called | Error tracker |
-| **NOTICE** | Normal but significant events | New tenant provisioned, phase migration completed, club billing run started/finished | Log aggregator |
-| **INFO** | Interesting events | User logged in, payment processed, sync batch completed, scheduled report generated | Log aggregator |
-| **DEBUG** | Detailed debug information | SQL queries (via telescope), event payload contents, sync conflict resolution decisions | Local/dev only |
+| EMERGENCY | System unusable | DB connection pool exhausted, tenant schema loop | PagerDuty |
+| CRITICAL | Immediate action needed | Payment processor down during billing run, event log write failure | PagerDuty |
+| ERROR | Runtime error, not immediate | Invalid Stripe webhook, sync batch failed for one tenant, accounting push failed | Error tracker (Sentry/Flare) |
+| WARNING | Exceptional, not error | API rate limit at 80%, tenant near quota, deprecated endpoint called | Error tracker |
+| NOTICE | Normal but significant | New tenant provisioned, phase migration done, billing run started/finished | Log aggregator |
+| INFO | Interesting events | Login, payment processed, sync batch done, report generated | Log aggregator |
+| DEBUG | Detailed debug info | SQL queries (Telescope), event payloads, sync decisions | Local/dev only |
 
-### What to Log (and What Not To)
+### What to Log / Never Log
 
 **Always log (INFO or above):**
-- Every external API call result (Stripe, QuickBooks, Xero, Anthropic) — log the operation, status code, and relevant IDs (never log request/response bodies containing PII or secrets)
-- Tenant lifecycle events — provisioning, plan changes, suspension, archival
-- Payment outcomes — charge success/failure, refund processed, dispute opened (log amount + last4, never full card number)
-- Sync operations — batch start/finish, conflict resolutions, failed items with entity IDs
+- External API calls (Stripe, QuickBooks, Xero, Anthropic) — operation, status, relevant IDs (never PII or secrets)
+- Tenant lifecycle — provisioning, plan changes, suspension, archival
+- Payment outcomes — success/failure, refunds, disputes (last4 only, never full card)
+- Sync operations — batch start/finish, conflicts, failed items with entity IDs
 - Background job completion — job class, tenant ID, duration, outcome
-- Auth events — login, logout, failed login attempts, role changes, token issuance
+- Auth events — login, logout, failed attempts, role changes, token issuance
 
 **Never log:**
-- Full API keys, tokens, or secrets (log `sk_...XXXX` masked format if needed for debugging)
-- User passwords or password reset tokens
+- Full API keys, tokens, secrets (log `sk_...XXXX` masked if debugging)
+- User passwords, password reset tokens
 - Full credit card numbers (last 4 only)
-- Full request/response bodies from external APIs (they may contain PII)
-- PHI or health-related data (not relevant now but future-proofing)
-- Individual SQL queries in production (use DEBUG level, which is off in prod)
+- Full request/response bodies from external APIs (may contain PII)
+- PHI or health-related data
+- Individual SQL queries in production (use DEBUG level, off in prod)
 
 **Log judiciously (WARNING or DEBUG):**
 - Performance concerns — queries over 500ms, jobs over 30s, sync batches over 60s
-- Retry attempts — log each retry with attempt number and backoff duration
-- Feature flag evaluations — if tier gating blocks a request, log it once per session not per request
+- Retry attempts — log each with attempt number and backoff duration
+- Feature flag evaluations — log once per session, not per request
 
 ### Structured Logging Format
 
-All log entries should include context fields, not string interpolation. This makes logs searchable and parseable.
+All entries use context fields, not string interpolation. Makes logs searchable and parseable.
 
 **PHP (Laravel):**
 ```php
-// Good — structured context
 Log::info('Payment processed', [
     'tenant_id' => $tenant->id,
     'order_id' => $order->id,
@@ -129,44 +113,32 @@ Log::info('Payment processed', [
     'stripe_charge_id' => $charge->id,
     'duration_ms' => $elapsed,
 ]);
-
-// Bad — string interpolation
-Log::info("Payment of {$charge->amount} processed for order {$order->id}");
 ```
 
-**Kotlin (KMP shared core):**
+**Kotlin (KMP):**
 ```kotlin
-// Good — structured via key-value pairs
 logger.info("Sync batch completed") {
     put("tenant_id", tenantId)
     put("events_sent", sentCount)
     put("events_failed", failedCount)
     put("duration_ms", elapsed)
 }
-
-// Bad
-logger.info("Sent $sentCount events for tenant $tenantId in ${elapsed}ms")
 ```
 
 **TypeScript (Widgets / VineBook):**
 ```typescript
-// Good — structured
 console.info('Widget initialized', {
     widgetType: 'reservation',
     tenantSlug: config.slug,
     loadTimeMs: performance.now() - start,
 });
-
-// Bad
-console.log(`Widget loaded in ${performance.now() - start}ms`);
 ```
 
 ### Tenant Context
 
-Every log entry from tenant-scoped code must include `tenant_id`. In Laravel, this is handled by a global log context middleware:
+Every log from tenant-scoped code must include `tenant_id`. In Laravel, use middleware:
 
 ```php
-// Applied once in middleware, enriches all subsequent Log calls in the request
 Log::shareContext(['tenant_id' => tenant()->id]);
 ```
 
@@ -176,60 +148,59 @@ For KMP and widgets, pass `tenant_id` explicitly in every structured log call.
 
 ## Language-Specific Tooling
 
-### PHP / Laravel (API)
+### PHP / Laravel
 
 | Purpose | Tool | Notes |
 |---------|------|-------|
-| Test runner | Pest (PHP) | Ships with Laravel 12. Use `describe()` blocks to group by feature. |
-| HTTP tests | `$this->getJson()`, `$this->postJson()` | Laravel's built-in test client. Always assert status + JSON structure. |
-| Database | `DatabaseMigrations` trait | Runs migrations per test. We use `DatabaseMigrations` instead of `RefreshDatabase` because PostgreSQL DDL in tenant schema creation causes deadlocks with `RefreshDatabase`'s transaction wrapper. |
-| Factories | Laravel model factories | Every model gets a factory. Factories should produce valid, seedable records without overrides. |
-| Mocking external APIs | `Http::fake()` | Mock Stripe, QBO, Xero at the HTTP level. Never mock your own service classes. |
-| Mocking events/jobs | `Event::fake()`, `Queue::fake()` | Use to assert events are dispatched without triggering handlers. |
-| Filament testing | `Livewire::test(ResourcePage::class)` | Test create, edit, list, and delete actions through Livewire's test API. |
-| Code coverage | Pest `--coverage` | Run in CI. Track trends, don't gate on percentage (Tier system is the real gate). |
-| Logging | `Log` facade + Monolog | JSON channel for production, stack (stderr + daily) for local. |
-| Error tracking | Laravel Flare or Sentry | ERROR and above ship to tracker. |
+| Test runner | Pest (PHP) | Use `describe()` to group by feature |
+| HTTP tests | `$this->getJson()`, `$this->postJson()` | Assert status + JSON structure |
+| Database | `DatabaseMigrations` trait | Use instead of `RefreshDatabase` — PostgreSQL DDL in tenant schema creation deadlocks with RefreshDatabase's transaction wrapper |
+| Factories | Laravel model factories | Every model gets a factory; produce valid, seedable records |
+| Mock external APIs | `Http::fake()` | Mock Stripe, QBO, Xero at HTTP level; never mock your own services |
+| Mock events/jobs | `Event::fake()`, `Queue::fake()` | Assert dispatched without triggering handlers |
+| Filament testing | `Livewire::test(ResourcePage::class)` | Test create, edit, list, delete through Livewire's test API |
+| Coverage | Pest `--coverage` | Track trends; Tier system is the real gate |
+| Logging | `Log` facade + Monolog | JSON channel (prod), stack (local) |
+| Error tracking | Flare or Sentry | ERROR and above ship to tracker |
 
-**Test file conventions:**
+**File conventions:**
 - `tests/Unit/` — pure logic, no database, no HTTP
-- `tests/Feature/` — integration tests hitting the database and/or HTTP layer
-- One test file per model or service: `tests/Feature/LotServiceTest.php`
-- Name tests descriptively: `it('prevents transferring more volume than available in source vessel')`
+- `tests/Feature/` — integration, hitting database and/or HTTP
+- One file per model/service: `tests/Feature/LotServiceTest.php`
+- Descriptive names: `it('prevents transferring more volume than available')`
 
 ### Kotlin (KMP Shared Core)
 
 | Purpose | Tool | Notes |
 |---------|------|-------|
-| Test runner | `kotlin.test` + JUnit5 (JVM target) | Run via `./gradlew :shared:jvmTest` (aliased to `make test-shared`). |
-| SQLDelight tests | In-memory JDBC driver | Test queries against real SQL, not mocks. |
-| HTTP client tests | Ktor `MockEngine` | Provide canned responses for sync API calls. |
-| Coroutine tests | `kotlinx-coroutines-test` | Use `runTest` for suspending functions. Use `TestDispatcher` for controlled concurrency. |
-| Logging | Kermit or custom `expect`/`actual` logger | Shared interface, platform-specific implementations (Logcat on Android, os_log on iOS). |
+| Test runner | `kotlin.test` + JUnit5 | Run via `make test-shared` |
+| SQLDelight tests | In-memory JDBC driver | Test queries against real SQL, not mocks |
+| HTTP client tests | Ktor `MockEngine` | Provide canned responses |
+| Coroutine tests | `kotlinx-coroutines-test` | Use `runTest` for suspending functions |
+| Logging | Kermit or expect/actual logger | Shared interface, platform-specific implementations |
 
-**Test file conventions:**
-- `shared/src/commonTest/` — platform-independent tests (most tests live here)
-- `shared/src/androidUnitTest/` and `shared/src/iosTest/` — only for platform-specific behavior
-- One test class per repository or use case: `EventOutboxRepositoryTest.kt`
+**File conventions:**
+- `shared/src/commonTest/` — platform-independent tests
+- One class per repository/use case: `EventOutboxRepositoryTest.kt`
 
 ### TypeScript (Widgets + VineBook)
 
 | Purpose | Tool | Notes |
 |---------|------|-------|
-| Test runner | Vitest | Fast, ESM-native, compatible with both widget and Astro builds. |
-| DOM testing | `@testing-library/dom` | For widget components (Web Components). Test shadow DOM via `element.shadowRoot`. |
-| HTTP mocking | `msw` (Mock Service Worker) | Intercept fetch calls at the network level for API tests. |
-| Logging | `console.*` with structured objects | Widgets have minimal logging (client-side). VineBook build-time can use Node logging. |
+| Test runner | Vitest | ESM-native, works for both widget and Astro builds |
+| DOM testing | `@testing-library/dom` | Test Web Components via `element.shadowRoot` |
+| HTTP mocking | `msw` (Mock Service Worker) | Intercept fetch at network level |
+| Logging | `console.*` with structured objects | Minimal client-side logging |
 
-**Test file conventions:**
-- Co-located: `src/components/ReservationWidget.test.ts` next to the component
-- Build verification: `npm run build && npm run test` — widgets must build before tests run (tests run against built output for integration)
+**File conventions:**
+- Co-located: `src/components/ReservationWidget.test.ts` next to component
+- Build verification: `npm run build && npm run test` — tests run against built output
 
 ---
 
-## What "Tested" Means in INFO Files
+## Test Summary Format (for INFO Files)
 
-When recording test coverage in a sub-task's INFO file, use this format so future sessions know exactly what's covered:
+When recording coverage, use this format so future sessions know what's protected:
 
 ```markdown
 ### Test Summary
@@ -244,42 +215,34 @@ When recording test coverage in a sub-task's INFO file, use this format so futur
 - Skipped (Tier 3): model accessor tests, factory definitions
 ```
 
-This tells the next session what's protected, what isn't, and why — without having to read the test files themselves.
-
 ---
 
-## PHP / Laravel Testing Gotchas
-
-These are patterns discovered through VineSuite development that aren't obvious from the framework docs.
+## Laravel Testing Gotchas
 
 ### Sanctum auth guard caching across multi-user tests
 
-When a test logs in as User A, then logs in as User B with a different token, Sanctum's auth guard caches User A for the duration of the request. Subsequent HTTP calls with User B's Bearer token will still resolve as User A.
+When login as User A then User B with different tokens, Sanctum caches User A. Subsequent calls with User B's token still resolve as User A.
 
-**Fix:** Call `app('auth')->forgetGuards()` after obtaining the second user's token and before making HTTP requests as that user.
-
+**Fix:**
 ```php
-// Login as read_only user
 $roLogin = test()->postJson('/api/v1/auth/login', [...], ['X-Tenant-ID' => $tenant->id]);
 $roToken = $roLogin->json('data.token');
 
-// REQUIRED: Reset auth guard so Sanctum re-resolves from the new token
-app('auth')->forgetGuards();
+app('auth')->forgetGuards();  // Reset auth guard
 
-// Now this correctly runs as the read_only user
 test()->postJson('/api/v1/work-orders', [...], [
     'Authorization' => "Bearer {$roToken}",
     'X-Tenant-ID' => $tenant->id,
 ])->assertStatus(403);
 ```
 
-### DatabaseMigrations, not RefreshDatabase
+### Use DatabaseMigrations, not RefreshDatabase
 
-PostgreSQL DDL statements (CREATE SCHEMA, ALTER TABLE) inside tenant creation cause deadlocks when wrapped in `RefreshDatabase`'s transaction. Use `DatabaseMigrations` instead — it runs `migrate:fresh` between tests, which is slower but avoids deadlocks.
+PostgreSQL DDL (CREATE SCHEMA, ALTER TABLE) in tenant creation causes deadlocks with RefreshDatabase's transaction wrapper. Use `DatabaseMigrations` instead — runs `migrate:fresh` between tests, slower but avoids deadlocks.
 
 ### Tenant schema cleanup in afterEach
 
-Every test file that creates tenants must clean up schemas in `afterEach()` to prevent cross-test pollution:
+Every test file creating tenants must clean up schemas:
 
 ```php
 afterEach(function () {
@@ -297,33 +260,32 @@ afterEach(function () {
 
 ### Testing resilience (try/catch in traits)
 
-When testing that a trait's `try/catch` actually catches failures, you must trigger a real failure. Creating normal records doesn't test resilience — the catch block never fires. Instead, temporarily break the dependency (rename a table, mock a service to throw) and verify the primary operation still succeeds.
+To test that a trait's `try/catch` catches failures, trigger a real failure. Creating normal records doesn't test resilience — the catch block never fires. Temporarily break the dependency and verify the primary operation succeeds:
 
 ```php
-// Force a real failure by removing the table the trait writes to
 DB::statement('ALTER TABLE activity_logs RENAME TO activity_logs_disabled');
-$user = User::create([...]); // LogsActivity trait catches the error silently
+$user = User::create([...]);
 expect($user->exists)->toBeTrue();
 DB::statement('ALTER TABLE activity_logs_disabled RENAME TO activity_logs');
 ```
 
 ### UUID pivot tables and attach()
 
-The `lot_vessel` pivot uses `uuid('id')->primary()`. Laravel's `attach()` won't auto-generate UUIDs — you must pass `'id' => (string) Str::uuid()` explicitly. This applies to any pivot with a UUID primary key.
+The `lot_vessel` pivot uses `uuid('id')->primary()`. Laravel's `attach()` won't auto-generate UUIDs — pass `'id' => (string) Str::uuid()` explicitly.
 
 ### PostgreSQL column aliases in HAVING clauses
 
-PostgreSQL does not allow referencing column aliases in `HAVING` clauses (MySQL does, which is why this pattern sneaks in). Use `havingRaw()` with the full expression instead.
+PostgreSQL doesn't allow column aliases in `HAVING` (MySQL does). Use `havingRaw()` with the full expression:
 
 ```php
-// Bad — fails on PostgreSQL with "column cnt does not exist"
+// Bad — fails on PostgreSQL
 SensoryNote::select('lot_id')
     ->selectRaw('count(*) as cnt')
     ->groupBy('lot_id')
     ->having('cnt', '>', 1)
     ->get();
 
-// Good — use havingRaw with the full aggregate expression
+// Good
 SensoryNote::select('lot_id')
     ->selectRaw('count(*) as cnt')
     ->groupBy('lot_id')
@@ -333,7 +295,7 @@ SensoryNote::select('lot_id')
 
 ### PHPStan and Eloquent model type resolution
 
-PHPStan needs `@property` PHPDoc blocks on Eloquent models to resolve dynamic attribute access. Without them, accessing `$model->attribute` in closures, resources, or service methods triggers "undefined property" errors. Relationships also need generic annotations.
+PHPStan needs `@property` PHPDoc blocks on Eloquent models to resolve dynamic attributes. Relationships also need generic annotations:
 
 ```php
 /**
@@ -350,21 +312,17 @@ class SensoryNote extends Model
 }
 ```
 
-This pattern was established in Phase 3 (SensoryNote, FermentationRound) after encountering 13 PHPStan errors from missing annotations. Apply proactively to new models.
-
 ---
 
 ## CI Integration
 
-Tests run in the CI pipeline per surface:
-
 | Surface | Command | Blocks Deploy? |
 |---------|---------|----------------|
-| API (Laravel) | `make test` | Yes — all Tier 1 and Tier 2 must pass |
+| API (Laravel) | `make test` | Yes — all Tier 1/2 must pass |
 | KMP shared core | `make test-shared` | Yes |
 | Widgets | `cd widgets && npm test` | Yes |
 | VineBook | `cd vinebook && npm test` | No (static site, low risk) |
 | Cellar app (Android) | `./gradlew :apps:cellar:android:test` | Yes |
 | POS app (Android) | `./gradlew :apps:pos:android:test` | Yes |
 
-Flaky tests are treated as bugs, not tolerated with retries. If a test is flaky, fix it or delete it — a test you can't trust is worse than no test.
+Flaky tests are bugs. Fix or delete them — a test you can't trust is worse than no test.

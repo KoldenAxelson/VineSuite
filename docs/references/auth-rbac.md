@@ -1,108 +1,109 @@
 # Authentication & RBAC
 
-> Last updated: 2026-03-10
-> Relevant source: `api/app/Models/User.php`, `api/database/seeders/RolesAndPermissionsSeeder.php`, `api/app/Http/Controllers/Auth/`
-> Architecture doc: Section 2.1, 2.2
+> Sanctum + spatie/permission. Scoped tokens per client type. Two-layer auth: token abilities + role permissions.
 
 ---
 
-## What This Is
-Laravel Sanctum token auth for all clients. Scoped tokens per client type (Portal, Cellar App, POS, Widgets, Public API). Role-based access control within each tenant via spatie/laravel-permission v7.2. No Passport, no OAuth — Sanctum throughout.
-
 ## How It Works
-1. **Registration** — `POST /api/v1/auth/register` with `X-Tenant-ID` header. Creates a User in the tenant schema with role `owner`, assigns the `owner` spatie role, returns a Sanctum token.
-2. **Login** — `POST /api/v1/auth/login` with `X-Tenant-ID`, `email`, `password`, `client_type`, `device_name`. Validates credentials, checks `is_active`, creates a Sanctum token scoped to the client type's abilities. Updates `last_login_at`.
-3. **Authenticated requests** — Send `Authorization: Bearer {token}` + `X-Tenant-ID`. Stancl's `InitializeTenancyByRequestData` middleware identifies the tenant, Sanctum resolves the user.
-4. **Logout** — `POST /api/v1/auth/logout` revokes the current token.
-5. **Authorization** — Two layers: token abilities (what the CLIENT can do) and role permissions (what the USER can do). Both must pass.
+
+1. **Login:** `POST /api/v1/auth/login` with email, password, client_type, device_name → Sanctum token scoped to client abilities
+2. **Request:** Send `Authorization: Bearer {token}` + `X-Tenant-ID` header
+3. **Auth check:** Token abilities AND role permissions must both pass
+4. **Logout:** Token revoked
+
+---
 
 ## Token Abilities
 
 | Client Type | Abilities |
 |---|---|
-| `portal` | `['*']` — full access |
-| `cellar_app` | events, lots, vessels, additions, transfers, work-orders, lab, barrels (create/read/update) |
-| `pos_app` | events, orders, customers, products, inventory, club, reservations (create/read/update) |
-| `widget` | products:read, reservations:create/read, club:create/read, orders:create/read, customers:create |
-| `public_api` | `['*']` — full access (Pro tier only) |
+| `portal` | `['*']` (full access) |
+| `cellar_app` | events, lots, vessels, additions, transfers, work-orders, lab, barrels (CRUD) |
+| `pos_app` | events, orders, customers, products, inventory, club, reservations (CRUD) |
+| `widget` | products:read, reservations/club/orders:create/read, customers:create |
+| `public_api` | `['*']` (Pro tier only) |
 
 Defined in `User::TOKEN_ABILITIES`.
 
-## Roles
+---
 
-7 roles seeded by `RolesAndPermissionsSeeder` on tenant creation:
+## Roles (7 seeded)
 
-| Role | Scope |
+| Role | Permissions |
 |---|---|
 | **owner** | All ~55 permissions |
 | **admin** | All except billing |
 | **winemaker** | Production, compliance, reporting, lab, barrels, vessels, additions, transfers, work-orders |
-| **cellar_hand** | Work orders, additions, transfers, barrels, lab results (no settings, users, billing) |
+| **cellar_hand** | Work orders, additions, transfers, barrels, lab results (no settings/users/billing) |
 | **tasting_room_staff** | POS, customers, reservations, products, club, orders |
 | **accountant** | Reports, COGS, integrations (read-heavy) |
 | **read_only** | All `.read` permissions only |
 
-## Key Files
-- `app/Models/User.php` — HasApiTokens, HasRoles, HasUuids. TOKEN_ABILITIES constant.
-- `app/Models/CentralUser.php` — Central-connection user for multi-winery switching.
-- `database/seeders/RolesAndPermissionsSeeder.php` — Full permission matrix.
-- `app/Http/Controllers/Auth/LoginController.php` — Token-scoped login.
-- `app/Http/Controllers/Auth/RegisterController.php` — Owner registration.
-- `app/Http/Middleware/EnsureUserHasRole.php` — Dual check: role column + spatie roles.
-- `database/migrations/tenant/2026_03_10_000002_create_permission_tables.php` — Tenant-scoped spatie tables.
-- `database/migrations/tenant/2026_03_10_000003_create_personal_access_tokens_table.php` — Tenant-scoped Sanctum tokens.
+---
 
-## Usage Patterns
+## Token Name Contract
 
-**Checking permissions in code:**
+Format: `client_type|context` (e.g., `portal|registration`, `cellar_app|My iPhone`)
+
+**Why?** `ThrottleByTokenType` middleware splits on `|` to determine rate-limit tier. Don't encode as DB column — keeps vendor schema unmodified.
+
+**What breaks if skipped:** Rate limiter falls back to lowest tier (30 req/min) silently instead of failing loudly.
+
+---
+
+## Usage
+
 ```php
-// Quick role check (no DB query — reads role column)
+// Quick role check (no DB query)
 if ($user->isAdmin()) { ... }
 
-// Granular permission check (spatie — queries DB)
+// Granular permission (DB query)
 if ($user->hasPermissionTo('lots.create')) { ... }
 
-// Middleware (route-level)
+// Middleware
 Route::middleware('role:owner,admin')->...
 Route::middleware('permission:lots.create')->...
-```
 
-**Creating scoped tokens:**
-```php
-// Token names use client_type|context format for rate limiting identification
-$token = $user->createToken('portal|registration', User::TOKEN_ABILITIES['portal']);
+// Creating scoped token
 $token = $user->createToken('cellar_app|My iPhone', User::TOKEN_ABILITIES['cellar_app']);
 ```
 
-## Token Name Contract
-Token names **must** follow the format `client_type|context` (e.g. `portal|My MacBook`, `cellar_app|registration`). This is not cosmetic — the `ThrottleByTokenType` middleware splits on `|` and uses the prefix to determine the rate-limit tier.
+---
 
-**Why not a database column?** Adding a `client_type` column to `personal_access_tokens` means customizing Sanctum's migration and potentially its model, creating ongoing maintenance burden when Sanctum updates. Encoding in the name avoids touching vendor-owned schema while keeping extraction fast (string split vs. DB lookup).
-
-**What breaks if you skip it:** The rate limiter falls back silently to the lowest tier (30 req/min) instead of failing loudly. Any new code path that creates tokens — controllers, console commands, seeders — must use this format. Current creation points: `LoginController`, `RegisterController`, `AcceptInvitationController`.
-
-## Gotchas
-- **Token abilities AND role permissions must both pass.** A cellar_hand user with a portal token (`*` abilities) is still blocked from `settings.update` by their role permissions.
-- **MustVerifyEmail is currently removed** from User model. Will be re-added when verification routes are set up.
-- **Permission/token tables live only in tenant schemas.** The vendor:publish migrations were deleted from central `database/migrations/`. Don't re-publish them.
-- **Auth guard caching in tests:** After revoking a token, call `app('auth')->forgetGuards()` before testing that the token is actually rejected.
-- **Password reset flow** — controllers exist but are not yet tested. Will test via Mailpit when verification infrastructure is set up.
-
-## Rate Limiting
-Rate limits are enforced per token type by `ThrottleByTokenType` middleware:
+## Rate Limits
 
 | Client Type | Limit |
 |---|---|
-| `portal` | 120 req/min |
-| `cellar_app` | 60 req/min |
-| `pos_app` | 60 req/min |
-| `widget` | 30 req/min |
-| `public_api` | 60 req/min |
-| Unauthenticated | 30 req/min (per IP) |
+| portal | 120 req/min |
+| cellar_app | 60 req/min |
+| pos_app | 60 req/min |
+| widget | 30 req/min |
+| public_api | 60 req/min |
+| unauthenticated | 30 req/min (per IP) |
 
-Responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Exceeding the limit returns 429 with `Retry-After` header in the standard API envelope.
+Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining` headers. 429 with `Retry-After` on limit exceeded.
 
-## History
-- 2026-03-10: Sub-Task 4 complete. Sanctum + spatie/permission installed. 7 roles, ~55 permissions. 13 tests passing (7 auth + 6 RBAC).
-- 2026-03-10: Sub-Task 13 — API response envelope applied to all auth endpoints.
-- 2026-03-10: Sub-Task 14 — Token name format changed to `client_type|device_name`. Rate limiting by token type implemented.
+---
+
+## Gotchas
+
+- **Both layers must pass** — cellar_hand user with portal token (`*` abilities) is still blocked from `settings.update` by role permissions
+- **Token + role check:** Middleware `EnsureUserHasRole` does dual check
+- **Permission/token tables in tenant schemas only** — not in central DB
+- **Test guard caching:** Call `app('auth')->forgetGuards()` after revoking tokens before testing rejection
+- **MustVerifyEmail removed** from User — re-add when verification routes are set up
+
+---
+
+## Key Files
+
+- `app/Models/User.php` — TOKEN_ABILITIES constant, HasApiTokens, HasRoles
+- `app/Http/Controllers/Auth/LoginController.php` — Token-scoped login
+- `app/Http/Middleware/EnsureUserHasRole.php` — Dual auth check
+- `database/seeders/RolesAndPermissionsSeeder.php` — Full matrix
+- `database/migrations/tenant/2026_03_10_000002_create_permission_tables.php`
+- `database/migrations/tenant/2026_03_10_000003_create_personal_access_tokens_table.php`
+
+---
+
+*Phase 1 (Sub-Task 4). Sanctum + spatie v7.2. 13 tests (7 auth + 6 RBAC). Rate limiting via token type (Sub-Task 14).*

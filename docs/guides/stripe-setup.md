@@ -5,31 +5,33 @@
 
 ---
 
-## 1. Create the Three Subscription Products
+## 1. Create Subscription Products
 
-Go to **Products** → **Add product** in the Stripe Dashboard. Create each of the following:
+Go to **Products** → **Add product**:
 
 ### Starter Plan
 - **Name:** VineSuite Starter
-- **Description:** For small wineries getting started. Core production tracking, basic compliance.
-- **Pricing:** Recurring, Monthly — **$99/month**
+- **Description:** For small wineries. Core production tracking, basic compliance.
+- **Pricing:** Monthly — **$99/month**
 - Copy the **Price ID** (starts with `price_...`)
 
 ### Growth Plan
 - **Name:** VineSuite Growth
-- **Description:** For growing wineries. Full production suite, POS, wine club, mobile apps.
-- **Pricing:** Recurring, Monthly — **$249/month**
+- **Description:** Growing wineries. Full production suite, POS, wine club, mobile apps.
+- **Pricing:** Monthly — **$249/month**
 - Copy the **Price ID**
 
 ### Pro Plan
 - **Name:** VineSuite Pro
-- **Description:** For established wineries. Everything in Growth plus public API, advanced analytics, priority support.
-- **Pricing:** Recurring, Monthly — **$499/month**
+- **Description:** Established wineries. Everything in Growth plus public API, advanced analytics, priority support.
+- **Pricing:** Monthly — **$499/month**
 - Copy the **Price ID**
+
+---
 
 ## 2. Add Price IDs to `.env`
 
-Open `api/.env` and fill in the three price IDs you copied:
+Open `api/.env`:
 
 ```
 STRIPE_PRICE_STARTER=price_xxxxxxxxxxxxxxxx
@@ -37,7 +39,7 @@ STRIPE_PRICE_GROWTH=price_xxxxxxxxxxxxxxxx
 STRIPE_PRICE_PRO=price_xxxxxxxxxxxxxxxx
 ```
 
-Also add them to `api/.env.example` as empty placeholders (they're already there as comments — just add the keys):
+Also add placeholders to `api/.env.example`:
 
 ```
 STRIPE_PRICE_STARTER=
@@ -45,49 +47,50 @@ STRIPE_PRICE_GROWTH=
 STRIPE_PRICE_PRO=
 ```
 
-## 3. Set Up the Customer Portal
+---
 
-Go to **Settings** → **Billing** → **Customer portal**. Enable the following:
+## 3. Set Up Customer Portal
 
-- **Invoices:** Allow customers to view invoice history
-- **Subscription updates:** Allow switching between Starter, Growth, and Pro plans
-- **Subscription cancellation:** Allow cancellation (this gives a grace period handled by Cashier)
-- **Payment method updates:** Allow updating card details
+Go to **Settings** → **Billing** → **Customer portal**. Enable:
 
-Save the portal configuration.
+- **Invoices:** View invoice history
+- **Subscription updates:** Switch between plans
+- **Cancellation:** Allow cancellation (Cashier handles grace period)
+- **Payment method updates:** Update card details
 
-## 4. Set Up Webhooks (for Production — Optional for Local Dev)
+---
 
-Go to **Developers** → **Webhooks** → **Add endpoint**.
+## 4. Set Up Webhooks (Optional for Local Dev)
 
-- **Endpoint URL:** `https://your-domain.com/api/v1/stripe/webhook`
-- **Events to listen for:**
+Go to **Developers** → **Webhooks** → **Add endpoint**:
+
+- **URL:** `https://your-domain.com/api/v1/stripe/webhook`
+- **Events:**
   - `customer.subscription.created`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`
   - `invoice.payment_succeeded`
   - `invoice.payment_failed`
 
-Copy the **Webhook Signing Secret** (starts with `whsec_...`) and add it to `.env`:
+Copy the **Webhook Signing Secret** and add to `.env`:
 
 ```
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxx
 ```
 
-For local development, you can use the Stripe CLI to forward webhooks:
+For local dev, use Stripe CLI:
 
 ```bash
 stripe listen --forward-to localhost:8000/api/v1/stripe/webhook
 ```
 
-The CLI will print a webhook signing secret to use locally.
+---
 
-## 5. Verify the Integration
+## 5. Verify Integration
 
-Once products are created and env vars are set, test the checkout flow:
+Test the checkout flow:
 
 ```bash
-# Create a tenant and login to get a token, then:
 curl -X POST http://localhost:8000/api/v1/billing/checkout \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "X-Tenant-ID: YOUR_TENANT_ID" \
@@ -95,9 +98,9 @@ curl -X POST http://localhost:8000/api/v1/billing/checkout \
   -d '{"plan": "starter"}'
 ```
 
-This should return a `checkout_url` pointing to Stripe's hosted checkout page. Use Stripe's test card `4242 4242 4242 4242` with any future expiry and any CVC to complete the payment.
+Should return `checkout_url` pointing to Stripe's hosted checkout. Use test card `4242 4242 4242 4242` with any future expiry and any CVC.
 
-After checkout, verify the subscription status:
+After checkout, verify subscription status:
 
 ```bash
 curl http://localhost:8000/api/v1/billing/status \
@@ -105,4 +108,4 @@ curl http://localhost:8000/api/v1/billing/status \
   -H "X-Tenant-ID: YOUR_TENANT_ID"
 ```
 
-Should show `"subscribed": true` and the correct plan.
+Should show `"subscribed": true` and correct plan.

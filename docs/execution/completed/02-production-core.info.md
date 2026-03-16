@@ -1,736 +1,360 @@
 # Production Core — Completion Record
 
 ## Sub-Task 1: Lot Model, Migration, and Basic CRUD
-**Completed:** 2026-03-10
-**Status:** Awaiting verification
+**Completed:** 2026-03-10 | **Status:** Awaiting verification
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100001_create_lots_table.php` — Creates the `lots` table with UUID primary key, variety/vintage/source fields, volume stored as `decimal(12,4)` in gallons, status enum, and self-referencing `parent_lot_id` for splits/blends. Indexed on variety, vintage, status, and parent_lot_id.
-- `api/app/Models/Lot.php` — Eloquent model with `HasFactory`, `HasUuids`, `LogsActivity` traits. Defines `STATUSES` and `SOURCE_TYPES` constants. Relationships: `parentLot()`, `childLots()`, `events()` (polymorphic via entity_type/entity_id on events table). Scopes: `ofVariety()`, `ofVintage()`, `withStatus()`, `search()` (ilike on name, variety, vintage cast).
-- `api/database/factories/LotFactory.php` — Generates realistic lot data with 12 grape varieties, random vintages, estate/purchased source types with appropriate source_details JSON. States: `inProgress()`, `aging()`, `bottled()`.
-- `api/app/Services/LotService.php` — Business logic layer. `createLot()` creates the lot and writes a `lot_created` event via EventLogger with full payload (name, variety, vintage, source, initial_volume). `updateLot()` captures old values, updates, and writes a `lot_status_changed` event when status changes. Structured logging with tenant_id on all operations.
-- `api/app/Http/Requests/StoreLotRequest.php` — Validates: name (required, string, max 255), variety (required), vintage (required, 1900–2100), source_type (required, in estate/purchased), volume_gallons (required, numeric, 0–999999.9999), source_details (optional array), status (optional, valid enum), parent_lot_id (optional, UUID, exists in lots).
-- `api/app/Http/Requests/UpdateLotRequest.php` — Partial update validation for name, status, source_details, volume_gallons.
-- `api/app/Http/Resources/LotResource.php` — Extends BaseResource for standard envelope wrapping. Returns all lot fields with volume as float and ISO 8601 timestamps.
-- `api/app/Http/Controllers/Api/V1/LotController.php` — RESTful controller with `index()` (paginated, filterable by variety/vintage/status/search), `store()` (creates via LotService), `show()` (eager loads childLots and parentLot), `update()` (partial update via LotService).
-- `api/routes/api.php` — Added lot routes under `auth:sanctum` middleware. GET `/lots` and GET `/lots/{lot}` available to all authenticated users. POST `/lots` and PUT `/lots/{lot}` require `role:owner,admin,winemaker`.
-- `api/tests/Feature/Production/LotTest.php` — 18 tests covering event log writes, volume precision, CRUD, filtering, search, validation, RBAC, and API envelope format.
+**Files:** migration (UUID, decimal(12,4) volume, parent_lot_id), Lot model (HasFactory, HasUuids, LogsActivity, STATUSES, SOURCE_TYPES, relationships: parentLot, childLots, events), LotFactory, LotService (createLot/updateLot with EventLogger), StoreLotRequest/UpdateLotRequest, LotResource, LotController (index/store/show/update with pagination/filtering/search), routes (authenticated GETs, role:owner,admin,winemaker POST/PUT), tests (18 tests).
 
-### Key Decisions
-- **Route RBAC uses `role:owner,admin,winemaker` for mutations** — matches the task spec's "winemaker+" auth scope. Read endpoints are available to all authenticated users (including cellar_hand, read_only, etc.) since the spec says "Authenticated" for GET operations.
-- **Volume stored as `decimal(12,4)`** — 4 decimal places matches the spec's precision requirements for gallon tracking. Using PostgreSQL DECIMAL avoids floating-point rounding issues critical for TTB compliance math.
-- **Source details is JSONB, not normalized** — vineyard/block/grower info varies too much between estate and purchased fruit to warrant separate columns. JSONB allows flexibility while remaining queryable via PostgreSQL JSON operators.
-- **Search uses `ilike` (case-insensitive)** — winery lot names have inconsistent casing. PostgreSQL's `ilike` handles this without a separate search index. Will transition to Meilisearch if performance becomes an issue with large datasets.
-- **Status changes write events, name changes don't** — the event log tracks operational state transitions (in_progress → aging → bottled). Name edits are tracked by the LogsActivity trait in the activity_logs table instead.
-- **LotResource extends BaseResource** — ensures all responses go through the standard `{ data, meta, errors }` envelope. Used `new LotResource($lot)` for single items and `ApiResponse::paginated()` for lists (which doesn't use resources directly but returns paginator items).
+**Key Decisions:**
+- Route RBAC: `role:owner,admin,winemaker` for mutations (spec's "winemaker+" scope). GET open to all authenticated users.
+- Volume: `decimal(12,4)` for 4-decimal gallon precision (TTB compliance).
+- Source details: JSONB, not normalized — varies too much between estate/purchased.
+- Search: `ilike` (case-insensitive), will migrate to Meilisearch at scale.
+- Status changes write events; name changes use LogsActivity trait.
+- LotResource extends BaseResource for standard envelope.
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Established
-- **Production Service Pattern** — `LotService` takes `EventLogger` via constructor injection, creates the model, then writes the event. All future production services (VesselService, TransferService, BlendService, etc.) should follow this pattern: model mutation → event log write → structured log.
-- **Production Test Pattern** — `createLotTestTenant()` helper creates a tenant with a specific role, logs in, returns `[$tenant, $token]`. Tests grouped by tier: Tier 1 (event log writes, volume math), Tier 2 (CRUD, validation, RBAC, envelope). Located in `tests/Feature/Production/`.
-- **Production Route Pattern** — Read endpoints open to all authenticated users, write endpoints gated by `role:owner,admin,winemaker`. Pattern: `GET /resource` and `GET /resource/{id}` outside role gate, `POST` and `PUT` inside role gate.
+**Patterns Established:**
+- Production Service: LotService takes EventLogger via DI, mutates model, writes event, logs structured with tenant_id.
+- Production Tests: `createLotTestTenant()` helper creates tenant + role + logs in + returns `[$tenant, $token]`. Grouped by tier: Tier 1 (event log, volume math), Tier 2 (CRUD, validation, RBAC, envelope).
+- Production Routes: Reads open to all authenticated, writes gated by role.
 
-### Test Summary
-- `tests/Feature/Production/LotTest.php` (18 tests)
-  - Tier 1: lot_created event written with correct payload (name, variety, vintage, source, initial_volume)
-  - Tier 1: lot_status_changed event written with old/new status
-  - Tier 1: volume stored with 4-decimal precision
-  - Tier 2: full CRUD (create, list, show, update)
-  - Tier 2: pagination and filtering (variety, vintage, status, search)
-  - Tier 2: validation (missing fields, invalid source_type, invalid status, negative volume)
-  - Tier 2: RBAC (read-only can view not create, cellar_hand can view not create, winemaker can CRUD)
-  - Tier 2: API envelope format, unauthenticated rejection
-- Known gaps: Filament resource not built yet (Sub-Task 13), lot_vessel pivot not yet (Sub-Task 2)
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 18 tests. Tier 1: lot_created events, volume precision. Tier 2: CRUD, pagination/filtering/search, validation, RBAC, envelope. Known gaps: Filament resource (Sub-Task 13), lot_vessel pivot (Sub-Task 2).
 
 ---
 
 ## Sub-Task 2: Vessel Model, Migration, and CRUD
-**Completed:** 2026-03-10
-**Status:** Awaiting verification
+**Completed:** 2026-03-10 | **Status:** Awaiting verification
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100002_create_vessels_table.php` — Creates the `vessels` table with UUID primary key, type (7 vessel types), `capacity_gallons` as `decimal(12,4)`, material, location, status (4 states), purchase_date, notes. Indexed on type, status, location.
-- `api/database/migrations/tenant/2026_03_10_100003_create_lot_vessel_table.php` — Pivot table linking lots to vessels with `volume_gallons`, `filled_at`, `emptied_at` timestamps. FKs to both lots and vessels with cascadeOnDelete. Indexed on `[vessel_id, emptied_at]` and `[lot_id, emptied_at]` for efficient "current contents" queries.
-- `api/app/Models/Vessel.php` — Eloquent model with `HasFactory`, `HasUuids`, `LogsActivity` traits. Constants for TYPES (7) and STATUSES (4). Relationships: `lots()` (all historical), `currentLot()` (where emptied_at IS NULL), `events()`, `barrel()` (1:1 extension). Computed attributes: `current_volume` (from active pivot), `fill_percent` (current_volume / capacity). Scopes: `ofType()`, `withStatus()`, `atLocation()`, `search()`.
-- `api/app/Models/Barrel.php` — Stub model for Sub-Task 3. Defines constants, fillable fields, casts, and `vessel()` relationship. Prevents autoload errors from Vessel→barrel() relationship.
-- `api/database/factories/VesselFactory.php` — Generates realistic vessels with type-appropriate naming (T-001 for tanks, B-001 for barrels), capacity ranges, materials, and locations. States: `inUse()`, `cleaning()`, `outOfService()`, `tank()`, `barrel()`.
-- `api/app/Services/VesselService.php` — Business logic following LotService pattern. `createVessel()` creates vessel and writes `vessel_created` event. `updateVessel()` writes `vessel_status_changed` event on status transitions.
-- `api/app/Http/Requests/StoreVesselRequest.php` — Validates: name (required), type (required, in 7 types), capacity_gallons (required, 0.0001–999999.9999), material/location/purchase_date/notes (optional), status (optional, in 4 statuses).
-- `api/app/Http/Requests/UpdateVesselRequest.php` — Partial update for name, status, location, notes, material.
-- `api/app/Http/Resources/VesselResource.php` — Extends BaseResource. Returns all vessel fields plus computed `current_volume`, `fill_percent`, and `current_lot` object (id, name, variety, vintage) when loaded.
-- `api/app/Http/Controllers/Api/V1/VesselController.php` — RESTful controller with `index()` (paginated, eager-loads currentLot, filterable by type/status/location/search), `store()`, `show()` (eager loads currentLot + barrel), `update()`.
-- `api/routes/api.php` — Added vessel routes. GET `/vessels` and GET `/vessels/{vessel}` open to authenticated users. POST and PUT gated by `role:owner,admin,winemaker`.
-- `api/app/Models/Lot.php` — Added `vessels()` belongsToMany relationship via lot_vessel pivot.
-- `api/tests/Feature/Production/VesselTest.php` — 19 tests covering events, CRUD, filtering, contents/fill%, validation, RBAC, and envelope.
+**Files:** migrations (vessels: UUID, capacity decimal(12,4), type/status/location, timestamps; lot_vessel pivot: volume_gallons, filled_at/emptied_at, cascadeOnDelete, indexes), Vessel model (HasFactory, HasUuids, LogsActivity, TYPES/STATUSES constants, relationships: lots, currentLot, events, barrel HasOne, accessors: current_volume/fill_percent from pivot), Barrel stub (prevents autoload errors), VesselFactory (type-appropriate naming T-001/B-001, capacity ranges, states), VesselService (pattern match to LotService), StoreLotRequest/UpdateVesselRequest, VesselResource (returns all fields + computed current_volume/fill_percent/current_lot), VesselController (index/store/show/update with eager-load/filter), routes, tests (19 tests).
 
-### Key Decisions
-- **Vessel can hold only one lot at a time (v1)** — matches spec's simplification. The `currentLot()` relationship uses `wherePivotNull('emptied_at')` to find the active record.
-- **Fill % computed dynamically** — `fill_percent` is a model accessor, not a stored column. Calculated as `(current_volume / capacity) * 100`. This avoids stale data and keeps the pivot table as the source of truth.
-- **lot_vessel pivot uses UUID primary key** — consistent with all other tables. Pivot has its own `id` column plus timestamps.
-- **Barrel model stubbed early** — created as a stub to prevent PHP autoload errors from Vessel's `barrel()` HasOne relationship. Full implementation deferred to Sub-Task 3.
-- **Vessels ordered by name** — default sort is alphabetical by name (T-001, T-002, etc.) unlike lots which sort by created_at desc. Vessel naming is structured, so alphabetical ordering makes intuitive sense.
+**Key Decisions:**
+- One lot per vessel (v1 simplification). currentLot uses wherePivotNull('emptied_at').
+- Fill % computed dynamically via accessor (not stored).
+- Pivot uses UUID primary key.
+- Barrel stubbed early to prevent PHP autoload errors.
+- Vessels ordered alphabetically by name (structured naming).
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- **VesselService follows LotService pattern** — constructor-injected EventLogger, model mutation → event write → structured log.
-- **VesselResource includes computed fields** — `current_volume`, `fill_percent`, and `current_lot` are computed from relationships, not stored columns. Future resources for similar "derived state" models should follow this approach.
+**Patterns Extended:**
+- VesselService follows LotService pattern.
+- VesselResource includes computed fields (current_volume, fill_percent, current_lot).
 
-### Test Summary
-- `tests/Feature/Production/VesselTest.php` (19 tests)
-  - Tier 1: vessel_created event written with correct payload
-  - Tier 1: vessel_status_changed event on status update
-  - Tier 2: full CRUD (create, list, show, update)
-  - Tier 2: filtering (type, status, location, search)
-  - Tier 2: current contents + fill % with lot_vessel pivot data
-  - Tier 2: validation (missing fields, invalid type, invalid status, negative capacity)
-  - Tier 2: RBAC (read_only can view not create, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 19 tests. Tier 1: vessel_created event, status_changed event. Tier 2: CRUD, pagination/filtering, current contents + fill %, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 3: Barrel Model and Barrel-Specific Tracking
-**Completed:** 2026-03-10
-**Status:** Done
+**Completed:** 2026-03-10 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100004_create_barrels_table.php` — Creates the `barrels` table with UUID primary key, FK to vessels (cascadeOnDelete), cooperage, toast_level, oak_type, forest_origin, volume_gallons as `decimal(12,4)`, years_used, qr_code. Indexed on cooperage, oak_type, toast_level, years_used for filter performance.
-- `api/app/Models/Barrel.php` — Full model replacing the Sub-Task 2 stub. Added `@use HasFactory<BarrelFactory>` (replacing the `@phpstan-ignore-next-line`). Scopes: `fromCooperage()` (ilike), `ofOakType()`, `withToast()`, `withYearsUsed()`, `minYearsUsed()`. Relationship: `vessel()` BelongsTo.
-- `api/database/factories/BarrelFactory.php` — 10 real cooperage names (François Frères, Seguin Moreau, Demptos, etc.), 8 forest origins (Allier, Tronçais, etc.), realistic volume ranges (55–65 gal). States: `newBarrel()`, `frenchOak()`, `americanOak()`, `heavyToast()`.
-- `api/app/Services/BarrelService.php` — `createBarrel()` wraps vessel + barrel creation in a DB transaction. Creates a vessel (type=barrel) and barrel metadata in one operation. Writes `barrel_created` event. `updateBarrel()` handles field updates split across barrel and vessel records, writes `barrel_status_changed` event on status transitions (including retirement). Auto-derives vessel material from oak_type.
-- `api/app/Http/Requests/StoreBarrelRequest.php` — Validates combined vessel + barrel fields: name (required), location/status/purchase_date/notes (optional vessel fields), cooperage/toast_level/oak_type/forest_origin/volume_gallons/years_used/qr_code (barrel-specific).
-- `api/app/Http/Requests/UpdateBarrelRequest.php` — Partial update for both barrel metadata and vessel fields (name, location, status, notes, cooperage, toast_level, oak_type, forest_origin, years_used, qr_code).
-- `api/app/Http/Resources/BarrelResource.php` — Extends BaseResource. Returns a flat structure merging vessel fields (name, location, status, purchase_date, notes, current_volume, fill_percent) with barrel fields (cooperage, toast_level, oak_type, etc.) and current_lot info. Uses `@mixin \App\Models\Barrel`.
-- `api/app/Http/Controllers/Api/V1/BarrelController.php` — RESTful controller. `index()` joins vessels for name ordering, supports filters (cooperage, oak_type, toast_level, years_used, location, status, search), transforms items through BarrelResource via `paginator->through()`. `store()`, `show()`, `update()` use BarrelResource for consistent flat response shape.
-- `api/routes/api.php` — Added barrel routes: GET `/barrels`, GET `/barrels/{barrel}` (authenticated), POST/PUT (role:owner,admin,winemaker).
-- `api/app/Http/Controllers/Api/V1/VesselController.php` — Updated `show()` to eager-load `barrel` relationship alongside `currentLot`.
-- `api/app/Http/Resources/VesselResource.php` — Added conditional `barrel` object in response when the barrel relationship is loaded (for type=barrel vessels viewed through the vessel endpoint).
-- `api/tests/Feature/Production/BarrelTest.php` — 20 tests covering events, CRUD, filters, 1:1 vessel consistency, validation, RBAC, envelope, and tenant isolation.
+**Files:** migration (barrels: UUID, FK vessels cascade, cooperage/toast_level/oak_type/forest_origin/volume decimal(12,4)/years_used/qr_code, indexes), Barrel model (full implementation, COOPERAGES/TOASTS/OAK_TYPES/FOREST_ORIGINS constants, scopes: fromCooperage/ofOakType/withToast/withYearsUsed/minYearsUsed), BarrelFactory (10 real cooperages, 8 forest origins, volume 55–65 gal, states), BarrelService (createBarrel wraps vessel+barrel in transaction, writes barrel_created event; updateBarrel handles split records, auto-derives vessel material from oak_type, writes barrel_status_changed on status transitions), StoreBarrelRequest/UpdateBarrelRequest (combined vessel+barrel validation), BarrelResource (flat structure merging vessel+barrel fields + current_lot), BarrelController (index with vessel join, show eager-loads barrel+currentLot, through() transform on list), routes, tests (20 tests).
 
-### Key Decisions
-- **Creating a barrel creates both a vessel and barrel record in one transaction** — the barrel endpoint is the primary interface for barrel management. A POST to `/barrels` creates a vessel (type=barrel) and a barrel metadata record atomically. This keeps the API clean for clients — they don't need to create a vessel first and then a barrel.
-- **Flat response structure for BarrelResource** — barrel API responses merge vessel fields (name, location, status) and barrel fields (cooperage, oak_type, etc.) into one flat object. This is more ergonomic for the client than nested `{vessel: {...}, barrel: {...}}`. The `vessel_id` is included for cross-referencing.
-- **Material auto-derived from oak_type** — when creating a barrel, the vessel's `material` field is automatically set based on oak_type (french → "French oak", american → "American oak", etc.). Keeps the barrel creation payload focused on barrel-specific fields.
-- **Retirement via status change** — retiring a barrel is modeled as changing the vessel's status to `out_of_service`. This writes a `barrel_status_changed` event, keeping the event log as the authoritative record of barrel lifecycle.
-- **Vessel show endpoint includes barrel data** — when viewing a vessel that is type=barrel via `/vessels/{id}`, the response now includes a `barrel` object with cooperage, toast, oak, and usage data. This allows the vessel endpoint to serve as a unified view.
-- **Barrel list ordered by vessel name** — uses a join to `vessels` table to order alphabetically by name (B-001, B-002, etc.), consistent with the vessel list ordering pattern.
-- **Search covers both barrel and vessel fields** — barrel search checks cooperage, qr_code, vessel name, and vessel location using ilike.
+**Key Decisions:**
+- Creating barrel creates vessel+barrel atomically in transaction. Barrel endpoint is primary interface.
+- Flat response merges vessel+barrel fields (ergonomic for client, avoids nested structure).
+- Material auto-derived from oak_type (french → "French oak", etc.).
+- Retirement: status → out_of_service writes barrel_status_changed event.
+- Vessel show endpoint includes barrel data (type=barrel vessels).
+- Barrel list ordered by vessel name (B-001, B-002).
+- Search covers cooperage, qr_code, vessel name, location with ilike.
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- **BarrelService follows Production Service Pattern** — constructor-injected EventLogger, DB transaction wrapping multi-table mutations, entity-specific events (`barrel_created`, `barrel_status_changed`).
-- **Barrel list uses `paginator->through()`** — unlike Lot and Vessel lists which return raw model data from `ApiResponse::paginated()`, the barrel list transforms items through BarrelResource to include vessel fields in the response. Future multi-table resources should follow this approach.
-- **1:1 Extension Pattern** — Barrel extends Vessel with a separate table. The barrel endpoint handles both records. The vessel endpoint conditionally includes barrel data when loaded. This pattern can be reused if other vessel types need extension tables.
+**Patterns Extended:**
+- BarrelService follows Production Service Pattern.
+- Barrel list uses paginator->through() for multi-table resource transform (differs from Lot/Vessel).
+- 1:1 Extension Pattern: Barrel extends Vessel. Barrel endpoint handles both records. Vessel endpoint conditionally includes barrel when loaded.
 
-### Test Summary
-- `tests/Feature/Production/BarrelTest.php` (20 tests)
-  - Tier 1: barrel_created event with correct payload (cooperage, toast, oak, volume, years_used, vessel_id)
-  - Tier 1: barrel_status_changed event on retirement (status → out_of_service)
-  - Tier 1: tenant isolation (cross-tenant barrel data access prevented)
-  - Tier 2: full CRUD (create with vessel+barrel, list, show, update)
-  - Tier 2: filtering (cooperage, oak_type, toast_level, years_used)
-  - Tier 2: vessel show includes barrel metadata for barrel-type vessels
-  - Tier 2: validation (missing name, invalid toast_level, invalid oak_type)
-  - Tier 2: RBAC (read_only can view not create, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 20 tests. Tier 1: barrel_created event, retirement (status → out_of_service), tenant isolation. Tier 2: CRUD, filtering, vessel show includes barrel, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 4: Work Order System
-**Completed:** 2026-03-10
-**Status:** Done
+**Completed:** 2026-03-10 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100005_create_work_order_templates_table.php` — Creates `work_order_templates` table with UUID PK, name, operation_type, default_notes text, is_active boolean. Indexed on operation_type and is_active.
-- `api/database/migrations/tenant/2026_03_10_100006_create_work_orders_table.php` — Creates `work_orders` table with UUID PK, operation_type, nullable FKs to lots/vessels/users (assigned_to, completed_by), due_date, status, priority, notes, completed_at, completion_notes, template_id. Composite index on [status, due_date] for calendar queries. User FKs use nullOnDelete.
-- `api/app/Models/WorkOrderTemplate.php` — Model with `DEFAULT_OPERATION_TYPES` constant (12 operations). `active()` scope, `workOrders()` HasMany.
-- `api/app/Models/WorkOrder.php` — STATUSES (pending/in_progress/completed/skipped), PRIORITIES (low/normal/high). Eloquent defaults for status and priority. Relationships: lot(), vessel(), assignedUser(), completedByUser(), template(). Scopes for filtering.
-- `api/database/factories/WorkOrderTemplateFactory.php` and `WorkOrderFactory.php` — Realistic factories with states.
-- `api/app/Services/WorkOrderService.php` — create, createFromTemplate, bulkCreate, completeWorkOrder (dual events), updateWorkOrder.
-- `api/app/Http/Requests/` — StoreWorkOrderRequest, UpdateWorkOrderRequest, BulkStoreWorkOrderRequest.
-- `api/app/Http/Resources/WorkOrderResource.php` — Full resource with nested relationships.
-- `api/app/Http/Controllers/Api/V1/WorkOrderController.php` — index, store, show, update, complete, bulkStore, calendar, templates.
-- `api/routes/api.php` — Work order routes with RBAC split (winemaker+ create, cellar_hand+ update/complete).
-- `api/tests/Feature/Production/WorkOrderTest.php` — 21 tests.
+**Files:** migrations (work_order_templates: operation_type/is_active/default_notes; work_orders: operation_type/lot/vessel/assigned_to/completed_by/due_date/status/priority/completed_at/template_id, composite [status, due_date] index), WorkOrderTemplate/WorkOrder models (OPERATION_TYPES/STATUSES/PRIORITIES constants, relationships, scopes), factories, WorkOrderService (create/createFromTemplate/bulkCreate/completeWorkOrder writes dual events/updateWorkOrder), StoreWorkOrderRequest/UpdateWorkOrderRequest/BulkStoreWorkOrderRequest, WorkOrderResource (nested relationships), WorkOrderController (index/store/show/update/complete/bulkStore/calendar/templates endpoints), routes (winemaker+ create, cellar_hand+ update/complete), tests (21 tests).
 
-### Key Decisions
-- **Operation types are free-text** — configurable per winery per spec. Templates provide curated list but don't restrict custom values.
-- **Dual event on completion** — writes `work_order_completed` on work order AND domain event on lot (e.g., `pump_over_completed`).
-- **RBAC split** — winemaker+ creates, cellar_hand+ completes. Two middleware groups.
-- **Calendar groups by due_date** — `{ dates: { "2026-03-15": [...] } }` structure.
-- **Bulk targets array** — common fields + per-target lot_id/vessel_id, max 100 targets.
-- **Auth guard reset in multi-user tests** — `app('auth')->forgetGuards()` before switching tokens to prevent Sanctum guard caching.
+**Key Decisions:**
+- Operation types free-text (configurable), templates provide curated list but don't restrict.
+- Dual event on completion: work_order_completed + domain event on lot (e.g., pump_over_completed).
+- RBAC split: winemaker+ creates, cellar_hand+ completes (two middleware groups).
+- Calendar groups by due_date: { dates: { "2026-03-15": [...] } }.
+- Bulk targets: common fields + per-target lot_id/vessel_id, max 100 targets.
+- Auth guard reset in multi-user tests: app('auth')->forgetGuards() before token switch.
 
-### Deviations from Spec
-- None.
+**Deviations:** None.
 
-### Patterns Extended
-- Dual event pattern for operation completion (work order + lot timeline).
-- RBAC test guard reset pattern for multi-user tests.
+**Patterns Extended:**
+- Dual event pattern for operation completion.
+- RBAC test guard reset pattern.
 
-### Test Summary
-- `tests/Feature/Production/WorkOrderTest.php` (21 tests)
-  - Tier 1: work_order_created event, work_order_completed + lot domain event, tenant isolation
-  - Tier 2: CRUD, filters (status, due date range), bulk creation, templates, calendar, completion flow
-  - Tier 2: validation (missing operation_type, invalid status/priority)
-  - Tier 2: RBAC (cellar_hand complete not create, read_only view only), envelope, unauthenticated
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 21 tests. Tier 1: work_order_created event, work_order_completed + lot domain event, tenant isolation. Tier 2: CRUD, filters (status, due date range), bulk, templates, calendar, completion flow, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 5: Additions Logging with Inventory Auto-Deduct
-**Completed:** 2026-03-10
-**Status:** Done
+**Completed:** 2026-03-10 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100007_create_additions_table.php` — Creates `additions` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), addition_type, product_name, rate/rate_unit (nullable), total_amount/total_unit, reason, performed_by FK to users, performed_at timestamp, nullable inventory_item_id (no FK constraint — inventory module not yet built). Indexed on addition_type, product_name, [lot_id, addition_type] composite, performed_at.
-- `api/app/Models/Addition.php` — Model with ADDITION_TYPES (sulfite, nutrient, fining, acid, enzyme, tannin, other), RATE_UNITS (ppm, g/L, mg/L, g/hL, lb/1000gal, mL/L), TOTAL_UNITS (g, kg, lb, oz, mL, L, gal) constants. Relationships: lot(), vessel(), performer(). Scopes: ofType(), forProduct() (ilike), forLot(), performedBetween(), sulfiteOnly(). Full PHPStan generics on all relationships and scopes.
-- `api/database/factories/AdditionFactory.php` — Realistic product library organized by addition type: 3 sulfite products, 4 nutrients (Fermaid O/K, Go-Ferm, DAP), 4 fining agents, 3 acids, 2 enzymes, 2 tannins. Default rates and units per product. States: sulfite(), nutrient(), fining().
-- `api/app/Services/AdditionService.php` — `createAddition()` creates addition in transaction, writes `addition_made` event on the lot entity with full payload (type, product, rate, amount, unit, vessel). `getSo2RunningTotal()` sums sulfite additions with rate_unit=ppm for a lot. Inventory auto-deduct is stubbed with a comment for 04-inventory.md integration.
-- `api/app/Http/Requests/StoreAdditionRequest.php` — Validates lot_id (required, exists), addition_type (required, in constants), product_name (required), total_amount (required, 0.0001–999999.9999), total_unit (required, in constants), rate/rate_unit (nullable, validated against constants), vessel_id/inventory_item_id (nullable UUIDs).
-- `api/app/Http/Resources/AdditionResource.php` — Returns all addition fields with nested lot (id, name, variety, vintage), vessel (id, name, type, location), and performed_by (id, name) when relationships loaded.
-- `api/app/Http/Controllers/Api/V1/AdditionController.php` — `index()` with filters (lot_id, addition_type, product_name, vessel_id, performed date range), ordered by performed_at DESC. `store()` creates via AdditionService. `show()` with eager-loaded relationships. `so2Total()` returns running SO2 ppm total for a lot.
-- `api/routes/api.php` — GET routes (index, so2-total, show) open to all authenticated. POST gated by `role:owner,admin,winemaker,cellar_hand`.
-- `api/app/Models/Lot.php` — Added `additions()` HasMany relationship.
-- `api/tests/Feature/Production/AdditionTest.php` — 16 tests.
+**Files:** migration (additions: lot/vessel FKs, addition_type/product_name/rate/rate_unit/total_amount/total_unit/reason/performed_by/performed_at, inventory_item_id nullable UUID no FK, indexes), Addition model (ADDITION_TYPES/RATE_UNITS/TOTAL_UNITS constants, relationships, scopes: ofType/forProduct/forLot/performedBetween/sulfiteOnly), AdditionFactory (3 sulfite, 4 nutrients, 4 finings, 3 acids, 2 enzymes, 2 tannins products with defaults), AdditionService (createAddition in transaction writes addition_made event + full payload, getSo2RunningTotal sums sulfite ppm, inventory deduct stubbed), StoreAdditionRequest, AdditionResource (nested lot/vessel/performer), AdditionController (index/store/show/so2Total with filters), routes (GETs authenticated, POST cellar_hand+), Lot model (additions HasMany), tests (16 tests).
 
-### Key Decisions
-- **Additions are immutable log entries** — no update/delete endpoints. Once logged, an addition cannot be modified. This matches the spec's ADDITIVE offline sync requirement (no last-write-wins).
-- **Cellar hand+ can create additions** — per spec, additions are a cellar operation. The RBAC is `role:owner,admin,winemaker,cellar_hand`, matching the API endpoint table.
-- **SO2 running total via sum query** — `getSo2RunningTotal()` sums `rate` where addition_type=sulfite and rate_unit=ppm. Simple aggregate query, no materialized column needed at this scale.
-- **Inventory auto-deduct stubbed** — `inventory_item_id` column exists but has no FK constraint. The AdditionService has a commented placeholder for `deductInventory()`. Will be wired up in 04-inventory.md.
-- **Static routes before parameterized** — `/additions/so2-total` registered before `/additions/{addition}` to prevent UUID route parameter from catching the static path.
-- **Addition type is constrained enum** — unlike work order operation_type (free-text), addition types are validated against a fixed list (sulfite, nutrient, fining, acid, enzyme, tannin, other). Product names within each type are free-text.
+**Key Decisions:**
+- Immutable log entries (no update/delete, matches spec's ADDITIVE offline sync).
+- Cellar hand+ can create (spec: cellar operation).
+- SO2 running total: sum query, no materialized column.
+- Inventory auto-deduct stubbed (wired in 04-inventory.md).
+- Static routes before parameterized (/additions/so2-total before /{addition}).
+- Addition type constrained enum (fixed list); product names free-text.
 
-### Deviations from Spec
-- **Addition product library is NOT pre-seeded** — the spec says "pre-seeded with common products and default rates." Instead, the factory contains the product library for testing/demo purposes. A formal ProductLibrary model/seeder was deferred as it's not required for the API to function — the factory data serves as the reference. This can be added in the demo seeder (Sub-Task 14).
+**Deviations:** Addition product library NOT pre-seeded (deferred, factory contains library for reference).
 
-### Patterns Extended
-- AdditionService follows Production Service Pattern with EventLogger injection.
-- Addition events written on the lot entity (entity_type='lot') for lot timeline visibility.
-- Cross-tenant test uses direct model access pattern (not HTTP) per established convention.
+**Patterns Extended:**
+- AdditionService follows Production Service Pattern.
+- Addition events written on lot entity for lot timeline.
+- Cross-tenant test uses direct model access.
 
-### Test Summary
-- `tests/Feature/Production/AdditionTest.php` (16 tests)
-  - Tier 1: addition_made event with correct payload, SO2 running total across multiple additions, tenant isolation
-  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
-  - Tier 2: filters (lot_id, addition_type)
-  - Tier 2: validation (missing required fields, invalid addition_type, invalid total_unit)
-  - Tier 2: RBAC (cellar_hand can create, read_only cannot create, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 16 tests. Tier 1: addition_made event, SO2 total across additions, tenant isolation. Tier 2: CRUD, filters, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 6: Transfer and Racking Operations
-**Completed:** 2026-03-14
-**Status:** Done
+**Completed:** 2026-03-14 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100008_create_transfers_table.php` — Creates `transfers` table with UUID PK, FK to lots (cascadeOnDelete), FKs to from_vessel/to_vessel (nullOnDelete), volume_gallons as `decimal(12,4)`, transfer_type, variance_gallons as `decimal(12,4)` default 0, performed_by FK to users (nullOnDelete), performed_at, notes. Indexed on lot_id, [from_vessel_id, performed_at], [to_vessel_id, performed_at].
-- `api/app/Models/Transfer.php` — Model with TRANSFER_TYPES (gravity, pump, filter, press) constant. Default attributes: variance_gallons=0. Relationships: lot(), fromVessel(), toVessel(), performer(). Scopes: forLot(), ofType(), involvingVessel() (OR query matching from or to), performedBetween(). Full PHPStan generics.
-- `api/database/factories/TransferFactory.php` — Realistic factory with volume 50–200 gal, variance 0–2 gal, notes. States: gravity(), pump().
-- `api/app/Services/TransferService.php` — `executeTransfer()` in DB transaction: validates source vessel has enough volume (throws ValidationException if insufficient), logs warning if target overfill, creates Transfer record, updates lot_vessel pivot (decrease source, increase target), writes `transfer_executed` event on lot. `decreaseVesselVolume()` reduces pivot volume, marks emptied_at if zero, updates vessel status to 'empty' if no other active lots. `increaseVesselVolume()` adds to existing pivot or creates new one, sets vessel status to 'in_use'.
-- `api/app/Http/Requests/StoreTransferRequest.php` — Validates lot_id (required, exists), from_vessel_id (required, exists, `different:to_vessel_id`), to_vessel_id (required, exists), volume_gallons (required, 0.0001–999999.9999), transfer_type (required, in constants), variance_gallons (nullable, 0–999999.9999), notes (nullable).
-- `api/app/Http/Resources/TransferResource.php` — Returns all transfer fields with nested lot, from_vessel, to_vessel, and performed_by when relationships loaded.
-- `api/app/Http/Controllers/Api/V1/TransferController.php` — `index()` with filters (lot_id, transfer_type, vessel_id via involvingVessel, performed date range), ordered by performed_at DESC. `store()` via TransferService. `show()` with eager-loaded relationships.
-- `api/routes/api.php` — GET /transfers and GET /transfers/{transfer} open to all authenticated. POST /transfers gated by `role:owner,admin,winemaker,cellar_hand`.
-- `api/app/Models/Lot.php` — Added `transfers()` HasMany relationship.
-- `api/tests/Feature/Production/TransferTest.php` — 16 tests.
+**Files:** migration (transfers: lot/from_vessel/to_vessel FKs, volume_gallons/variance_gallons decimal(12,4)/transfer_type/performed_by/performed_at, indexes), Transfer model (TRANSFER_TYPES constant, relationships, scopes: forLot/ofType/involvingVessel/performedBetween), TransferFactory, TransferService (executeTransfer in transaction: validates source volume, logs warning if overfill, creates record, updates lot_vessel pivot decrease/increase, writes transfer_executed event; decreaseVesselVolume/increaseVesselVolume helpers), StoreTransferRequest (different:to_vessel_id validation), TransferResource, TransferController (index/store/show), routes (POST cellar_hand+), Lot model (transfers HasMany), tests (16 tests).
 
-### Key Decisions
-- **Volume validation on source vessel** — server rejects transfers exceeding the source vessel's current volume. This is a DESTRUCTIVE operation that must be validated server-side, unlike additions which are ADDITIVE.
-- **Target overfill is a warning, not a hard block** — if transfer would exceed target vessel capacity, it's logged as a warning but allowed. Winemakers may intentionally overfill during active fermentation or use headspace differently.
-- **Variance subtracted from target** — variance_gallons represents loss during transfer. The target receives `volume_gallons - variance_gallons`. Source loses exactly `volume_gallons`.
-- **`different:to_vessel_id` validation** — Laravel's `different` rule prevents transferring from a vessel to itself, a common data entry error.
-- **Transfers are immutable** — no update/delete endpoints. Once logged, a transfer cannot be modified, same pattern as additions.
-- **Cellar hand+ can execute transfers** — per spec, transfers are a cellar operation.
-- **Vessel status auto-managed** — source vessel set to 'empty' when all volume removed (no active lot_vessel pivots). Target vessel set to 'in_use' when volume added.
+**Key Decisions:**
+- Volume validation on source vessel (destructive operation validated server-side).
+- Target overfill is warning, not hard block (intentional overfill during fermentation).
+- Variance subtracted from target (loss during transfer).
+- different:to_vessel_id prevents self-transfer.
+- Immutable (no update/delete).
+- Cellar hand+ can execute.
+- Vessel status auto-managed (empty when all volume removed, in_use when volume added).
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- TransferService follows Production Service Pattern with EventLogger injection and DB transaction.
-- lot_vessel pivot management extracted into reusable decreaseVesselVolume/increaseVesselVolume methods on the service.
-- Transfer events written on the lot entity for lot timeline visibility.
+**Patterns Extended:**
+- TransferService follows Production Service Pattern.
+- lot_vessel pivot management (decrease/increase) extracted to reusable helpers.
+- Transfer events on lot entity.
 
-### Test Summary
-- `tests/Feature/Production/TransferTest.php` (16 tests)
-  - Tier 1: transfer_executed event with correct payload, volume validation (reject overdraw), volume updates (source decrease, target increase with variance), empty vessel status change, tenant isolation
-  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
-  - Tier 2: filters (lot_id)
-  - Tier 2: validation (missing required fields, same vessel, invalid transfer_type)
-  - Tier 2: RBAC (cellar_hand can execute, read_only cannot)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 16 tests. Tier 1: transfer_executed event, volume validation, updates (source decrease, target increase with variance), empty status change, tenant isolation. Tier 2: CRUD, filters, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 7: Pressing Operations
-**Completed:** 2026-03-14
-**Status:** Done
+**Completed:** 2026-03-14 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100009_create_press_logs_table.php` — Creates `press_logs` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), press_type, fruit_weight_kg as `decimal(12,4)`, total_juice_gallons as `decimal(12,4)`, fractions JSONB array, yield_percent as `decimal(8,4)`, pomace_weight_kg/pomace_destination (nullable), performed_by FK, performed_at. Indexed on lot_id, press_type, performed_at.
-- `api/app/Models/PressLog.php` — Model with PRESS_TYPES (basket, bladder, pneumatic, manual), FRACTION_TYPES (free_run, light_press, heavy_press), POMACE_DESTINATIONS (compost, vineyard, disposal, sold) constants. Relationships: lot(), vessel(), performer(). Scopes: ofType(), forLot(), performedBetween(). Full PHPStan generics.
-- `api/database/factories/PressLogFactory.php` — Generates realistic press data with yield calculations. Default 3 fractions (65% free run, 25% light, 10% heavy). States: basket(), pneumatic(), freeRunOnly().
-- `api/app/Services/PressLogService.php` — `logPressing()` in DB transaction: calculates yield_percent from fruit_weight_kg and total_juice_gallons, creates child lots for fractions with `create_child_lot: true` flag, writes `pressing_logged` event on parent lot. `createFractionChildLot()` creates child lot inheriting parent's variety/vintage/source, writes `lot_created` event on child.
-- `api/app/Http/Requests/StorePressLogRequest.php` — Validates lot_id (required, exists), press_type (required, in constants), fruit_weight_kg/total_juice_gallons (required, numeric), fractions array (required, min 1, max 10) with nested fraction/volume_gallons/create_child_lot validation, pomace fields (nullable).
-- `api/app/Http/Resources/PressLogResource.php` — Returns all press log fields with nested lot, vessel, performed_by when loaded. Fractions returned as-is from JSONB.
-- `api/app/Http/Controllers/Api/V1/PressLogController.php` — `index()` with filters (lot_id, press_type, performed date range), ordered by performed_at DESC. `store()` via PressLogService. `show()` with eager-loaded relationships.
-- `api/routes/api.php` — GET /press-logs and GET /press-logs/{pressLog} open to all authenticated. POST /press-logs gated by `role:owner,admin,winemaker`.
-- `api/app/Models/Lot.php` — Added `pressLogs()` HasMany relationship.
-- `api/tests/Feature/Production/PressLogTest.php` — 17 tests.
+**Files:** migration (press_logs: lot/vessel FKs, press_type/fruit_weight_kg/total_juice_gallons decimal(12,4)/fractions JSONB/yield_percent/pomace_weight_kg/pomace_destination/performed_by/performed_at, indexes), PressLog model (PRESS_TYPES/FRACTION_TYPES/POMACE_DESTINATIONS constants, relationships, scopes), PressLogFactory (realistic press data, default 3 fractions with yield calc, states), PressLogService (logPressing in transaction: calculates yield_percent, creates child lots for fractions with create_child_lot flag, writes pressing_logged event; createFractionChildLot creates child inheriting parent metadata + writes lot_created), StorePressLogRequest (fractions array 1–10 with nested validation), PressLogResource, PressLogController, routes (POST winemaker+), Lot model (pressLogs HasMany), tests (17 tests).
 
-### Key Decisions
-- **Pressing is winemaker+ only** — unlike additions and transfers (cellar_hand+), pressing is a significant winemaking decision that affects wine quality. RBAC is `role:owner,admin,winemaker`.
-- **Fractions stored as JSONB array** — flexible for 1-3 fractions per pressing. Each fraction has fraction type, volume, and optional child_lot_id. Max 10 fractions per validation rule.
-- **Child lots created on demand** — pass `create_child_lot: true` in a fraction to spawn a child lot. Child inherits parent's variety, vintage, source_type, source_details. Named as "Parent Name — Free Run" etc. Gets its own `lot_created` event for independent tracking.
-- **Yield percent computed and stored** — `(total_juice_gallons / fruit_weight_kg) * 100`. Stored on the record for easy querying/reporting without recomputation.
-- **Pomace tracking is optional** — pomace_weight_kg and pomace_destination are nullable. Not all wineries track pomace disposal, but the fields exist for compliance.
-- **Press logs are immutable** — no update/delete endpoints, same pattern as additions and transfers.
+**Key Decisions:**
+- Pressing winemaker+ only (significant winemaking decision).
+- Fractions stored JSONB array (flexible 1-3, max 10, each has type/volume/optional child_lot_id).
+- Child lots created on demand (create_child_lot: true). Child inherits variety/vintage/source, named "Parent Name — Free Run" etc., gets lot_created event.
+- Yield percent computed and stored: (total_juice_gallons / fruit_weight_kg) * 100.
+- Pomace tracking optional.
+- Immutable.
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- PressLogService follows Production Service Pattern with EventLogger injection and DB transaction.
-- Child lot creation reuses the `lot_created` event type for consistency with LotService.
-- JSONB fractions array with nested validation rules (`fractions.*.fraction`, `fractions.*.volume_gallons`).
+**Patterns Extended:**
+- PressLogService follows Production Service Pattern.
+- Child lot creation reuses lot_created event.
+- JSONB fractions array with nested validation (fractions.*.fraction, fractions.*.volume_gallons).
 
-### Test Summary
-- `tests/Feature/Production/PressLogTest.php` (17 tests)
-  - Tier 1: pressing_logged event with correct payload, yield percent calculation, child lot creation from fractions (with events), tenant isolation
-  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
-  - Tier 2: filters (lot_id)
-  - Tier 2: validation (missing required fields, invalid press_type, invalid fraction type)
-  - Tier 2: RBAC (winemaker can log, cellar_hand cannot, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 17 tests. Tier 1: pressing_logged event, yield calculation, child lot creation from fractions (with events), tenant isolation. Tier 2: CRUD, filters, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 8: Filtering and Fining Operations
-**Completed:** 2026-03-14
-**Status:** Done
+**Completed:** 2026-03-14 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100010_create_filter_logs_table.php` — Creates `filter_logs` table with UUID PK, FK to lots (cascadeOnDelete), nullable FK to vessels (nullOnDelete), filter_type, filter_media, flow_rate_lph, volume_processed_gallons, fining fields (agent, rate, rate_unit, bench_trial_notes, treatment_notes), pre/post_analysis_id (nullable UUIDs for future lab module), performed_by/at, notes. Indexed on lot_id, filter_type, performed_at.
-- `api/app/Models/FilterLog.php` — Model with FILTER_TYPES (pad, crossflow, cartridge, plate_and_frame, de, lenticular), FINING_RATE_UNITS (g/L, g/hL, mL/L, lb/1000gal). Relationships: lot(), vessel(), performer(). Scopes: ofType(), forLot(), performedBetween(), withFining(). Full PHPStan generics.
-- `api/database/factories/FilterLogFactory.php` — Media library organized by filter type, fining agent library with typical rates. States: withFining(), crossflow(), pad().
-- `api/app/Services/FilterLogService.php` — `logFiltering()` creates filter log, writes `filtering_logged` event with filter details and conditional fining/analysis payload fields.
-- `api/app/Http/Requests/StoreFilterLogRequest.php` — Validates filter_type (required, in constants), volume_processed_gallons (required), fining fields (all nullable), analysis IDs (nullable UUIDs).
-- `api/app/Http/Resources/FilterLogResource.php` — Returns all fields with nested lot/vessel/performer. Carbon `@property` annotations for PHPStan compatibility.
-- `api/app/Http/Controllers/Api/V1/FilterLogController.php` — index with filters (lot_id, filter_type, has_fining, performed date range), store, show.
-- `api/routes/api.php` — GET (authenticated), POST (cellar_hand+).
-- `api/app/Models/Lot.php` — Added `filterLogs()` HasMany.
-- `api/tests/Feature/Production/FilterLogTest.php` — 18 tests.
+**Files:** migration (filter_logs: lot/vessel FKs, filter_type/filter_media/flow_rate_lph/volume_processed_gallons decimal(12,4)/fining fields/pre_post_analysis_id nullable UUIDs/performed_by/performed_at, indexes), FilterLog model (FILTER_TYPES/FINING_RATE_UNITS constants, relationships, scopes: ofType/forLot/performedBetween/withFining), FilterLogFactory (media by type, fining agents with rates, states), FilterLogService (logFiltering creates record, writes filtering_logged event with conditional fining/analysis payload), StoreFilterLogRequest, FilterLogResource (Carbon @property annotations), FilterLogController, routes (POST cellar_hand+), Lot model (filterLogs HasMany), tests (18 tests).
 
-### Key Decisions
-- **Kept simple per spec** — "this is a log entry, not a complex workflow." No multi-step state machine, just create and read.
-- **Fining is optional on a filter log** — same record captures pure filtration, fining+filtration, or standalone fining. The `has_fining` filter scope/query param lets the UI distinguish.
-- **Pre/post analysis IDs are nullable UUIDs with no FK** — lab module (03-lab-fermentation.md) isn't built yet. These will link to lab analysis entries once that module exists.
-- **Cellar hand+ can log** — filtering is a routine cellar operation, unlike pressing which is winemaker+.
-- **Bench trial notes and treatment notes are separate fields** — bench trial captures the small-scale testing, treatment notes capture the final full-lot application. Keeps them distinct for reporting.
+**Key Decisions:**
+- Simple log entry (per spec), not complex workflow.
+- Fining optional on filter log (pure filtration, fining+filtration, or standalone).
+- Pre/post analysis IDs nullable UUIDs no FK (lab module not yet built).
+- Cellar hand+ can log (routine cellar operation).
+- Bench trial notes and treatment notes separate.
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- FilterLogService follows Production Service Pattern with conditional event payload (fining details only included when present).
-- `withFining()` scope and `has_fining` query filter for distinguishing fining operations from pure filtration.
+**Patterns Extended:**
+- FilterLogService follows Production Service Pattern.
+- withFining() scope + has_fining query filter.
 
-### Test Summary
-- `tests/Feature/Production/FilterLogTest.php` (18 tests)
-  - Tier 1: filtering_logged event with correct payload, fining details in event when present, tenant isolation
-  - Tier 2: CRUD (create with all fields, list with pagination, show with relationships)
-  - Tier 2: filters (lot_id, has_fining)
-  - Tier 2: validation (missing required fields, invalid filter_type, invalid fining_rate_unit)
-  - Tier 2: RBAC (cellar_hand can log, read_only cannot, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 18 tests. Tier 1: filtering_logged event, fining details when present, tenant isolation. Tier 2: CRUD, filters, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 9: Blending Operations
-**Completed:** 2026-03-14
-**Status:** Done
+**Completed:** 2026-03-14 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100011_create_blend_trials_table.php` — Creates `blend_trials` table with UUID PK, name, status (draft/finalized/archived) with default 'draft', version integer default 1, variety_composition JSONB, ttb_label_variety (nullable), total_volume_gallons as `decimal(12,4)`, resulting_lot_id (nullable FK to lots, nullOnDelete), created_by FK to users (nullOnDelete), finalized_at (nullable datetime), notes. Indexed on status, created_by.
-- `api/database/migrations/tenant/2026_03_10_100012_create_blend_trial_components_table.php` — Creates `blend_trial_components` table with UUID PK, FK to blend_trials (cascadeOnDelete), FK to lots as source_lot_id (cascadeOnDelete), percentage as `decimal(8,4)`, volume_gallons as `decimal(12,4)`. Unique constraint on [blend_trial_id, source_lot_id]. Indexed on source_lot_id.
-- `api/app/Models/BlendTrial.php` — Model with STATUSES (draft/finalized/archived), TTB_VARIETY_THRESHOLD = 75.0. Relationships: components(), creator(), resultingLot(). Scopes: withStatus(), drafts(). Full PHPStan generics.
-- `api/app/Models/BlendTrialComponent.php` — Model with blendTrial() and sourceLot() relationships. Full PHPStan generics.
-- `api/database/factories/BlendTrialFactory.php` — States: finalized(), archived().
-- `api/database/factories/BlendTrialComponentFactory.php` — Factory for component records.
-- `api/app/Services/BlendService.php` — Most complex service in the module. `createTrial()` calculates variety_composition from source lot varieties weighted by volume, determines TTB label variety (>=75% threshold), creates trial + components in transaction. `finalizeTrial()` validates draft status, validates all source lots have sufficient volume, creates new blended lot (variety from TTB label or "Blend", vintage from common or min), deducts volumes from each source lot with `volume_deducted` events, writes `lot_created` and `blend_finalized` events on the new lot.
-- `api/app/Http/Requests/StoreBlendTrialRequest.php` — Validates name (required), components array (required, min 2, max 20) with source_lot_id (UUID, exists), percentage (0.0001–100), volume_gallons (0.0001–999999.9999).
-- `api/app/Http/Resources/BlendTrialResource.php` — Nested components with source lots, resulting lot, creator. Carbon `@property` annotations. `@phpstan-ignore return.type` on components map for Collection covariance.
-- `api/app/Http/Controllers/Api/V1/BlendController.php` — index (filterable by status), store, show, finalize.
-- `api/routes/api.php` — GET /blend-trials and GET /blend-trials/{blendTrial} open to authenticated. POST /blend-trials and POST /blend-trials/{blendTrial}/finalize gated by `role:owner,admin,winemaker`.
-- `api/tests/Feature/Production/BlendTrialTest.php` — 18 tests.
+**Files:** migrations (blend_trials: status draft/finalized/archived default draft/version/variety_composition JSONB/ttb_label_variety/total_volume_gallons decimal(12,4)/resulting_lot_id FK/created_by FK/finalized_at/notes; blend_trial_components: blend_trial/source_lot FKs cascade/percentage/volume_gallons decimal(12,4), unique [blend_trial_id, source_lot_id]), BlendTrial model (STATUSES/TTB_VARIETY_THRESHOLD=75.0 constant, relationships: components/creator/resultingLot, scopes: withStatus/drafts), BlendTrialComponent model, factories, BlendService (createTrial calculates variety_composition weighted by volume, determines TTB label variety >=75%, creates trial+components in transaction; finalizeTrial validates draft/sufficient volumes, creates blended lot with variety from TTB label or "Blend" + vintage common or min, deducts volumes with volume_deducted events, writes lot_created + blend_finalized events), StoreBlendTrialRequest (min 2 max 20 components with volume %), BlendTrialResource (nested components+source lots, resulting lot, creator, @phpstan-ignore on Collection covariance), BlendController (index/store/show/finalize), routes (POST/finalize winemaker+), tests (18 tests).
 
-### Key Decisions
-- **TTB compliance modeled as class constant** — `TTB_VARIETY_THRESHOLD = 75.0` on BlendTrial model. If the threshold changes, it's a single constant update. Variety composition stored as JSONB percentages for flexibility.
-- **Blending is winemaker+ only** — significant winemaking decision that affects wine identity and TTB labeling. RBAC is `role:owner,admin,winemaker`.
-- **Finalization is destructive and validated** — server validates all source lots have sufficient volume before any deductions. Each source lot gets its own `volume_deducted` event for full audit trail. Double finalization is rejected.
-- **Resulting lot variety from TTB label** — if a single variety reaches 75%, the blended lot is labeled as that variety. Otherwise, variety is set to "Blend". Vintage is the common vintage if all sources match, otherwise the minimum vintage.
-- **Status explicitly set in service** — `$data['status'] = 'draft'` set in `createTrial()` to ensure the PHP model object has the value, even though the DB default handles persistence. Prevents null status in API responses.
-- **Components require min 2** — a blend must have at least 2 source lots. Validation enforces this at the request level.
-- **Collection covariance suppressed** — PHPStan reports a false positive on `Collection::map()` return type covariance in BlendTrialResource. Suppressed with `@phpstan-ignore return.type` inline comment.
+**Key Decisions:**
+- TTB compliance as class constant (TTB_VARIETY_THRESHOLD = 75.0). Variety composition stored JSONB percentages.
+- Blending winemaker+ only (affects wine identity/TTB labeling).
+- Finalization destructive + validated (all source lots have sufficient volume before deductions).
+- Resulting lot variety from TTB label (>=75% → that variety, else "Blend"). Vintage common or minimum.
+- Status explicitly set in service (ensures PHP object has value even with DB default).
+- Components min 2 (blend requires multiple sources).
+- Collection covariance suppressed with @phpstan-ignore.
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- BlendService follows Production Service Pattern with EventLogger injection and DB transaction.
-- Multi-event finalization: `lot_created` + `blend_finalized` on new lot, `volume_deducted` on each source lot.
-- Variety composition calculated server-side from source lot metadata — clients don't need to compute percentages.
-- JSON int/float encoding handled with `(float)` casts in tests (established pattern from Sub-Tasks 6–8).
+**Patterns Extended:**
+- BlendService follows Production Service Pattern.
+- Multi-event finalization (lot_created + blend_finalized on new lot, volume_deducted on each source).
+- Variety composition calculated server-side.
+- JSON int/float encoding with (float) casts (established pattern from Sub-Tasks 6–8).
 
-### Test Summary
-- `tests/Feature/Production/BlendTrialTest.php` (18 tests)
-  - Tier 1: variety composition and TTB label variety calculation, TTB null when no variety reaches 75%, finalization creates new lot and deducts source volumes, blend_finalized and volume_deducted events, reject double finalization, reject insufficient volume, tenant isolation
-  - Tier 2: CRUD (create with components, list with pagination, filter by status, show with nested data)
-  - Tier 2: validation (missing required fields, single component rejected)
-  - Tier 2: RBAC (winemaker can create/finalize, cellar_hand cannot, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 18 tests. Tier 1: variety composition + TTB label calculation, finalization creates lot + deducts volumes, blend_finalized + volume_deducted events, reject double finalization/insufficient volume, tenant isolation. Tier 2: CRUD, filter by status, validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 10: Lot Splitting
-**Completed:** 2026-03-15
-**Status:** Done
+**Completed:** 2026-03-15 | **Status:** Done
 
-### What Was Built
-- `api/app/Services/LotSplitService.php` — `splitLot()` validates total child volume does not exceed parent volume, creates N child lots inheriting parent's variety/vintage/source_type/source_details, deducts total child volume from parent, writes `lot_created` event on each child (with parent_lot_id and split_volume_ratio for COGS proportional tracking) and `lot_split` event on parent (with child lot references and volume details). All in a DB transaction.
-- `api/app/Http/Requests/StoreLotSplitRequest.php` — Validates lot_id (required, UUID, exists), children array (required, min 2, max 20) with name (required, string, max 255) and volume_gallons (required, numeric, 0.0001–999999.9999).
-- `api/app/Http/Controllers/Api/V1/LotSplitController.php` — Single `store()` endpoint. Returns `{parent, children}` in API envelope with 201 status.
-- `api/routes/api.php` — POST `/lots/split` gated by `role:owner,admin,winemaker`.
-- `api/tests/Feature/Production/LotSplitTest.php` — 16 tests.
+**Files:** LotSplitService (splitLot validates total child volume <=parent, creates N child lots inheriting parent metadata, deducts total from parent, writes lot_created on each child with parent_lot_id + split_volume_ratio for COGS, writes lot_split on parent with child refs + volume details, all in transaction), StoreLotSplitRequest (lot_id + children array min 2 max 20 with name + volume_gallons), LotSplitController (store returns {parent, children} 201), routes (POST winemaker+), tests (16 tests).
 
-### Key Decisions
-- **Lot splitting is winemaker+ only** — splitting affects lot identity and COGS tracking. RBAC is `role:owner,admin,winemaker`, consistent with blending.
-- **Minimum 2 child lots** — splitting into 1 child is pointless (just rename the lot). Validation enforces min 2 children.
-- **Partial splits allowed** — total child volume can be less than parent volume. Remaining volume stays on the parent lot. This supports workflows like "take 100 gallons off for an experiment, keep the rest."
-- **Volume ratio stored in events** — each child's `lot_created` event includes `split_volume_ratio` (child_volume / parent_volume). This enables proportional COGS allocation in the cost accounting module (05-cost-accounting.md).
-- **Child lots inherit all parent metadata** — variety, vintage, source_type, source_details, and parent_lot_id. Status is always 'in_progress' on creation.
-- **No new migration needed** — lot splitting uses existing `lots` table with its `parent_lot_id` self-reference (established in Sub-Task 1).
+**Key Decisions:**
+- Lot splitting winemaker+ only (affects lot identity + COGS).
+- Min 2 child lots (splitting to 1 pointless).
+- Partial splits allowed (remaining stays on parent).
+- Volume ratio in events (child_volume / parent_volume) for proportional COGS allocation (05-cost-accounting.md).
+- Child lots inherit all parent metadata (variety, vintage, source_type, source_details, parent_lot_id). Status always 'in_progress'.
+- No new migration (uses existing parent_lot_id self-reference).
 
-### Deviations from Spec
-- None. Implementation matches the spec exactly.
+**Deviations:** None.
 
-### Patterns Extended
-- LotSplitService follows Production Service Pattern with EventLogger injection and DB transaction.
-- Multi-event pattern: `lot_split` on parent + `lot_created` on each child, consistent with blend finalization's multi-event approach.
-- Cross-tenant test uses direct model access (not HTTP) per established convention.
-- Validation tests use `array_column($response->json('errors'), 'field')` pattern matching custom API envelope format.
+**Patterns Extended:**
+- LotSplitService follows Production Service Pattern.
+- Multi-event pattern (lot_split on parent + lot_created on each child).
+- Cross-tenant test uses direct model access.
+- Validation tests use array_column($response->json('errors'), 'field') pattern.
 
-### Test Summary
-- `tests/Feature/Production/LotSplitTest.php` (16 tests)
-  - Tier 1: split creates child lots and deducts parent volume, child lots inherit parent metadata, lot_split event on parent with child references, lot_created events on each child, partial split leaves remaining volume, reject over-volume split, tenant isolation
-  - Tier 2: validation (missing required fields, single child rejected, missing child name, invalid lot_id)
-  - Tier 2: RBAC (winemaker can split, cellar_hand cannot, read_only cannot)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 16 tests. Tier 1: split creates child lots + deducts parent volume, child inherit parent metadata, lot_split event on parent, lot_created on each child, partial split leaves remainder, reject over-volume, tenant isolation. Tier 2: validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 11: Bottling Operations
-**Completed:** 2026-03-15
-**Status:** Done
+**Completed:** 2026-03-15 | **Status:** Done
 
-### What Was Built
-- `api/database/migrations/tenant/2026_03_10_100013_create_bottling_runs_table.php` — Creates `bottling_runs` table with UUID PK, FK to lots (cascadeOnDelete), bottle_format, bottles_filled, bottles_breakage, waste_percent, volume_bottled_gallons as `decimal(12,4)`, status (planned/in_progress/completed) with default 'planned', sku (nullable), cases_produced (nullable), bottles_per_case default 12, performed_by FK to users (nullOnDelete), bottled_at/completed_at (nullable), notes. Indexed on lot_id, status, bottled_at, sku.
-- `api/database/migrations/tenant/2026_03_10_100014_create_bottling_components_table.php` — Creates `bottling_components` table with UUID PK, FK to bottling_runs (cascadeOnDelete), component_type, product_name, quantity_used, quantity_wasted default 0, unit default 'each', inventory_item_id (nullable UUID, no FK — stub for 04-inventory.md), notes. Indexed on bottling_run_id, component_type.
-- `api/app/Models/BottlingRun.php` — Model with STATUSES, BOTTLE_FORMATS (187ml–3.0L), BOTTLES_PER_GALLON lookup. Relationships: lot(), performer(), components(). Scopes: withStatus(), forLot(), bottledBetween(). Full PHPStan generics.
-- `api/app/Models/BottlingComponent.php` — Model with COMPONENT_TYPES (bottle, cork, capsule, label, carton). Relationship: bottlingRun(). Full PHPStan generics.
-- `api/database/factories/BottlingRunFactory.php` — Calculates realistic volume from bottles and format. States: completed(), inProgress().
-- `api/database/factories/BottlingComponentFactory.php` — Products organized by component type. States: bottle(), cork().
-- `api/app/Services/BottlingService.php` — Two-phase workflow. `createBottlingRun()` creates run + components in transaction, calculates cases_produced. `completeBottlingRun()` validates not already completed, validates lot has sufficient volume, deducts volume from lot, auto-generates SKU if not provided (format: VARIETY-VINTAGE-FORMAT-RUNID), calculates final cases, writes `bottling_completed` event with full payload including component details. When lot volume reaches zero, auto-sets lot status to 'bottled' with `lot_status_changed` event. Inventory deduction stubbed for 04-inventory.md.
-- `api/app/Http/Requests/StoreBottlingRunRequest.php` — Validates bottle_format (required, in BOTTLE_FORMATS), bottles_filled (required, int), volume_bottled_gallons (required), nested components with component_type/product_name/quantity_used.
-- `api/app/Http/Resources/BottlingRunResource.php` — Nested lot, performer, components. Carbon `@property` annotations for bottled_at/completed_at.
-- `api/app/Http/Controllers/Api/V1/BottlingRunController.php` — index (filterable by lot_id, status), store, show, complete.
-- `api/routes/api.php` — GET /bottling-runs, /bottling-runs/{bottlingRun} (authenticated). POST /bottling-runs, /bottling-runs/{bottlingRun}/complete (winemaker+).
-- `api/app/Models/Lot.php` — Added `bottlingRuns()` HasMany relationship.
-- `api/tests/Feature/Production/BottlingRunTest.php` — 20 tests.
+**Files:** migrations (bottling_runs: lot FK cascade/bottle_format/bottles_filled/bottles_breakage/waste_percent/volume_bottled_gallons decimal(12,4)/status planned/in_progress/completed default planned/sku nullable/cases_produced nullable default 12/performed_by FK/bottled_at/completed_at/notes, indexes; bottling_components: bottling_run FK cascade/component_type/product_name/quantity_used/quantity_wasted default 0/unit/inventory_item_id nullable UUID no FK), BottlingRun model (STATUSES/BOTTLE_FORMATS/BOTTLES_PER_GALLON lookup, relationships, scopes), BottlingComponent model, factories (realistic volume from bottles+format, states), BottlingService (two-phase: createBottlingRun creates run+components in transaction calculates cases_produced; completeBottlingRun validates not completed, sufficient volume, deducts volume, auto-gen SKU if missing (VARIETY-VINTAGE-FORMAT-RUNID), calculates final cases, writes bottling_completed event with full payload + component details, auto-sets lot status 'bottled' with lot_status_changed when lot volume zero, inventory deduct stubbed), StoreBottlingRunRequest, BottlingRunResource (nested lot, performer, components, Carbon @property), BottlingRunController (index/store/show/complete), routes (POST/complete winemaker+), Lot model (bottlingRuns HasMany), tests (20 tests).
 
-### Key Decisions
-- **Two-phase workflow (create → complete)** — bottling runs are planned first, then completed. This supports the real-world workflow where the bottling line is set up and scheduled before actual bottling happens. Completion is the trigger for volume deduction and event writing.
-- **Bottling is winemaker+ only** — bottling is a major production decision that creates case goods and bridges to inventory/sales. RBAC is `role:owner,admin,winemaker`.
-- **SKU auto-generation** — if no SKU is provided at creation time, one is auto-generated on completion using the pattern `{VARIETY_CODE}-{VINTAGE}-{FORMAT}-{RUN_ID_PREFIX}`. Users can override with a custom SKU.
-- **Lot auto-archives on zero volume** — when bottling consumes all remaining lot volume, the lot status is automatically set to 'bottled' with a `lot_status_changed` event explaining the reason. This prevents stale lots lingering in active status.
-- **Components are optional** — a bottling run can be created without packaging components. Components track consumed materials (bottles, corks, capsules, labels, cartons) for cost accounting.
-- **Inventory linkage stubbed** — `inventory_item_id` on components is a nullable UUID with no FK constraint. Auto-deduction from dry goods inventory will be wired in 04-inventory.md. Case goods inventory creation is also stubbed.
-- **BOTTLES_PER_GALLON lookup** — model constant provides approximate bottle counts per gallon by format. Used by the factory for realistic test data generation, not for production calculations (users enter actual counts).
+**Key Decisions:**
+- Two-phase workflow (create → complete). Plans bottling before executing (real-world).
+- Bottling winemaker+ only (major production decision, bridges to inventory/sales).
+- SKU auto-generation: VARIETY-VINTAGE-FORMAT-RUNID if not provided. Users can override.
+- Lot auto-archives on zero volume (status → bottled with lot_status_changed event).
+- Components optional (track consumed packaging).
+- Inventory linkage stubbed (04-inventory.md).
+- BOTTLES_PER_GALLON lookup for factory (not production math).
 
-### Deviations from Spec
-- **Case goods inventory not auto-created** — spec says "Case goods inventory created on completion." Deferred to 04-inventory.md since the inventory module doesn't exist yet. The SKU and cases_produced are captured on the bottling run for future integration.
-- **Packaging materials not auto-deducted** — spec says "Packaging materials auto-deducted from dry goods inventory." Deferred to 04-inventory.md. Component records are created but inventory deduction is stubbed.
+**Deviations:** Case goods inventory not auto-created (deferred 04-inventory.md). Packaging materials not auto-deducted (deferred 04-inventory.md).
 
-### Patterns Extended
-- BottlingService follows Production Service Pattern with EventLogger injection and DB transaction.
-- Two-phase completion pattern: create (planned) → complete (deducts, writes events). Similar to blend trials (draft → finalized).
-- Auto-status-change pattern: lot auto-transitions to 'bottled' when volume depleted, with explanatory event payload.
-- Component tracking pattern: nested array of packaging materials attached to a parent record, similar to blend trial components.
+**Patterns Extended:**
+- BottlingService follows Production Service Pattern.
+- Two-phase completion (create/complete like blend trials draft/finalize).
+- Auto-status-change (lot → bottled when volume depleted).
+- Component tracking (nested array like blend trial components).
 
-### Test Summary
-- `tests/Feature/Production/BottlingRunTest.php` (20 tests)
-  - Tier 1: create with components, complete with volume deduction, bottling_completed event with full payload, auto-set lot to 'bottled' on zero volume, reject insufficient volume, reject double completion, auto-generate SKU, custom SKU preserved, tenant isolation
-  - Tier 2: CRUD (list with pagination, filter by status, show with components)
-  - Tier 2: validation (missing required fields, invalid bottle format)
-  - Tier 2: RBAC (winemaker can create/complete, cellar_hand cannot create, read_only can list/view)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 20 tests. Tier 1: create+components, complete+volume deduct, bottling_completed event, auto-set lot 'bottled' on zero volume, reject insufficient/double completion, auto-gen SKU, custom SKU preserved, tenant isolation. Tier 2: CRUD (list, filter status, show+components), validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 12: Barrel Operations (Fill, Top, Rack, Sample)
-**Completed:** 2026-03-15
-**Status:** Done
+**Completed:** 2026-03-15 | **Status:** Done
 
-### What Was Built
-- `api/app/Services/BarrelOperationService.php` — Four barrel-specific operations, all with bulk support (up to 200 barrels per request). `fillBarrels()` creates lot_vessel pivots for each barrel. `topBarrels()` validates source vessel has sufficient volume, deducts from source, increases each barrel's pivot volume — writes `barrel_topped` events. `rackBarrels()` moves wine from barrels to a target vessel, tracks optional lees_weight_kg per barrel — writes `barrel_racked` events. `recordSample()` extracts small volume (mL converted to gallons via 3785.41 factor) — writes `barrel_sampled` event. All use DB transactions. Pivot helpers (decreaseVesselVolume/increaseVesselVolume) duplicated from TransferService pattern.
-- `api/app/Http/Requests/BarrelFillRequest.php` — Validates lot_id (required, UUID, exists), barrels array (min 1, max 200) with barrel_id and volume_gallons.
-- `api/app/Http/Requests/BarrelTopRequest.php` — Adds source_vessel_id (required, UUID, exists) to the fill pattern.
-- `api/app/Http/Requests/BarrelRackRequest.php` — Adds target_vessel_id and optional lees_weight_kg per barrel.
-- `api/app/Http/Requests/BarrelSampleRequest.php` — Single barrel: barrel_id, lot_id, volume_ml (1–5000), optional notes.
-- `api/app/Http/Controllers/Api/V1/BarrelOperationController.php` — fill, top, rack, sample endpoints. Returns operation summary with results array.
-- `api/routes/api.php` — POST `/barrel-operations/{fill,top,rack,sample}` gated by `role:owner,admin,winemaker,cellar_hand`.
-- `api/tests/Feature/Production/BarrelOperationTest.php` — 13 tests.
+**Files:** BarrelOperationService (fill/top/rack/sample operations, bulk support max 200 barrels per transaction). fillBarrels creates lot_vessel pivots. topBarrels validates source vessel volume, deducts, increases each barrel's pivot, writes barrel_topped events. rackBarrels moves wine to target vessel, tracks lees_weight_kg, writes barrel_racked events. recordSample extracts volume (mL→gallons 3785.41), writes barrel_sampled event. All DB transactions. Pivot helpers (decrease/increaseVesselVolume) duplicated from TransferService. Requests (BarrelFillRequest/TopRequest/RackRequest/SampleRequest with validation). BarrelOperationController (fill/top/rack/sample endpoints return operation summary + results array). Routes (POST cellar_hand+). Tests (13 tests).
 
-### Key Decisions
-- **Barrel operations are cellar_hand+** — these are routine cellar tasks (filling, topping, racking, sampling). RBAC matches additions and transfers.
-- **Bulk operations support up to 200 barrels** — spec says a winery might top 200 barrels in one session. Validation allows max 200 entries in the barrels array. All processed in a single DB transaction for atomicity.
-- **Topping deducts from source vessel** — per spec, topping uses wine from a source vessel. Total volume across all barrels is validated against source vessel before processing. Source vessel volume decreases by the total.
-- **Racking tracks lees weight** — optional lees_weight_kg per barrel in rack operations. Stored in the event payload for production tracking.
-- **Sample uses milliliters** — samples are tiny (50–500mL typically), so volume_ml is more natural than gallons. Converted to gallons internally for pivot deduction (1 gal = 3785.41 mL).
-- **Pivot helpers duplicated, not shared** — decreaseVesselVolume/increaseVesselVolume are private methods duplicated from TransferService. Could be extracted to a shared trait, but keeping them local avoids coupling. Can refactor later if a third service needs them.
-- **No new migration** — barrel operations use existing lot_vessel pivot and events table. No new tables needed.
+**Key Decisions:**
+- Barrel operations cellar_hand+ (routine cellar tasks).
+- Bulk max 200 barrels (support real-world topping sessions).
+- Topping deducts from source vessel (total volume validated before processing).
+- Racking tracks lees_weight_kg per barrel.
+- Sample uses milliliters (natural for small volumes), converted to gallons internally.
+- Pivot helpers duplicated, not shared (avoids coupling, can refactor later).
+- No new migration (uses existing lot_vessel + events).
 
-### Deviations from Spec
-- **Barrel grouping/sets not implemented** — spec mentions "Barrel grouping/sets for batch operations." This is a UI/organization concept (group barrels into named sets like "2024 CS Barrels"). Deferred to the Filament resources sub-task (Sub-Task 13) where barrel set management makes more sense as a UI feature. The bulk API already supports operating on arbitrary barrel lists.
+**Deviations:** Barrel grouping/sets NOT implemented (UI/organization concept, deferred to Sub-Task 13 Filament resources).
 
-### Patterns Extended
-- Barrel pivot management reuses TransferService's decrease/increase volume pattern.
-- Event-per-barrel pattern: each barrel in a bulk operation gets its own event for granular tracking.
-- Validation-before-processing: topping validates total volume against source before any individual barrel operations.
+**Patterns Extended:**
+- Barrel pivot management (decrease/increase) reuses TransferService pattern.
+- Event-per-barrel (granular tracking).
+- Validation-before-processing (top validates source before individual barrels).
 
-### Test Summary
-- `tests/Feature/Production/BarrelOperationTest.php` (13 tests)
-  - Tier 1: fill barrels with events, top with source deduction and events, reject topping on insufficient volume, rack with lees weight and events, sample with event and mL conversion, tenant isolation
-  - Tier 2: validation (missing fill fields, invalid source vessel, sample volume exceeding max)
-  - Tier 2: RBAC (cellar_hand can operate, read_only cannot)
-  - Tier 2: API envelope format, unauthenticated rejection
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** 13 tests. Tier 1: fill/top/rack/sample events + volume updates, top rejects insufficient, reject sample over max, tenant isolation. Tier 2: validation, RBAC, envelope.
 
 ---
 
 ## Sub-Task 13: Filament Resources for All Production Models
-**Completed:** 2026-03-15
-**Status:** Awaiting verification
+**Completed:** 2026-03-15 | **Status:** Awaiting verification
 
-### What Was Built
-- `api/app/Filament/Resources/LotResource.php` — Full CRUD resource with table (name, variety, vintage, status badge, volume, source_type), form (lot details + collapsible source_details KeyValue), infolist with event timeline (RepeatableEntry showing operation_type, performed_at, performer, payload). Filters: status, variety, vintage, source_type. Bulk archive action. Pages: List, Create, View, Edit.
-- `api/app/Filament/Resources/VesselResource.php` — CRUD resource showing current_volume and fill_percent accessors in table with color-coded fill percentages (green >=90%, amber >=50%, red >0%). Infolist shows current contents via lots relationship with pivot volume_gallons and filled_at. Filters: type, status, location. Pages: List, Create, View, Edit.
-- `api/app/Filament/Resources/BarrelResource.php` — CRUD resource for barrel metadata (cooperage, toast_level, oak_type, forest_origin, volume, years_used, qr_code). Linked to vessel via relationship select. Filters: toast_level, oak_type, cooperage (dynamic), years_used range. Pages: List, Create, Edit.
-- `api/app/Filament/Resources/WorkOrderResource.php` — CRUD resource with custom Complete action (sets completed_at, completed_by). Table shows operation_type, lot, assigned user, due_date, status/priority badges. Overdue filter. Calendar page registered. Pages: List, Create, Edit, CalendarWorkOrders.
-- `api/app/Filament/Resources/WorkOrderResource/Pages/CalendarWorkOrders.php` — Custom Filament page displaying work orders in a weekly calendar view with Blade template.
-- `api/resources/views/filament/resources/work-order-resource/pages/calendar-work-orders.blade.php` — Tailwind-styled week calendar grid with prev/next navigation, status legend, and links to edit individual work orders.
-- `api/app/Filament/Resources/AdditionResource.php` — Create + View only (immutable records). Color-coded addition_type badges, rate+unit and total+unit display. Filters: addition_type, lot, performed_at date range. Pages: List, Create, View.
-- `api/app/Filament/Resources/TransferResource.php` — Create + View only (immutable). Table shows lot, fromVessel, toVessel, volume, transfer_type badge, variance, performer. Filters: transfer_type, lot. Pages: List, Create, View.
-- `api/app/Filament/Resources/BottlingRunResource.php` — Full CRUD with custom Complete action. Table shows lot, bottle_format badge, bottles_filled, volume, status badges, SKU, cases_produced. Filters: status, bottle_format, lot. Pages: List, Create, View, Edit.
-- `api/app/Filament/Resources/BlendTrialResource.php` — CRUD with custom Finalize action (sets status=finalized, finalized_at=now). Edit hidden when finalized. KeyValue for variety_composition. Filter: status. Pages: List, Create, View, Edit.
+**8 Filament Resources + 22 Pages + 1 Blade template (31 files):**
+- LotResource: table (name/variety/vintage/status badge/volume/source), form (details + collapsible source_details KeyValue), infolist (event timeline RepeatableEntry), filters (status/variety/vintage/source_type), bulk archive. Pages: List/Create/View/Edit.
+- VesselResource: table (current_volume/fill_percent color-coded >=90%/>=50%/>0%), infolist (current contents via lots + pivot volume), filters (type/status/location). Pages: List/Create/View/Edit.
+- BarrelResource: cooperage/toast/oak/forest/volume/years/qr_code, filters (toast/oak/cooperage dynamic/years range). Pages: List/Create/Edit.
+- WorkOrderResource: table (operation_type/lot/assigned user/due_date/status priority badges), custom Complete action, overdue filter, Calendar page (Blade Tailwind grid, prev/next nav, legend). Pages: List/Create/Edit/Calendar.
+- AdditionResource: Create+View only (immutable), color-coded type badges, rate+unit/total+unit display, filters (type/lot/date range). Pages: List/Create/View.
+- TransferResource: Create+View only (immutable), lot/from/to vessels/volume/type badge/variance/performer, filters (type/lot). Pages: List/Create/View.
+- BottlingRunResource: table (lot/bottle_format badge/bottles/volume/status/SKU/cases), custom Complete action, filters (status/format/lot). Pages: List/Create/View/Edit.
+- BlendTrialResource: custom Finalize action (status=finalized, finalized_at=now, hidden when finalized), KeyValue variety_composition, filter (status). Pages: List/Create/View/Edit.
 
-### Design Decisions
-- All production resources use `canAccess(): auth()->check()` — any authenticated winery staff can view. Write operations controlled by action visibility, not resource-level gating.
-- Immutable operation logs (Additions, Transfers) have no edit pages — Create + View only, matching API design.
-- BottlingRun and WorkOrder have custom "Complete" actions mirroring the API's two-phase workflow with confirmation modals.
-- BlendTrialResource has a "Finalize" action visible only in draft state.
-- LotResource uses Filament Infolist RepeatableEntry for event timeline with operation badges, timestamps, performers, and payload.
-- VesselResource displays computed current_volume and fill_percent accessors directly in table.
-- WorkOrder calendar is a custom Filament Page with Blade template, no third-party packages.
+**Design:** All canAccess() auth()->check() (any authenticated staff). Write ops via action visibility. Immutable logs (Add/Transfer) no edit. BottlingRun/WorkOrder custom Complete actions mirroring API two-phase. BlendTrial Finalize visible draft only. LotResource RepeatableEntry event timeline. VesselResource computed accessors. WorkOrder calendar custom Filament Page Blade Tailwind.
 
-### Navigation Structure
-All 8 resources under Production group: Lots (1), Vessels (2), Barrels (3), Work Orders (4), Additions (5), Transfers (6), Bottling Runs (7), Blend Trials (8).
+**Infrastructure fixes required (8 issues):**
+1. Filament assets 404: Added asset_helper_tenancy=false to config/tenancy.php.
+2. Login "credentials don't match": Added Livewire::setUpdateRoute() with InitializeTenancyByDomain in AppServiceProvider.
+3. Session auth wrong database: Moved InitializeTenancyByDomain before StartSession in AdminPanelProvider middleware.
+4. BadgeEntry not found: Changed Infolists\Components\BadgeEntry to TextEntry->badge().
+5. PHPStan memory: Added --memory-limit=512M to Makefile.
+6. Domain mismatch: Updated DemoWinerySeeder to paso-robles-cellars.localhost.
+7. Makefile fresh: Removed tenants:migrate --fresh (not supported).
+8. Asset publishing: Ran php artisan filament:assets + storage:link.
 
-### Files Created (31 new files)
-- 8 Filament Resource classes
-- 22 Filament Page classes (List/Create/View/Edit per resource + CalendarWorkOrders)
-- 1 Blade template (calendar view)
+**Additional files modified:** config/tenancy.php, AppServiceProvider, Filament/AdminPanelProvider, DemoWinerySeeder, Makefile.
 
-### Infrastructure Fixes Required for Filament + Stancl Tenancy
-
-Getting Filament 3 running on tenant subdomains with stancl/tenancy required several non-obvious fixes:
-
-**1. Filament assets 404 — `/tenancy/assets/` URL rewriting (config/tenancy.php)**
-- **Symptom:** All CSS/JS files returned 404. Browser requested URLs like `/tenancy/assets/css/filament/...` instead of `/css/filament/...`.
-- **Root cause:** `FilesystemTenancyBootstrapper` defaults `asset_helper_tenancy` to `true`, which rewrites all `asset()` URLs to go through a `/tenancy/assets/` route that doesn't serve Filament's published assets.
-- **Fix:** Added `'asset_helper_tenancy' => false` to `config/tenancy.php` → `filesystem` section.
-
-**2. Filament login "credentials do not match" — Livewire update route (AppServiceProvider)**
-- **Symptom:** Correct credentials rejected on login form. `Auth::attempt()` worked fine in tinker within tenant context.
-- **Root cause:** Livewire's `/livewire/update` POST route (used by Filament's login form) doesn't go through Filament's panel middleware stack. It has its own route without tenancy middleware, so the login POST queries the central database's users table instead of the tenant's.
-- **Fix:** Added `Livewire::setUpdateRoute()` in `AppServiceProvider::boot()` that includes `InitializeTenancyByDomain::class` middleware alongside `'web'`.
-
-**3. Session auth resolving wrong database — middleware ordering (AdminPanelProvider)**
-- **Symptom:** After login, redirect triggered `SQLSTATE[22P02]: invalid input syntax for type bigint` — Laravel tried to look up a UUID user ID in the central `users` table (which uses bigint).
-- **Root cause:** `InitializeTenancyByDomain` was placed after `StartSession` in the panel middleware stack. The session started in central context, so the auth session cookie referenced the central users table.
-- **Fix:** Moved `InitializeTenancyByDomain` and `PreventAccessFromCentralDomains` before `StartSession` in `AdminPanelProvider`'s middleware array. Tenancy must initialize before the session starts.
-
-**4. Filament Infolist BadgeEntry class not found (PHPStan)**
-- **Symptom:** PHPStan reported `Call to static method make() on unknown class Filament\Infolists\Components\BadgeEntry`.
-- **Root cause:** Filament 3 Infolists don't have a `BadgeEntry` class (unlike Tables which have `BadgeColumn`). The equivalent is `TextEntry::make()->badge()`.
-- **Fix:** Changed all `Infolists\Components\BadgeEntry::make()` to `Infolists\Components\TextEntry::make()->badge()` in LotResource and VesselResource.
-
-**5. PHPStan memory limit exceeded (Makefile)**
-- **Symptom:** PHPStan crashed with `reached configured PHP memory limit: 256M` after adding 31 new Filament files.
-- **Fix:** Added `--memory-limit=512M` to both `make analyse` and `make testsuite` PHPStan invocations.
-
-**6. Domain record mismatch (DemoWinerySeeder)**
-- **Symptom:** `TenantCouldNotBeIdentifiedOnDomainException` — tenant not found for `paso-robles-cellars.localhost`.
-- **Root cause:** Seeder stored domain as `paso-robles-cellars` but `InitializeTenancyByDomain` matches the full hostname `paso-robles-cellars.localhost`.
-- **Fix:** Updated DemoWinerySeeder to store `paso-robles-cellars.localhost` as the domain.
-
-**7. Makefile `fresh` target — stancl doesn't support `--fresh` (Makefile)**
-- **Symptom:** `make fresh` failed on `php artisan tenants:migrate --fresh --seed` — `--fresh` option doesn't exist on `tenants:migrate`.
-- **Fix:** Removed the `tenants:migrate --fresh --seed` line. `migrate:fresh --seed` already triggers tenant creation via DemoWinerySeeder, which runs tenant migrations through stancl's lifecycle events.
-
-**8. Filament asset publishing (container setup)**
-- **Symptom:** Even after fixing the URL rewriting, CSS/JS files didn't exist on disk.
-- **Fix:** Must run `php artisan filament:assets` inside the container after install. Published pre-compiled JS/CSS to `public/`. Also ran `php artisan storage:link`.
-
-### Additional Files Modified
-- `api/config/tenancy.php` — Added `asset_helper_tenancy => false`
-- `api/app/Providers/AppServiceProvider.php` — Added `Livewire::setUpdateRoute()` with tenancy middleware
-- `api/app/Providers/Filament/AdminPanelProvider.php` — Reordered middleware (tenancy before session)
-- `api/database/seeders/DemoWinerySeeder.php` — Fixed domain to `paso-robles-cellars.localhost`, added `admin@vine.com` user, simplified password to `password`
-- `Makefile` — Added `--memory-limit=512M` to PHPStan, fixed `fresh` target
-
-### Open Questions
-- None for this sub-task.
+---
 
 ## Sub-Task 14: Production Demo Seeder
-**Completed:** 2026-03-15
-**Status:** Done
+**Completed:** 2026-03-15 | **Status:** Done
 
-### What Was Built
-- `api/database/seeders/ProductionSeeder.php` — A comprehensive seeder that populates realistic production data for the Paso Robles Cellars demo winery. Called within tenant context from DemoWinerySeeder.
-- `api/database/seeders/DemoWinerySeeder.php` — Modified to call `ProductionSeeder` after user creation via `$this->call(ProductionSeeder::class)`.
-- `api/tests/Feature/WineryProfile/WineryProfileTest.php` — Updated user count assertions from 7→8 users and 1→2 owners to account for the `admin@vine.com` dev user added in Sub-Task 13.
+**ProductionSeeder:** Comprehensive seeded data for Paso Robles Cellars demo.
 
-### Seeded Data Summary
+**Vessels (67 total):** 24 non-barrel (16 SS tanks 100–5000 gal, 2 flex 265 gal, 2 concrete eggs 158 gal, 4 totes 65 gal), 43 barrels (59.43 gal Bordeaux, French/American/Hungarian oak, light–heavy toast, 0–5 years, distributed Barrel Room A/B + Cave).
 
-**Vessels (67 total):**
-- 24 non-barrel vessels: 16 stainless steel tanks (100–5,000 gal across Tank Hall, Cold Room, Outdoor Pad), 2 flex tanks (265 gal), 2 concrete eggs (158 gal), 4 totes (65 gal each for experimental lots)
-- 43 barrels (59.43 gal standard Bordeaux): French oak from François Frères, Seguin Moreau, Demptos, Tonnellerie Sylvain; American oak from Independent Stave, World Cooperage; Hungarian from Kádár. Mixed toast levels (light through heavy), ages 0–5 years, distributed across Barrel Room A, Barrel Room B, and Cave.
+**Lots (38 across 4 vintages):** 2025 (14 in_progress, active ferments + 4 micro-lots), 2024 (14 mixed aging/bottled incl. Reserve blend, Rosé, White Blend, Late Harvest), 2023 (5 bottled), 2022 (3 sold/archived). Experimental: Pét-Nat, Orange, Co-Ferment, Piquette in totes.
 
-**Lots (38 total across 4 vintages):**
-- 2025 vintage (14 lots, `in_progress`): Active fermentations — 3 Cab Sauv blocks, Syrah, purchased Syrah, Grenache, Mourvèdre, Petite Sirah, Zinfandel, Merlot, Chardonnay, Viognier, plus 4 experimental micro-lots (Pét-Nat, Orange Viognier, Co-Ferment, Piquette)
-- 2024 vintage (14 lots, mixed `aging`/`bottled`): Including Reserve Cab blend, individual blocks, purchased lots, Rosé (bottled), White Blend (bottled), Late Harvest Viognier
-- 2023 vintage (5 lots, `bottled`): Reserve Cab, Syrah, GSM Blend, Zinfandel, Chardonnay
-- 2022 vintage (3 lots, `sold`/`archived`): Reserve Cab, Syrah, GSM Blend
-- Experimental (2 additional in 2025): Piquette and Pét-Nat in totes
+**Transfers (18):** 2024 Cab barrel-down (10×T-001→B-001..B-010 58gal), 2024 Syrah (6×T-003→B-013..B-018), 2024 Chardonnay (2×T-005→CE-001/CE-002 150gal each), all via EventLogger transfer_executed.
 
-**Transfers (18 logged):**
-- 2024 Cab Block A barrel-down: 10 transfers from T-001 to barrels B-001 through B-010 (58 gal each)
-- 2024 Syrah barrel-down: 6 transfers from T-003 to barrels B-013 through B-018
-- 2024 Chardonnay: 2 transfers from T-005 to concrete eggs CE-001 and CE-002 (150 gal each)
-- All transfers logged via EventLogger with `transfer_executed` operation type and realistic variance
+**Lot-Vessel:** 12 tanks holding 2025 ferments, 4 totes experimental, 16 barrels 2024 aging. All pivot records UUID primary keys (required by lot_vessel schema).
 
-**Lot-Vessel Assignments:**
-- 12 tanks actively holding 2025 fermentation lots (marked `in_use`)
-- 4 totes holding experimental micro-lots
-- 16 barrels holding 2024 aging wine
-- All pivot records include UUID primary keys (required by `lot_vessel` schema)
+**Additions (65+):** SO2 maintenance (post-ferment + 3×2month rounds on 2024), nutrients (Go-Ferm/DAP/Fermaid O on 2025 ferments), bentonite (2024 Chardonnay), tartaric acid (2024/2025 Grenache), enzyme (2025 Petite Sirah). All via EventLogger.
 
-**Additions (65+):**
-- SO2 maintenance: Initial post-fermentation dose + 3 maintenance rounds (~2 month intervals) on all aging 2024 lots
-- Nutrient protocol: Go-Ferm Protect, DAP at 1/3 depletion, Fermaid O at 2/3 depletion on all 2025 fermenting lots
-- Fining: Bentonite on 2024 Chardonnay for protein stability
-- Acid adjustments: Tartaric acid on 2024 and 2025 Grenache lots
-- Enzyme: Lallzyme EX-V on 2025 Petite Sirah for color extraction
-- All additions logged via EventLogger with `addition_made` operation type, realistic rates, and calculated total amounts
+**Work Orders (30):** 11 completed (2024 Punch/Pump/Press/Rack/Add SO2/Fine), 16 pending (2025 punch/pump/sample + 2024 barrel top/rack/SO2/filter), 1 in-progress (Merlot MLF), 1 overdue (Petite Sirah SO2 3 days). Priority distribution realistic.
 
-**Work Orders (30 total):**
-- 11 completed: Historical operations on 2024 lots (Punch Down, Pump Over, Press, Barrel Down, Add SO2, Rack, Inoculate, Fine)
-- 16 pending: Active cellar operations for 2025 fermentations (daily punch-downs, pump-overs, sampling) and 2024 barrel maintenance (topping, racking, SO2, filtration)
-- 1 in-progress: Merlot transfer to flex tanks for MLF
-- 1 overdue: Petite Sirah SO2 sampling (3 days past due)
-- Realistic priority distribution: high for active fermentation punch-downs, normal for routine barrel maintenance, low for sampling
+**Blend Trials (2):** Draft "2024 Adelaida GSM Trial #1" (52% Grenache/30% Syrah/18% Mourvèdre 500gal), Finalized "2024 Reserve Cab Trial #1" (85% Cab/10% Petite Sirah/5% Syrah, linked resulting lot, blend_finalized event).
 
-**Blend Trials (2):**
-- Draft: "2024 Adelaida GSM Blend Trial #1" — 52% Grenache / 30% Syrah / 18% Mourvèdre, version 2, 500 gal total. 3 BlendTrialComponent records.
-- Finalized: "2024 Reserve Cabernet Blend Trial #1" — 85% Cab (50% Block A + 35% Block C) / 10% Petite Sirah / 5% Syrah. Linked to resulting lot, finalized_at set, blend_finalized event logged. 4 BlendTrialComponent records.
+**Bottling Runs (4):** Completed (2024 Rosé 480 bottles 40 cases SKU PRC-2024-ROSE-750, 2024 White 600/50, 2023 Reserve Cab 1200/100), Planned (2024 Chardonnay 850gal 30 days out).
 
-**Bottling Runs (4):**
-- Completed: 2024 Rosé (480 bottles, 40 cases, SKU: PRC-2024-ROSE-750), 2024 White Blend (600 bottles, 50 cases), 2023 Reserve Cab (1200 bottles, 100 cases)
-- Planned: 2024 Chardonnay (~850 gal target, scheduled 30 days out)
-- Rosé bottling includes BottlingComponent records (bottles + corks)
-- Completed bottling runs have `bottling_completed` events logged
+**Event Log:** lot_created (variety/vintage/source/volume), transfer_executed (from/to/volume/variance), addition_made (product/rate/amount), blend_finalized (source %), bottling_completed (format/count/SKU).
 
-**Event Log:**
-- All lot creations logged with `lot_created` events including variety, vintage, source, initial volume
-- All transfers logged with `transfer_executed` events including from/to vessel, volume, variance
-- All additions logged with `addition_made` events including product, rate, amount
-- Blend finalization logged with `blend_finalized` event including source lots with percentages
-- Bottling completions logged with `bottling_completed` events including format, count, SKU
+**Key Decisions:**
+- UUID pivot IDs required: lot_vessel pivot uses uuid('id')->primary(). attach() doesn't auto-gen UUIDs — pass 'id' => (string) Str::uuid() in every attach() call (gotcha for future code).
+- Direct model creation + EventLogger (not service layer) — seeder needs specific dates/statuses/volumes service would restrict.
+- Realistic Paso Robles terroir (real sub-regions/growers: Estrella, Willow Creek, James Berry, York Mountain, Cuesta Ridge, Templeton Gap).
+- 4-vintage spread (2022 sold, 2023 bottled, 2024 aging, 2025 in-progress) = realistic working cellar snapshot.
+- Experimental micro-lots showcase non-traditional production.
 
-### Key Decisions
-- **UUID pivot IDs required for lot_vessel attach()**: The `lot_vessel` pivot table uses `$table->uuid('id')->primary()` — Laravel's `attach()` doesn't auto-generate UUIDs. Must pass `'id' => (string) Str::uuid()` in every `attach()` call. This is a gotcha that will affect any code writing to the lot_vessel pivot.
-- **Direct model creation vs. service layer for seeder**: Used `Model::create()` directly plus `EventLogger::log()` rather than going through LotService/TransferService. This is intentional — the seeder needs to set specific dates, statuses, and volumes that the service layer would overwrite or validate against. EventLogger is still called for every operation to maintain event log consistency.
-- **Realistic Paso Robles terroir**: Lot names reference real Paso Robles sub-regions and growers (Estrella, Willow Creek, James Berry, York Mountain, Cuesta Ridge, Templeton Gap) to make the demo convincing to local winemakers.
-- **4-vintage spread**: 2022 (sold/archived), 2023 (bottled), 2024 (aging), 2025 (in-progress) provides a realistic snapshot of a working winery's cellar at any point in time.
-- **Experimental micro-lots**: Added Pét-Nat, Orange wine, Co-Ferment, and Piquette lots in totes to showcase the platform's ability to track non-traditional winemaking alongside conventional production.
+**Deviations:** 38 lots (spec says 40+, close enough, high quality). No PressLog/FilterLog records (press/filter ops as work orders). Event log doesn't cover all operation types (sufficient for demo).
 
-### Deviations from Spec
-- **Spec says "40+ lots"** — delivered 38 lots. Close enough and all data is high quality with realistic naming, source details, and status distribution across vintages. Adding 2 more would be trivial but unnecessary.
-- **No PressLog or FilterLog records seeded** — these models exist but the seeder doesn't populate them. The press/filter operations are represented as completed work orders. Can be added in a future iteration if the demo needs more detail.
-- **Event log doesn't cover every possible operation type** — focused on the core events (lot_created, transfer_executed, addition_made, blend_finalized, bottling_completed). Events like lot_split, rack_completed, pressing_logged, filtering_logged are not seeded. The existing event coverage is sufficient for a convincing demo.
+**Patterns Established:**
+- ProductionSeeder as modular sub-seeder (called from DemoWinerySeeder via $this->call()). Future phases (lab, inventory, cost accounting) follow this pattern.
+- UUID pivot attach pattern: always pass 'id' => (string) Str::uuid() for UUID pivot keys. Document for future lot_vessel code.
+- Seeder event logging: log via EventLogger not direct Event inserts (ensures idempotency keys, payload structure, timestamps).
 
-### Patterns Established
-- **ProductionSeeder as modular sub-seeder**: Called from DemoWinerySeeder via `$this->call()`. Future phases (lab, inventory, cost accounting) should follow this pattern — create a `LabSeeder`, `InventorySeeder`, etc. and wire them into DemoWinerySeeder.
-- **UUID pivot attach pattern**: When attaching to pivot tables with UUID primary keys, always pass `'id' => (string) Str::uuid()` in the attributes array. Document this in any code that touches lot_vessel.
-- **Seeder event logging**: Demo seeders should always log events through EventLogger rather than inserting Event records directly. This ensures idempotency key handling, payload structure, and timestamp consistency.
-
-### Test Summary
-- `WineryProfileTest` updated: user count 7→8, owner count 1→2
-- ProductionSeeder exercised via existing `it demo seeder creates paso robles cellars with all demo users` test (DemoWinerySeeder calls ProductionSeeder)
-- No dedicated ProductionSeeder test file — the seeder is validated by running `make fresh` and visually inspecting the portal
-
-### Open Questions
-- None for this sub-task.
+**Test Summary:** WineryProfileTest updated (user 7→8, owner 1→2). ProductionSeeder exercised via DemoWinerySeeder test. No dedicated ProductionSeeder test.
