@@ -413,3 +413,65 @@
 - Should maintenance logs be truly immutable (no update/delete) for audit compliance? Currently there's no update or delete endpoint — this is intentional for CIP and calibration audit trails.
 - Equipment depreciation: Should current_value be tracked separately from purchase_value with a depreciation schedule? Deferred — would need an accounting-oriented sub-task.
 - Maintenance scheduling automation: Should there be a recurring maintenance schedule (e.g., "CIP every 2 weeks for all tanks") that auto-generates work orders or reminders? Currently maintenance is tracked reactively via manual log entries.
+
+---
+
+## Sub-Task 9: Bulk Wine Inventory View
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/app/Http/Controllers/Api/V1/BulkWineInventoryController.php` — Read-only aggregation controller with 6 endpoints. All queries use raw DB queries on the `lot_vessel` pivot table, filtering `WHERE emptied_at IS NULL` to get current vessel contents only. No new database tables — this is a pure view layer over existing lot/vessel/lot_vessel data.
+  - `summary()` — Returns total gallons in vessels (sum of lot_vessel.volume_gallons where emptied_at IS NULL), total gallons book value (sum of lots.volume_gallons where status in 'in_progress','aging'), variance (book − vessel), active lot count, active vessel count.
+  - `byLot()` — Per-lot breakdown with vessel volume, vessel count, vessel names (STRING_AGG), variance. Filters: vintage (exact), variety (ilike), status (exact). Only shows active/aging lots.
+  - `byVessel()` — Per-vessel breakdown with current volume, capacity, available capacity, fill percentage, lot names, lot count. Filters: vessel_type, location (ilike), occupied_only (HAVING SUM > 0).
+  - `byLocation()` — Aggregated by vessels.location: vessel count, total capacity, total volume, available capacity, fill percentage, lot count. Useful for warehouse planning.
+  - `reconciliation()` — Returns only lots where book_volume ≠ vessel_volume, ordered by absolute variance descending. Includes variance_percentage for easy identification of problematic lots.
+  - `agingSchedule()` — Lots with status='aging', showing earliest fill date (MIN(lot_vessel.filled_at)), aging days (calculated from earliest fill to now), vessel types and names. Filters: vintage, variety.
+- `api/app/Filament/Pages/BulkWineInventory.php` — Custom Filament page (not a Resource, since there's no single model to CRUD). Implements HasForms + HasTable interfaces. Shows a summary stats dashboard (5 cards: vessel volume, book volume, variance, active lots, active vessels) above a by-lot table with searchable lot name, variety, vintage, status badge, book volume, vessel volume, and vessel count. Status filter for in_progress/aging. Navigation: Inventory group, sort 7, heroicon-o-beaker.
+- `api/resources/views/filament/pages/bulk-wine-inventory.blade.php` — Blade template with 5-column grid of stat cards (color-coded: variance shows warning color when non-zero) and a table section for the by-lot breakdown.
+- `api/routes/api.php` — Added BulkWineInventoryController import and 6 GET routes under `/bulk-wine/` prefix (all authenticated, no role restriction since this is read-only reporting): summary, by-lot, by-vessel, by-location, reconciliation, aging-schedule.
+
+### Key Decisions
+- **Read-only, no data store**: Per spec, bulk wine inventory is derived entirely from existing lot/vessel/lot_vessel data. No new migration, no model. The controller uses raw DB::table() queries for aggregation performance.
+- **All endpoints authenticated, no role gate**: Every authenticated user (including viewers and cellar hands) can see bulk wine inventory. This is reporting data, not a write operation. Consistent with existing read-only patterns in the codebase.
+- **STRING_AGG for vessel/lot names**: Uses PostgreSQL's STRING_AGG to return comma-separated vessel or lot names in a single row, avoiding N+1 queries. Results are sorted alphabetically within the aggregate.
+- **Emptied_at IS NULL filter**: The lot_vessel pivot records the full history of what was in each vessel. Current contents are determined by `emptied_at IS NULL`. This is applied consistently across all 6 endpoints.
+- **Variance = book − vessel**: Positive variance means book volume is higher than what's physically in vessels (possible loss/evaporation). Negative means vessels contain more than book value (possible measurement error).
+- **Filament page vs Resource**: Used a custom Page (like PhysicalCount) rather than a Resource because there's no single Eloquent model backing this view. The page provides summary stats + a table.
+- **6 endpoints instead of spec's 1**: The spec mentions a single GET /bulk-wine endpoint. We expanded to 6 focused endpoints (summary, by-lot, by-vessel, by-location, reconciliation, aging-schedule) because each serves a distinct use case and the mobile/widget apps will need different slices of the same data.
+
+### Deviations from Spec
+- Spec mentions "Bulk wine purchases/sales recording" as an acceptance criterion — deferred. Bulk wine purchases would need a separate model (BulkWinePurchase) and integration with the accounting module. This sub-task focuses on the read-only view aspect.
+- Spec mentions "projected bottling dates if configured" — the aging schedule endpoint includes aging_days but doesn't have projected bottling dates since there's no bottling_target_date field on Lot. Could be added as a Lot field in a future iteration.
+- Expanded from 1 endpoint to 6 for better API granularity and mobile app support.
+
+### Patterns Established
+- **Aggregation controller pattern**: Controllers that don't back a single model can use raw DB::table() queries with joins and aggregation. No need for a model/resource/request triplet for read-only reporting.
+- **Custom Filament page with stats + table**: BulkWineInventory combines a getSummary() method for stat cards with the standard HasTable interface for tabular data. This pattern works for any dashboard-style page.
+- **Consistent pivot filtering**: All bulk wine queries use the same `whereNull('lot_vessel.emptied_at')` filter. If this logic ever changes (e.g., adding a `current` boolean column), there's one pattern to update.
+
+### Test Summary
+- `tests/Feature/Inventory/BulkWineInventoryTest.php` (19 tests)
+  - Summary: aggregate totals (vessel volume, book value, variance, counts), empty state returns zeros (2 tests)
+  - By Lot: per-lot breakdown with variance, filter by vintage, filter by variety, filter by status (4 tests)
+  - By Vessel: per-vessel breakdown with fill percentage, filter by vessel_type, filter by location, occupied_only filter (4 tests)
+  - By Location: aggregation by vessel location with capacity and volume (1 test)
+  - Reconciliation: only lots with variance returned, ordered by absolute variance (1 test)
+  - Aging Schedule: aging lots with fill dates and aging days, filter by vintage, filter by variety (3 tests)
+  - RBAC: unauthenticated rejection for all 6 endpoints, read_only role can access (2 tests)
+  - API Envelope: standard envelope structure (1 test)
+  - Tenant Isolation: cross-tenant data leak prevention via $tenant->run() pattern (1 test)
+  - Emptied records: explicitly tests that emptied lot_vessel records (emptied_at IS NOT NULL) are excluded from current contents (verified in summary and by-lot tests)
+- Known gaps: Filament page not tested via Livewire (Tier 3). No stress test for large datasets. No test for concurrent read performance.
+- Skipped (Tier 3): Blade template rendering, stat card formatting, Filament navigation registration.
+
+### Bugs Fixed During Development
+- **aging_days returned negative (-181)**: `now()->diffInDays($earliestFill)` returned a signed value because Carbon's `diffInDays` preserves sign based on call order. Fix: wrapped in `abs()`.
+- **RBAC test role 'viewer' does not exist**: Used non-existent Spatie role name `viewer` in a loop creating multiple tenants per test. The correct role name is `read_only`. Fix: replaced multi-role loop with single `read_only` role test (matches Equipment test pattern — one tenant per role, no loops).
+- **Tenant isolation 401 on first tenant**: Creating two tenants with API tokens broke because `createBulkWineTestTenant` calls `tenancy()->end()` at start, invalidating the first tenant's session/token. Fix: rewrote to use `$tenant->run()` with direct model assertions (same pattern as Equipment tenant isolation test).
+
+### Open Questions
+- Should bulk wine purchases/sales be tracked in this module or deferred to cost accounting (Phase 5)? Currently there's no write capability — this is purely a view layer.
+- Should the aging schedule include configurable bottling targets per lot? Would require adding a `target_bottling_date` field to the Lot model.
+- Should there be a variance threshold alert (e.g., flag lots with >5% variance)? Currently all variances are returned and the client decides what's concerning.

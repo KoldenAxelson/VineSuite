@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
+use App\Http\Controllers\Api\V1\BulkWineInventoryController;
 use App\Http\Controllers\Api\V1\CaseGoodsSkuController;
 use App\Http\Controllers\Api\V1\DryGoodsController;
 use App\Http\Controllers\Api\V1\EquipmentController;
@@ -347,6 +348,16 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/maintenance-logs', [MaintenanceLogController::class, 'store'])->name('maintenance-logs.store');
+        });
+
+        // ─── Inventory: Bulk Wine Inventory ─────────────────────────────
+        Route::prefix('bulk-wine')->group(function () {
+            Route::get('/summary', [BulkWineInventoryController::class, 'summary'])->name('bulk-wine.summary');
+            Route::get('/by-lot', [BulkWineInventoryController::class, 'byLot'])->name('bulk-wine.by-lot');
+            Route::get('/by-vessel', [BulkWineInventoryController::class, 'byVessel'])->name('bulk-wine.by-vessel');
+            Route::get('/by-location', [BulkWineInventoryController::class, 'byLocation'])->name('bulk-wine.by-location');
+            Route::get('/reconciliation', [BulkWineInventoryController::class, 'reconciliation'])->name('bulk-wine.reconciliation');
+            Route::get('/aging-schedule', [BulkWineInventoryController::class, 'agingSchedule'])->name('bulk-wine.aging-schedule');
         });
 
         // Team list — any authenticated user can view team members
