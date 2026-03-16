@@ -301,3 +301,56 @@
 ### Open Questions
 - Auto-deduct trigger: When bottling run completion creates case goods, it should also deduct the corresponding dry goods (bottles, corks, capsules, labels, cartons per case_size). This requires a BOM (bill of materials) mapping from SKU → dry goods items + quantities. Where should this mapping live?
 - Reorder alert delivery: The scope and helper are ready, but how should alerts be surfaced? Options: Filament notification badge, email digest, dashboard widget. Deferred to a later sub-task or phase.
+
+---
+
+## Sub-Task 7: Raw Materials and Cellar Supplies
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200008_create_raw_materials_table.php` — Creates the `raw_materials` table with UUID primary key, name (varchar 150), category (varchar 30), unit_of_measure (varchar 30), on_hand (decimal 12,2 default 0), reorder_point (decimal 12,2 nullable), cost_per_unit (decimal 10,4 nullable), expiration_date (date nullable), vendor_name (varchar 200 nullable), vendor_id (UUID nullable for future FK), is_active (default true), notes (text nullable), timestamps. Indexes on category, is_active, expiration_date.
+- `api/app/Models/RawMaterial.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` (App\Traits\LogsActivity) traits. Constants: CATEGORIES (additive, yeast, nutrient, fining_agent, acid, enzyme, oak_alternative), UNITS_OF_MEASURE (g, kg, L, each). Scopes: `active()`, `ofCategory()`, `belowReorderPoint()`, `expired()`, `expiringSoon()`. Helpers: `needsReorder()`, `isExpired()`. Decimal casts: on_hand (2), reorder_point (2), cost_per_unit (4). Date cast: expiration_date.
+- `api/database/factories/RawMaterialFactory.php` — Generates realistic names per category (e.g., "Potassium Metabisulfite" for additive, "EC-1118" for yeast, "Fermaid O" for nutrient, "Bentonite" for fining_agent). Suggests sensible unit_of_measure per category. States: `inactive()`, `lowStock()`, `noReorderPoint()`, `expired()`, `expiringSoon()`.
+- `api/app/Http/Resources/RawMaterialResource.php` — Uses `@mixin \App\Models\RawMaterial`. Includes computed `needs_reorder` and `is_expired` booleans, `expiration_date` as date string. Numeric fields cast to float.
+- `api/app/Http/Requests/StoreRawMaterialRequest.php` — Required: name (max 150), category (in CATEGORIES), unit_of_measure (in UNITS_OF_MEASURE). Optional: on_hand (numeric ≥0), reorder_point, cost_per_unit, expiration_date (date), vendor_name, vendor_id (uuid), is_active, notes.
+- `api/app/Http/Requests/UpdateRawMaterialRequest.php` — Same rules as Store but all fields `sometimes`.
+- `api/app/Http/Controllers/Api/V1/RawMaterialController.php` — Four endpoints: `index()` with filters for is_active, category, below_reorder, expired, expiring_within_days; `show()`; `store()` with EventLogger (`raw_material_created`); `update()` with EventLogger (`raw_material_updated`). Structured logging with tenant_id.
+- `api/app/Filament/Resources/RawMaterialResource.php` + Pages (List, Create, View, Edit) — Under "Inventory" navigation group, sort 5, icon heroicon-o-beaker. Form: 3 sections (Material Details with category/unit/expiration/active, Stock & Cost, Vendor & Notes). Table: searchable name, badge for category, on_hand, unit, reorder_point, cost, expiration_date, vendor, is_active. Filters: category select, is_active ternary, below-reorder-point toggle, expired toggle. Schema::hasTable guard on category filter.
+- `api/routes/api.php` — Added RawMaterialController import and 4 routes: GET /raw-materials (authenticated), GET /raw-materials/{rawMaterial} (authenticated), POST /raw-materials (admin+), PUT /raw-materials/{rawMaterial} (admin+).
+- `api/app/Services/AdditionService.php` — Unstubbed auto-deduct: replaced the commented-out stub with live `deductInventory()` method. When an addition has `inventory_item_id`, finds the linked RawMaterial via `lockForUpdate()`, decrements `on_hand` by `total_amount`, writes `raw_material_deducted` event with self-contained payload (raw_material_name, addition_id, lot_id, deducted_amount, unit_of_measure, previous/new on_hand). Allows on_hand to go negative (winery may record usage even if stock tracking is inaccurate). Logs warning if linked raw material not found.
+
+### Key Decisions
+- **Expiration tracking**: Raw materials (unlike dry goods) degrade over time. `expiration_date` is a nullable date column with `expired()` and `expiringSoon()` scopes plus an `isExpired()` model helper. The API resource includes `is_expired` as a computed boolean.
+- **Category-specific units**: The factory suggests sensible defaults (yeast → g/each, enzymes → L, acids/nutrients → g/kg). The model accepts any unit from the UNITS_OF_MEASURE constant.
+- **Auto-deduct via AdditionService**: The deduction is atomic — it runs within the existing DB::transaction in `createAddition()`. Uses `lockForUpdate()` for race-condition safety, matching InventoryService's pattern. Allows negative on_hand because winery recording may not perfectly track physical stock.
+- **Deduction event payload is self-contained**: Includes human-readable `raw_material_name` alongside `addition_id`, `lot_id`, and deducted/previous/new quantities for data-portability per the event log design constraint.
+- **Admin+ for create/update**: Per spec, raw material management is admin+ (matching dry goods). Winemakers can read but not create or modify raw material records.
+
+### Deviations from Spec
+- Spec mentions "Receive PO: add quantity to stock" — deferred to Sub-Task 10 (Purchase Orders). Stock can be manually updated via the update endpoint.
+- Spec mentions "Expiration alerts" — the `expired()` and `expiringSoon()` scopes are implemented. Actual notification delivery (email, Filament notification) is deferred.
+
+### Patterns Established
+- **Expiration tracking pattern**: `expired()` scope for past-expiration items, `expiringSoon(days)` for configurable lookahead window, `isExpired()` for instance-level check. Reusable for any perishable inventory.
+- **Auto-deduct from service layer**: The AdditionService auto-deduct pattern (check inventory_item_id → lockForUpdate → decrement → log event) can be extended to other services that consume raw materials (e.g., future fining or enzyme application endpoints).
+- **Factory-based test fixtures for cross-model tests**: Auto-deduct tests use `Lot::factory()->create()` and `Vessel::factory()->create()` instead of raw `::create()` to avoid fragile column-name assumptions when testing across model boundaries.
+
+### Test Summary
+- `tests/Feature/Inventory/RawMaterialTest.php` (24 tests)
+  - Tier 1: event logging — raw_material_created with inventory source and payload, raw_material_updated with inventory source (2 tests)
+  - Tier 1: tenant isolation — cross-tenant RawMaterial access prevention (1 test)
+  - Tier 1: data integrity — belowReorderPoint scope correctness, needsReorder() helper logic, expired scope identifies past-expiration items, expiringSoon scope with configurable window, decimal quantity storage precision (5 tests)
+  - Tier 1: auto-deduct — addition with inventory_item_id decrements raw material on_hand and writes raw_material_deducted event with correct payload, addition without inventory_item_id leaves raw material on_hand unchanged (2 tests)
+  - Tier 2: CRUD — create with all fields (including expiration_date, is_expired), create with minimal fields (defaults verified), list with pagination, filter by category, filter by active status, filter by below_reorder, filter by expired, show detail, update with partial fields (9 tests)
+  - Tier 2: validation — missing required fields, invalid category, invalid unit_of_measure, negative on_hand (4 tests)
+  - Tier 2: RBAC — admin can create (201), winemaker cannot create (403), read_only cannot create (403), any user can list/view (200), winemaker cannot update (403) (5 tests)
+  - Tier 2: API envelope — correct structure with needs_reorder and is_expired fields, unauthenticated rejection (2 tests)
+  - Note: numeric assertions use `toEqual()` for decimal fields; Lot and Vessel fixtures created via factories to avoid fragile column assumptions
+- Known gaps: Filament resource CRUD not tested via Livewire. PO receipt flow not built. Expiration alert notification delivery not implemented. Concurrent auto-deduct race condition not stress-tested.
+- Skipped (Tier 3): factory definitions, model scope edge cases, Filament filter interactions.
+
+### Open Questions
+- Expiration alert delivery: The scopes are ready, but how should expiring/expired materials be surfaced? Options: Filament dashboard widget with "expiring within 30 days" count, email digest. Deferred.
+- Auto-deduct unit conversion: Currently assumes addition's total_amount is in the same unit as the raw material's unit_of_measure. If a user adds 50g of a material tracked in kg, the deduction would be wrong (50 instead of 0.05). Unit conversion logic may be needed when the UI for linking additions to inventory is built.
+- Should the auto-deduct feature be toggleable per-tenant? Some wineries may want to track raw materials without automatic deductions from the addition workflow.

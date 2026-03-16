@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
+use App\Http\Controllers\Api\V1\RawMaterialController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\TransferController;
@@ -318,6 +319,15 @@ Route::middleware([
         Route::middleware('role:owner,admin')->group(function () {
             Route::post('/dry-goods', [DryGoodsController::class, 'store'])->name('dry-goods.store');
             Route::put('/dry-goods/{dryGoodsItem}', [DryGoodsController::class, 'update'])->name('dry-goods.update');
+        });
+
+        // ─── Inventory: Raw Materials ────────────────────────────────────
+        Route::get('/raw-materials', [RawMaterialController::class, 'index'])->name('raw-materials.index');
+        Route::get('/raw-materials/{rawMaterial}', [RawMaterialController::class, 'show'])->name('raw-materials.show');
+
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::post('/raw-materials', [RawMaterialController::class, 'store'])->name('raw-materials.store');
+            Route::put('/raw-materials/{rawMaterial}', [RawMaterialController::class, 'update'])->name('raw-materials.update');
         });
 
         // Team list — any authenticated user can view team members

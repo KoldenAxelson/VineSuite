@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Addition;
+use App\Models\RawMaterial;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,8 @@ use Illuminate\Support\Facades\Log;
  * offline, both additions apply (no last-write-wins). Each addition is immutable
  * once created.
  *
- * Inventory auto-deduct is stubbed for now (depends on 04-inventory.md).
- * When inventory exists, linked additions will auto-deduct from inventory_items.
+ * Inventory auto-deduct: when an addition has an inventory_item_id, the
+ * corresponding RawMaterial's on_hand is decremented by the total_amount.
  */
 class AdditionService
 {
@@ -58,10 +59,10 @@ class AdditionService
                 performedAt: $addition->performed_at,
             );
 
-            // Stub: auto-deduct from inventory when inventory module exists
-            // if ($addition->inventory_item_id) {
-            //     $this->deductInventory($addition);
-            // }
+            // Auto-deduct from raw material inventory when linked
+            if ($addition->inventory_item_id) {
+                $this->deductInventory($addition, $performedBy);
+            }
 
             Log::info('Addition logged', [
                 'addition_id' => $addition->id,
@@ -90,5 +91,59 @@ class AdditionService
             ->where('addition_type', 'sulfite')
             ->where('rate_unit', 'ppm')
             ->sum('rate');
+    }
+
+    /**
+     * Deduct the addition's total_amount from the linked RawMaterial's on_hand.
+     *
+     * Uses lockForUpdate to prevent race conditions. Allows on_hand to go
+     * negative (winery may need to record usage even if stock is inaccurate).
+     */
+    private function deductInventory(Addition $addition, string $performedBy): void
+    {
+        /** @var RawMaterial|null $material */
+        $material = RawMaterial::lockForUpdate()->find($addition->inventory_item_id);
+
+        if (! $material) {
+            Log::warning('Addition linked to non-existent raw material', [
+                'addition_id' => $addition->id,
+                'inventory_item_id' => $addition->inventory_item_id,
+                'tenant_id' => tenant('id'),
+            ]);
+
+            return;
+        }
+
+        $deductAmount = (float) $addition->total_amount;
+        $previousOnHand = (float) $material->on_hand;
+
+        $material->decrement('on_hand', $deductAmount);
+
+        $this->eventLogger->log(
+            entityType: 'raw_material',
+            entityId: $material->id,
+            operationType: 'raw_material_deducted',
+            payload: [
+                'raw_material_name' => $material->name,
+                'addition_id' => $addition->id,
+                'lot_id' => $addition->lot_id,
+                'deducted_amount' => $deductAmount,
+                'unit_of_measure' => $material->unit_of_measure,
+                'previous_on_hand' => $previousOnHand,
+                'new_on_hand' => $previousOnHand - $deductAmount,
+            ],
+            performedBy: $performedBy,
+            performedAt: now(),
+        );
+
+        Log::info('Raw material auto-deducted from addition', [
+            'raw_material_id' => $material->id,
+            'raw_material_name' => $material->name,
+            'addition_id' => $addition->id,
+            'deducted' => $deductAmount,
+            'previous_on_hand' => $previousOnHand,
+            'new_on_hand' => $previousOnHand - $deductAmount,
+            'tenant_id' => tenant('id'),
+        ]);
     }
 }

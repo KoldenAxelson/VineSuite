@@ -5,25 +5,26 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\LogsActivity;
-use Database\Factories\DryGoodsItemFactory;
+use Database\Factories\RawMaterialFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Dry goods / packaging material inventory item.
+ * Raw material / cellar supply inventory item.
  *
- * Tracks packaging materials (bottles, corks, capsules, labels, cartons, etc.)
- * with stock levels in the item's native unit of measure.
+ * Tracks consumable winemaking inputs (additives, yeast, nutrients, fining agents,
+ * acids, enzymes, oak alternatives) with stock levels, cost, and expiration tracking.
  *
  * @property string $id UUID
  * @property string $name
- * @property string $item_type bottle, cork, screw_cap, capsule, label_front, label_back, label_neck, carton, divider, tissue
- * @property string $unit_of_measure each, sleeve, pallet
+ * @property string $category additive, yeast, nutrient, fining_agent, acid, enzyme, oak_alternative
+ * @property string $unit_of_measure g, kg, L, each
  * @property float $on_hand Current stock in native units
  * @property float|null $reorder_point Alert threshold
  * @property float|null $cost_per_unit Cost per native unit (feeds COGS)
+ * @property \Illuminate\Support\Carbon|null $expiration_date
  * @property string|null $vendor_name Human-readable vendor name
  * @property string|null $vendor_id FK to vendors (when built)
  * @property bool $is_active
@@ -31,31 +32,31 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
-class DryGoodsItem extends Model
+class RawMaterial extends Model
 {
-    /** @use HasFactory<DryGoodsItemFactory> */
+    /** @use HasFactory<RawMaterialFactory> */
     use HasFactory;
 
     use HasUuids;
     use LogsActivity;
 
-    public const ITEM_TYPES = [
-        'bottle',
-        'cork',
-        'screw_cap',
-        'capsule',
-        'label_front',
-        'label_back',
-        'label_neck',
-        'carton',
-        'divider',
-        'tissue',
+    protected $table = 'raw_materials';
+
+    public const CATEGORIES = [
+        'additive',
+        'yeast',
+        'nutrient',
+        'fining_agent',
+        'acid',
+        'enzyme',
+        'oak_alternative',
     ];
 
     public const UNITS_OF_MEASURE = [
+        'g',
+        'kg',
+        'L',
         'each',
-        'sleeve',
-        'pallet',
     ];
 
     protected $keyType = 'string';
@@ -69,11 +70,12 @@ class DryGoodsItem extends Model
 
     protected $fillable = [
         'name',
-        'item_type',
+        'category',
         'unit_of_measure',
         'on_hand',
         'reorder_point',
         'cost_per_unit',
+        'expiration_date',
         'vendor_name',
         'vendor_id',
         'is_active',
@@ -86,6 +88,7 @@ class DryGoodsItem extends Model
             'on_hand' => 'decimal:2',
             'reorder_point' => 'decimal:2',
             'cost_per_unit' => 'decimal:4',
+            'expiration_date' => 'date',
             'is_active' => 'boolean',
         ];
     }
@@ -93,8 +96,8 @@ class DryGoodsItem extends Model
     // ─── Scopes ─────────────────────────────────────────────────────
 
     /**
-     * @param  Builder<DryGoodsItem>  $query
-     * @return Builder<DryGoodsItem>
+     * @param  Builder<RawMaterial>  $query
+     * @return Builder<RawMaterial>
      */
     public function scopeActive(Builder $query): Builder
     {
@@ -102,24 +105,49 @@ class DryGoodsItem extends Model
     }
 
     /**
-     * @param  Builder<DryGoodsItem>  $query
-     * @return Builder<DryGoodsItem>
+     * @param  Builder<RawMaterial>  $query
+     * @return Builder<RawMaterial>
      */
-    public function scopeOfType(Builder $query, string $type): Builder
+    public function scopeOfCategory(Builder $query, string $category): Builder
     {
-        return $query->where('item_type', $type);
+        return $query->where('category', $category);
     }
 
     /**
      * Items at or below their reorder point.
      *
-     * @param  Builder<DryGoodsItem>  $query
-     * @return Builder<DryGoodsItem>
+     * @param  Builder<RawMaterial>  $query
+     * @return Builder<RawMaterial>
      */
     public function scopeBelowReorderPoint(Builder $query): Builder
     {
         return $query->whereNotNull('reorder_point')
             ->whereColumn('on_hand', '<=', 'reorder_point');
+    }
+
+    /**
+     * Items past their expiration date.
+     *
+     * @param  Builder<RawMaterial>  $query
+     * @return Builder<RawMaterial>
+     */
+    public function scopeExpired(Builder $query): Builder
+    {
+        return $query->whereNotNull('expiration_date')
+            ->where('expiration_date', '<', now()->toDateString());
+    }
+
+    /**
+     * Items expiring within the given number of days.
+     *
+     * @param  Builder<RawMaterial>  $query
+     * @return Builder<RawMaterial>
+     */
+    public function scopeExpiringSoon(Builder $query, int $days = 30): Builder
+    {
+        return $query->whereNotNull('expiration_date')
+            ->where('expiration_date', '>=', now()->toDateString())
+            ->where('expiration_date', '<=', now()->addDays($days)->toDateString());
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
@@ -134,5 +162,17 @@ class DryGoodsItem extends Model
         }
 
         return (float) $this->on_hand <= (float) $this->reorder_point;
+    }
+
+    /**
+     * Whether this item is past its expiration date.
+     */
+    public function isExpired(): bool
+    {
+        if ($this->expiration_date === null) {
+            return false;
+        }
+
+        return $this->expiration_date->isPast();
     }
 }
