@@ -35,14 +35,7 @@ class PurchaseOrderLinesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('purchaseOrder.status')
                     ->label('PO Status')
                     ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'draft' => 'gray',
-                        'submitted' => 'info',
-                        'partial' => 'warning',
-                        'received' => 'success',
-                        'cancelled' => 'danger',
-                        default => 'gray',
-                    }),
+                    ->color(fn (string $state, $record): string => $record->purchaseOrder->statusColor()),
 
                 Tables\Columns\TextColumn::make('quantity_ordered')
                     ->label('Ordered')

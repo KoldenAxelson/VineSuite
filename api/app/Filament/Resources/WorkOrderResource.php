@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Models\WorkOrder;
+use App\Services\WorkOrderService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Section;
@@ -157,11 +158,11 @@ class WorkOrderResource extends Resource
                     ->visible(fn (WorkOrder $record) => $record->status !== 'completed')
                     ->requiresConfirmation()
                     ->action(function (WorkOrder $record): void {
-                        $record->update([
-                            'status' => 'completed',
-                            'completed_at' => now(),
-                            'completed_by' => auth()->id(),
-                        ]);
+                        app(WorkOrderService::class)->completeWorkOrder(
+                            $record,
+                            [],
+                            auth()->id(),
+                        );
                     }),
             ])
             ->bulkActions([

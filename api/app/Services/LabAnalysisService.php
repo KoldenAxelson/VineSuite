@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\LabAnalysis;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,8 +19,8 @@ use Illuminate\Support\Facades\Log;
 class LabAnalysisService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
-        protected LabThresholdChecker $thresholdChecker,
+        private readonly EventLogger $eventLogger,
+        private readonly LabThresholdChecker $thresholdChecker,
     ) {}
 
     /**
@@ -65,7 +66,7 @@ class LabAnalysisService
             $alerts = $this->thresholdChecker->check($analysis);
             $analysis->setAttribute('threshold_alerts', $alerts);
 
-            Log::info('Lab analysis recorded', [
+            Log::info('Lab analysis recorded', LogContext::with([
                 'analysis_id' => $analysis->id,
                 'lot_id' => $analysis->lot_id,
                 'test_type' => $analysis->test_type,
@@ -73,9 +74,7 @@ class LabAnalysisService
                 'unit' => $analysis->unit,
                 'source' => $analysis->source,
                 'threshold_alerts' => count($alerts),
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $analysis->load('performer');
         });

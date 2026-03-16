@@ -4,74 +4,50 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
-use App\Models\Tenant;
-use Illuminate\Support\Facades\Log;
+use App\Listeners\Webhooks\PaymentFailedHandler;
+use App\Listeners\Webhooks\PaymentSucceededHandler;
+use App\Listeners\Webhooks\WebhookHandler;
 use Laravel\Cashier\Events\WebhookReceived;
 
 /**
- * Listens for Cashier webhook events and handles subscription lifecycle changes.
+ * Dispatches Stripe webhook events to dedicated handler classes.
  *
- * Registered in EventServiceProvider (or auto-discovered).
- * Handles plan syncing, cancellation tracking, and payment failures.
+ * Registered in AppServiceProvider.
+ *
+ * To add a new webhook handler:
+ * 1. Create a class implementing WebhookHandler in App\Listeners\Webhooks\
+ * 2. Add the Stripe event type → handler class mapping to HANDLERS below
+ *
+ * The dispatcher never needs modification beyond the HANDLERS map.
  */
 class HandleSubscriptionChange
 {
+    /**
+     * Map of Stripe event types to their handler classes.
+     *
+     * @var array<string, class-string<WebhookHandler>>
+     */
+    private const HANDLERS = [
+        'invoice.payment_succeeded' => PaymentSucceededHandler::class,
+        'invoice.payment_failed' => PaymentFailedHandler::class,
+        // Future handlers:
+        // 'customer.subscription.updated' => SubscriptionUpdatedHandler::class,
+        // 'customer.subscription.deleted' => SubscriptionDeletedHandler::class,
+        // 'invoice.finalized' => InvoiceFinalizedHandler::class,
+    ];
+
     public function handle(WebhookReceived $event): void
     {
-        $payload = $event->payload;
-        $type = $payload['type'] ?? '';
+        $type = $event->payload['type'] ?? '';
 
-        match ($type) {
-            'invoice.payment_succeeded' => $this->handlePaymentSucceeded($payload),
-            'invoice.payment_failed' => $this->handlePaymentFailed($payload),
-            default => null,
-        };
-    }
+        $handlerClass = self::HANDLERS[$type] ?? null;
 
-    /**
-     * Handle successful payment — log for audit trail.
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    protected function handlePaymentSucceeded(array $payload): void
-    {
-        $invoice = $payload['data']['object'];
-        $stripeCustomerId = $invoice['customer'];
-
-        $tenant = Tenant::where('stripe_customer_id', $stripeCustomerId)->first();
-
-        if ($tenant) {
-            Log::info('Billing: payment succeeded', [
-                'tenant_id' => $tenant->id,
-                'amount' => $invoice['amount_paid'],
-                'currency' => $invoice['currency'],
-                'invoice_id' => $invoice['id'],
-            ]);
+        if ($handlerClass === null) {
+            return;
         }
-    }
 
-    /**
-     * Handle failed payment — log warning for follow-up.
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    protected function handlePaymentFailed(array $payload): void
-    {
-        $invoice = $payload['data']['object'];
-        $stripeCustomerId = $invoice['customer'];
-
-        $tenant = Tenant::where('stripe_customer_id', $stripeCustomerId)->first();
-
-        if ($tenant) {
-            Log::warning('Billing: payment failed', [
-                'tenant_id' => $tenant->id,
-                'amount' => $invoice['amount_due'],
-                'currency' => $invoice['currency'],
-                'invoice_id' => $invoice['id'],
-                'attempt_count' => $invoice['attempt_count'] ?? null,
-            ]);
-
-            // Future: send notification to tenant owner about payment failure
-        }
+        /** @var WebhookHandler $handler */
+        $handler = app($handlerClass);
+        $handler->handle($event->payload);
     }
 }

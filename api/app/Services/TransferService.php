@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\TransferServiceInterface;
+use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\Transfer;
 use App\Models\Vessel;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 /**
  * TransferService — business logic for wine transfers between vessels.
@@ -21,10 +23,10 @@ use Illuminate\Validation\ValidationException;
  * - Source vessel: decreases volume (or empties entirely)
  * - Target vessel: creates or updates the active pivot record
  */
-class TransferService
+class TransferService implements TransferServiceInterface
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -33,7 +35,7 @@ class TransferService
      * @param  array<string, mixed>  $data  Validated transfer data
      * @param  string  $performedBy  UUID of the user
      *
-     * @throws ValidationException If source vessel has insufficient volume
+     * @throws InsufficientVolumeException If source vessel has insufficient volume
      */
     public function executeTransfer(array $data, string $performedBy): Transfer
     {
@@ -47,11 +49,12 @@ class TransferService
 
             // Validate source has enough volume
             if ($requestedVolume > $sourceCurrentVolume) {
-                throw ValidationException::withMessages([
-                    'volume_gallons' => [
-                        "Cannot transfer {$requestedVolume} gallons — source vessel \"{$fromVessel->name}\" only contains {$sourceCurrentVolume} gallons.",
-                    ],
-                ]);
+                throw new InsufficientVolumeException(
+                    lotId: $data['lot_id'],
+                    lotName: $fromVessel->name,
+                    available: $sourceCurrentVolume,
+                    requested: $requestedVolume,
+                );
             }
 
             // Warn if target would overfill (log warning but don't block)
@@ -59,14 +62,13 @@ class TransferService
             $targetCurrentVolume = $toVessel->current_volume;
             $netVolume = $requestedVolume - $variance;
             if (($targetCurrentVolume + $netVolume) > $targetCapacity) {
-                Log::warning('Transfer would overfill target vessel', [
+                Log::warning('Transfer would overfill target vessel', LogContext::with([
                     'to_vessel_id' => $toVessel->id,
                     'to_vessel_name' => $toVessel->name,
                     'target_capacity' => $targetCapacity,
                     'current_volume' => $targetCurrentVolume,
                     'incoming_volume' => $netVolume,
-                    'tenant_id' => tenant('id'),
-                ]);
+                ]));
             }
 
             // Create the transfer record
@@ -100,16 +102,14 @@ class TransferService
                 performedAt: $transfer->performed_at,
             );
 
-            Log::info('Transfer executed', [
+            Log::info('Transfer executed', LogContext::with([
                 'transfer_id' => $transfer->id,
                 'lot_id' => $transfer->lot_id,
                 'from' => $fromVessel->name,
                 'to' => $toVessel->name,
                 'volume' => $transfer->volume_gallons,
                 'variance' => $transfer->variance_gallons,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $transfer->load(['lot', 'fromVessel', 'toVessel', 'performer']);
         });

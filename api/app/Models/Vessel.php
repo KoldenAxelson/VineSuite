@@ -223,4 +223,18 @@ class Vessel extends Model
                 ->orWhere('material', 'ilike', "%{$term}%");
         });
     }
+
+    /**
+     * Filament badge color for the current status.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'in_use' => 'success',
+            'empty' => 'secondary',
+            'cleaning' => 'warning',
+            'out_of_service' => 'danger',
+            default => 'secondary',
+        };
+    }
 }

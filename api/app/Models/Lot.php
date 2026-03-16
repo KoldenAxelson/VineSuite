@@ -245,6 +245,21 @@ class Lot extends Model
     }
 
     /**
+     * Filament badge color for the current status.
+     * Single source of truth — all Filament resources reference this.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'in_progress' => 'info',
+            'aging' => 'warning',
+            'finished' => 'success',
+            'bottled' => 'primary',
+            default => 'secondary',
+        };
+    }
+
+    /**
      * Search by name, variety, or vintage.
      *
      * @param  Builder<Lot>  $query

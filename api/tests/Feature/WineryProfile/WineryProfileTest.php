@@ -257,7 +257,7 @@ it('demo seeder creates paso robles cellars with all demo users', function () {
     $tenant = Tenant::where('slug', 'paso-robles-cellars')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->name)->toBe('Paso Robles Cellars');
-    expect($tenant->plan)->toBe('pro');
+    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Pro);
 
     $tenant->run(function () {
         // Verify profile

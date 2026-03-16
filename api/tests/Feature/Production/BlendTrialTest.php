@@ -233,19 +233,22 @@ it('writes blend_finalized and volume_deducted events on finalization', function
         expect($blendEvent->payload['ttb_label_variety'])->toBe('Cabernet Sauvignon');
         expect((float) $blendEvent->payload['total_volume_gallons'])->toBe(200.0);
 
-        // volume_deducted events on each source lot
-        $deductEvents = Event::where('operation_type', 'volume_deducted')->get();
+        // volume_adjusted events on each source lot (via LotService::adjustVolume)
+        $deductEvents = Event::where('operation_type', 'volume_adjusted')
+            ->where('entity_type', 'lot')
+            ->get();
         expect($deductEvents)->toHaveCount(2);
 
         $csDeduct = $deductEvents->firstWhere('entity_id', $lots['lot_cs_id']);
         expect($csDeduct)->not->toBeNull();
-        expect((float) $csDeduct->payload['volume_deducted_gallons'])->toBe(150.0);
+        expect((float) $csDeduct->payload['delta_gallons'])->toBe(-150.0);
         expect((float) $csDeduct->payload['old_volume_gallons'])->toBe(500.0);
         expect((float) $csDeduct->payload['new_volume_gallons'])->toBe(350.0);
+        expect($csDeduct->payload['reason'])->toBe('blend_finalization');
 
         $merlotDeduct = $deductEvents->firstWhere('entity_id', $lots['lot_merlot_id']);
         expect($merlotDeduct)->not->toBeNull();
-        expect((float) $merlotDeduct->payload['volume_deducted_gallons'])->toBe(50.0);
+        expect((float) $merlotDeduct->payload['delta_gallons'])->toBe(-50.0);
     });
 });
 

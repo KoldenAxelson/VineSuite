@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PlanTier;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Laravel\Cashier\Billable;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
@@ -20,7 +21,7 @@ use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
  * @property string $id UUID
  * @property string $name Winery display name
  * @property string $slug URL-safe identifier (used in subdomains)
- * @property string $plan free|basic|pro|max
+ * @property PlanTier $plan Plan tier (cast from string via PlanTier enum)
  * @property string|null $stripe_customer_id
  * @property string|null $stripe_subscription_id
  * @property \Carbon\Carbon|null $launched_at When the tenant completed onboarding
@@ -42,33 +43,10 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public $incrementing = false;
 
     /**
-     * Plan definitions with Stripe price IDs.
-     * These will be set to real Stripe price IDs once products are created.
-     */
-    /**
-     * Plan hierarchy — higher index = higher tier.
-     * Used by planRank() for upgrade/downgrade comparison.
+     * Plan hierarchy — delegated to PlanTier enum.
+     * Kept as convenience constant for validation rules ('in:free,basic,pro,max').
      */
     public const PLAN_HIERARCHY = ['free', 'basic', 'pro', 'max'];
-
-    public const PLANS = [
-        'free' => [
-            'name' => 'Free',
-            'stripe_price' => null, // Free tier — no Stripe subscription required
-        ],
-        'basic' => [
-            'name' => 'Basic',
-            'stripe_price' => null, // Set via STRIPE_PRICE_BASIC env
-        ],
-        'pro' => [
-            'name' => 'Pro',
-            'stripe_price' => null, // Set via STRIPE_PRICE_PRO env
-        ],
-        'max' => [
-            'name' => 'Max',
-            'stripe_price' => null, // Set via STRIPE_PRICE_MAX env
-        ],
-    ];
 
     /**
      * Default attribute values.
@@ -111,6 +89,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     protected function casts(): array
     {
         return [
+            'plan' => PlanTier::class,
             'launched_at' => 'datetime',
             'trial_ends_at' => 'datetime',
         ];
@@ -121,15 +100,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public static function stripePriceForPlan(string $plan): ?string
     {
-        $price = match ($plan) {
-            'free' => null,
-            'basic' => config('services.stripe.price_basic'),
-            'pro' => config('services.stripe.price_pro'),
-            'max' => config('services.stripe.price_max'),
-            default => null,
-        };
+        $tier = PlanTier::tryFrom($plan);
 
-        return is_string($price) ? $price : null;
+        return $tier?->stripePrice();
     }
 
     /**
@@ -137,7 +110,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public function isFreePlan(): bool
     {
-        return $this->plan === 'free';
+        return $this->plan === PlanTier::Free;
     }
 
     /**
@@ -162,9 +135,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public function planRank(): int
     {
-        $index = array_search($this->plan, self::PLAN_HIERARCHY, true);
-
-        return $index !== false ? $index : 0;
+        return $this->plan->rank();
     }
 
     /**
@@ -172,9 +143,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public function isDowngradeTo(string $plan): bool
     {
-        $targetIndex = array_search($plan, self::PLAN_HIERARCHY, true);
+        $target = PlanTier::tryFrom($plan);
 
-        return $targetIndex !== false && $targetIndex < $this->planRank();
+        return $target !== null && $target->isDowngradeFrom($this->plan);
     }
 
     /**
@@ -183,9 +154,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     public function hasPlanAtLeast(string $minimumPlan): bool
     {
-        $minimumIndex = array_search($minimumPlan, self::PLAN_HIERARCHY, true);
+        $minimum = PlanTier::tryFrom($minimumPlan);
 
-        return $minimumIndex !== false && $this->planRank() >= $minimumIndex;
+        return $minimum !== null && $this->plan->isAtLeast($minimum);
     }
 
     /**

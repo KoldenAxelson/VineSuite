@@ -8,6 +8,7 @@ use App\Models\LabAnalysis;
 use App\Models\Lot;
 use App\Services\EventLogger;
 use App\Services\LabThresholdChecker;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -26,18 +27,25 @@ class LabImportService
     /**
      * Registered parsers, tried in order (most specific first).
      *
+     * Parsers are injected via the service container — see AppServiceProvider
+     * for registration. To add a new parser, implement LabCsvParser and add
+     * it to the tagged binding in the service provider.
+     *
      * @var array<int, LabCsvParser>
      */
     private array $parsers;
 
+    /**
+     * @param  iterable<LabCsvParser>  $parsers  Injected via tagged container binding
+     */
     public function __construct(
-        protected EventLogger $eventLogger,
-        protected LabThresholdChecker $thresholdChecker,
+        private readonly EventLogger $eventLogger,
+        private readonly LabThresholdChecker $thresholdChecker,
+        iterable $parsers = [],
     ) {
-        $this->parsers = [
-            new ETSLabsParser,
-            new GenericCSVParser,
-        ];
+        $this->parsers = $parsers instanceof \Traversable
+            ? iterator_to_array($parsers)
+            : (array) $parsers;
     }
 
     /**
@@ -170,14 +178,12 @@ class LabImportService
             }
         });
 
-        Log::info('Lab CSV import committed', [
+        Log::info('Lab CSV import committed', LogContext::with([
             'imported' => $imported,
             'errors' => count($errors),
             'alerts_triggered' => $alertCount,
             'source' => $source,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
 
         return [
             'imported' => $imported,

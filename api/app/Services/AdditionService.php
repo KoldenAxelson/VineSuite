@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\AdditionServiceInterface;
 use App\Models\Addition;
 use App\Models\RawMaterial;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,10 +21,10 @@ use Illuminate\Support\Facades\Log;
  * Inventory auto-deduct: when an addition has an inventory_item_id, the
  * corresponding RawMaterial's on_hand is decremented by the total_amount.
  */
-class AdditionService
+class AdditionService implements AdditionServiceInterface
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -64,16 +66,14 @@ class AdditionService
                 $this->deductInventory($addition, $performedBy);
             }
 
-            Log::info('Addition logged', [
+            Log::info('Addition logged', LogContext::with([
                 'addition_id' => $addition->id,
                 'lot_id' => $addition->lot_id,
                 'type' => $addition->addition_type,
                 'product' => $addition->product_name,
                 'amount' => $addition->total_amount,
                 'unit' => $addition->total_unit,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $addition->load(['lot', 'vessel', 'performer']);
         });
@@ -105,11 +105,10 @@ class AdditionService
         $material = RawMaterial::lockForUpdate()->find($addition->inventory_item_id);
 
         if (! $material) {
-            Log::warning('Addition linked to non-existent raw material', [
+            Log::warning('Addition linked to non-existent raw material', LogContext::with([
                 'addition_id' => $addition->id,
                 'inventory_item_id' => $addition->inventory_item_id,
-                'tenant_id' => tenant('id'),
-            ]);
+            ]));
 
             return;
         }
@@ -136,14 +135,13 @@ class AdditionService
             performedAt: now(),
         );
 
-        Log::info('Raw material auto-deducted from addition', [
+        Log::info('Raw material auto-deducted from addition', LogContext::with([
             'raw_material_id' => $material->id,
             'raw_material_name' => $material->name,
             'addition_id' => $addition->id,
             'deducted' => $deductAmount,
             'previous_on_hand' => $previousOnHand,
             'new_on_hand' => $previousOnHand - $deductAmount,
-            'tenant_id' => tenant('id'),
-        ]);
+        ]));
     }
 }

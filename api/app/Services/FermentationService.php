@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\FermentationEntry;
 use App\Models\FermentationRound;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Log;
 class FermentationService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -56,14 +57,12 @@ class FermentationService
                 performedAt: $round->inoculation_date,
             );
 
-            Log::info('Fermentation round created', [
+            Log::info('Fermentation round created', LogContext::with([
                 'round_id' => $round->id,
                 'lot_id' => $round->lot_id,
                 'fermentation_type' => $round->fermentation_type,
                 'round_number' => $round->round_number,
-                'tenant_id' => tenant('id'),
-                'user_id' => $createdBy,
-            ]);
+            ], $createdBy));
 
             return $round;
         });
@@ -103,14 +102,12 @@ class FermentationService
                 performedAt: $entry->entry_date,
             );
 
-            Log::info('Fermentation entry recorded', [
+            Log::info('Fermentation entry recorded', LogContext::with([
                 'entry_id' => $entry->id,
                 'round_id' => $entry->fermentation_round_id,
                 'lot_id' => $entry->round->lot_id,
                 'entry_date' => $entry->entry_date->toDateString(),
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $entry;
         });
@@ -148,14 +145,12 @@ class FermentationService
                 performedAt: $round->completion_date,
             );
 
-            Log::info('Fermentation round completed', [
+            Log::info('Fermentation round completed', LogContext::with([
                 'round_id' => $round->id,
                 'lot_id' => $round->lot_id,
                 'fermentation_type' => $round->fermentation_type,
                 'completion_date' => $round->completion_date->toDateString(),
-                'tenant_id' => tenant('id'),
-                'user_id' => $completedBy,
-            ]);
+            ], $completedBy));
 
             return $round;
         });
@@ -170,13 +165,11 @@ class FermentationService
     {
         $round->update(['status' => 'stuck']);
 
-        Log::warning('Fermentation round marked stuck', [
+        Log::warning('Fermentation round marked stuck', LogContext::with([
             'round_id' => $round->id,
             'lot_id' => $round->lot_id,
             'fermentation_type' => $round->fermentation_type,
-            'tenant_id' => tenant('id'),
-            'user_id' => $reportedBy,
-        ]);
+        ], $reportedBy));
 
         return $round;
     }
@@ -192,13 +185,11 @@ class FermentationService
             'confirmation_date' => $confirmationDate ?? now()->toDateString(),
         ]);
 
-        Log::info('ML dryness confirmed', [
+        Log::info('ML dryness confirmed', LogContext::with([
             'round_id' => $round->id,
             'lot_id' => $round->lot_id,
             'confirmation_date' => $round->confirmation_date->toDateString(),
-            'tenant_id' => tenant('id'),
-            'user_id' => $confirmedBy,
-        ]);
+        ], $confirmedBy));
 
         return $round;
     }

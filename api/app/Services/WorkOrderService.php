@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\WorkOrder;
 use App\Models\WorkOrderTemplate;
+use App\Support\LogContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Log;
 class WorkOrderService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -49,13 +50,11 @@ class WorkOrderService
             performedAt: now(),
         );
 
-        Log::info('Work order created', [
+        Log::info('Work order created', LogContext::with([
             'work_order_id' => $workOrder->id,
             'operation_type' => $workOrder->operation_type,
             'assigned_to' => $workOrder->assigned_to,
-            'tenant_id' => tenant('id'),
-            'user_id' => $createdBy,
-        ]);
+        ], $createdBy));
 
         return $workOrder;
     }
@@ -94,12 +93,10 @@ class WorkOrderService
             $workOrders->push($this->createWorkOrder($data, $createdBy));
         }
 
-        Log::info('Bulk work orders created', [
+        Log::info('Bulk work orders created', LogContext::with([
             'count' => $workOrders->count(),
             'operation_type' => $baseData['operation_type'] ?? null,
-            'tenant_id' => tenant('id'),
-            'user_id' => $createdBy,
-        ]);
+        ], $createdBy));
 
         return $workOrders;
     }
@@ -151,12 +148,10 @@ class WorkOrderService
             );
         }
 
-        Log::info('Work order completed', [
+        Log::info('Work order completed', LogContext::with([
             'work_order_id' => $workOrder->id,
             'operation_type' => $workOrder->operation_type,
-            'tenant_id' => tenant('id'),
-            'user_id' => $completedBy,
-        ]);
+        ], $completedBy));
 
         return $workOrder->fresh();
     }
@@ -194,12 +189,10 @@ class WorkOrderService
             );
         }
 
-        Log::info('Work order updated', [
+        Log::info('Work order updated', LogContext::with([
             'work_order_id' => $workOrder->id,
             'changes' => $data,
-            'tenant_id' => tenant('id'),
-            'user_id' => $updatedBy,
-        ]);
+        ], $updatedBy));
 
         return $workOrder->fresh();
     }

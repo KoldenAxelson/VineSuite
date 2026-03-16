@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BottlingRunResource\Pages;
 use App\Models\BottlingRun;
+use App\Services\BottlingService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -140,8 +141,11 @@ class BottlingRunResource extends Resource
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
                     ->visible(fn (BottlingRun $record) => $record->status !== 'completed')
-                    ->action(function (BottlingRun $record) {
-                        $record->update(['status' => 'completed', 'completed_at' => now()]);
+                    ->action(function (BottlingRun $record): void {
+                        app(BottlingService::class)->completeBottlingRun(
+                            $record,
+                            auth()->id(),
+                        );
                     }),
             ])
             ->bulkActions([

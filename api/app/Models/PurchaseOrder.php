@@ -173,4 +173,20 @@ class PurchaseOrder extends Model
 
         $this->update(['total_cost' => round($total, 2)]);
     }
+
+    /**
+     * Filament badge color for the current status.
+     * Single source of truth — used by PO lines relation managers.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'draft' => 'gray',
+            'submitted' => 'info',
+            'partial' => 'warning',
+            'received' => 'success',
+            'cancelled' => 'danger',
+            default => 'secondary',
+        };
+    }
 }

@@ -41,7 +41,7 @@ it('creates a tenant with its own PostgreSQL schema', function () {
     expect($tenant->id)->not->toBeEmpty();
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe('basic');
+    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Basic);
 
     // Verify PostgreSQL schema was created
     $schemas = DB::select(
@@ -127,7 +127,7 @@ it('creates a tenant via CreateTenantJob', function () {
     expect($tenant)->toBeInstanceOf(Tenant::class);
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe('pro');
+    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Pro);
 
     // Verify domain was created
     expect($tenant->domains)->toHaveCount(1);

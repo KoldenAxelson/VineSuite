@@ -117,7 +117,7 @@ it('new tenants default to free plan', function () {
         'slug' => 'free-plan-test',
     ]);
 
-    expect($tenant->plan)->toBe('free');
+    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Free);
     expect($tenant->isFreePlan())->toBeTrue();
     expect($tenant->hasActiveAccess())->toBeTrue();
 });

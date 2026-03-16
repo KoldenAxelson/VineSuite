@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\InventoryServiceInterface;
 use App\Models\CaseGoodsSku;
 use App\Models\Location;
 use App\Models\StockLevel;
 use App\Models\StockMovement;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +24,7 @@ use Illuminate\Support\Facades\Log;
  *
  * NEVER update StockLevel directly — always go through this service.
  */
-class InventoryService
+class InventoryService implements InventoryServiceInterface
 {
     public function __construct(
         private readonly EventLogger $eventLogger,
@@ -180,14 +182,13 @@ class InventoryService
                 performedAt: now(),
             );
 
-            Log::info('Stock transferred between locations', [
+            Log::info('Stock transferred between locations', LogContext::with([
                 'transfer_id' => $transferId,
                 'sku_id' => $skuId,
                 'from_location_id' => $fromLocationId,
                 'to_location_id' => $toLocationId,
                 'quantity' => $quantity,
-                'tenant_id' => tenant('id'),
-            ]);
+            ], $performedBy));
 
             return ['from' => $fromMovement, 'to' => $toMovement];
         });
@@ -244,14 +245,13 @@ class InventoryService
                 performedAt: now(),
             );
 
-            Log::info('Stock movement recorded', [
+            Log::info('Stock movement recorded', LogContext::with([
                 'movement_id' => $movement->id,
                 'sku_id' => $skuId,
                 'location_id' => $locationId,
                 'movement_type' => $movementType,
                 'quantity' => $quantity,
-                'tenant_id' => tenant('id'),
-            ]);
+            ], $performedBy));
 
             return $movement;
         });

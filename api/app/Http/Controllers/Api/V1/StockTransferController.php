@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\InventoryServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StockMovementResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\StockLevel;
-use App\Services\InventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class StockTransferController extends Controller
 {
     public function __construct(
-        private readonly InventoryService $inventoryService,
+        private readonly InventoryServiceInterface $inventoryService,
     ) {}
 
     /**

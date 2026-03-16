@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\SensoryNote;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Log;
 class SensoryNoteService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -56,14 +57,12 @@ class SensoryNoteService
                 performedAt: $note->date,
             );
 
-            Log::info('Sensory note recorded', [
+            Log::info('Sensory note recorded', LogContext::with([
                 'note_id' => $note->id,
                 'lot_id' => $note->lot_id,
-                'taster_id' => $tasterId,
                 'rating' => $note->rating,
                 'rating_scale' => $note->rating_scale,
-                'tenant_id' => tenant('id'),
-            ]);
+            ], $tasterId));
 
             return $note;
         });

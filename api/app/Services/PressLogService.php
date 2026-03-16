@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Lot;
 use App\Models\PressLog;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Log;
 class PressLogService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -94,7 +95,7 @@ class PressLogService
                 performedAt: $pressLog->performed_at,
             );
 
-            Log::info('Pressing logged', [
+            Log::info('Pressing logged', LogContext::with([
                 'press_log_id' => $pressLog->id,
                 'lot_id' => $pressLog->lot_id,
                 'press_type' => $pressLog->press_type,
@@ -102,9 +103,7 @@ class PressLogService
                 'total_juice_gallons' => $pressLog->total_juice_gallons,
                 'yield_percent' => $pressLog->yield_percent,
                 'child_lots_created' => count($childLotIds),
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $pressLog->load(['lot', 'vessel', 'performer']);
         });

@@ -45,7 +45,7 @@ class WebhookController extends CashierWebhookController
         $priceId = $stripeSubscription['items']['data'][0]['price']['id'] ?? null;
         $plan = $this->planFromStripePrice($priceId);
 
-        if ($plan && $tenant->plan !== $plan) {
+        if ($plan && $tenant->plan->value !== $plan) {
             $oldPlan = $tenant->plan;
             $tenant->update(['plan' => $plan]);
 

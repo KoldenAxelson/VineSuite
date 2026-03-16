@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Barrel;
 use App\Models\Vessel;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -26,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 class BarrelOperationService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -76,12 +77,10 @@ class BarrelOperationService
                 ];
             }
 
-            Log::info('Barrels filled', [
+            Log::info('Barrels filled', LogContext::with([
                 'lot_id' => $lotId,
                 'barrel_count' => count($barrels),
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $results;
         });
@@ -159,14 +158,12 @@ class BarrelOperationService
                 ];
             }
 
-            Log::info('Barrels topped', [
+            Log::info('Barrels topped', LogContext::with([
                 'lot_id' => $lotId,
                 'source_vessel_id' => $sourceVessel->id,
                 'barrel_count' => count($barrels),
                 'total_volume' => $totalVolume,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $results;
         });
@@ -233,14 +230,12 @@ class BarrelOperationService
             // Increase target vessel volume with total racked volume
             $this->increaseVesselVolume($targetVessel, $lotId, $totalVolume);
 
-            Log::info('Barrels racked', [
+            Log::info('Barrels racked', LogContext::with([
                 'lot_id' => $lotId,
                 'target_vessel_id' => $targetVessel->id,
                 'barrel_count' => count($barrels),
                 'total_volume' => $totalVolume,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $results;
         });
@@ -283,13 +278,11 @@ class BarrelOperationService
             performedAt: now(),
         );
 
-        Log::info('Barrel sampled', [
+        Log::info('Barrel sampled', LogContext::with([
             'barrel_id' => $barrel->id,
             'lot_id' => $lotId,
             'volume_ml' => $volumeMl,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
 
         return [
             'barrel_id' => $barrel->id,

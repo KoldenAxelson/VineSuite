@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BlendTrialResource\Pages;
 use App\Models\BlendTrial;
+use App\Services\BlendService;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -136,10 +137,10 @@ class BlendTrialResource extends Resource
                             return $record->status === 'draft';
                         })
                         ->action(function (BlendTrial $record): void {
-                            $record->update([
-                                'status' => 'finalized',
-                                'finalized_at' => now(),
-                            ]);
+                            app(BlendService::class)->finalizeTrial(
+                                $record,
+                                auth()->id(),
+                            );
                         }),
                 ]),
             ])

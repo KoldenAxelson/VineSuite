@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\BottlingServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBottlingRunRequest;
 use App\Http\Resources\BottlingRunResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\BottlingRun;
-use App\Services\BottlingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BottlingRunController extends Controller
 {
     public function __construct(
-        protected BottlingService $bottlingService,
+        protected BottlingServiceInterface $bottlingService,
     ) {}
 
     /**

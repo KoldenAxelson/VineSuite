@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\LotServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLotRequest;
 use App\Http\Requests\UpdateLotRequest;
 use App\Http\Resources\LotResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Lot;
-use App\Services\LotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LotController extends Controller
 {
     public function __construct(
-        protected LotService $lotService,
+        protected LotServiceInterface $lotService,
     ) {}
 
     /**

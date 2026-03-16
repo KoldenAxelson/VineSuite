@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Lot;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +23,7 @@ use Illuminate\Validation\ValidationException;
 class LotSplitService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -121,14 +122,12 @@ class LotSplitService
                 performedAt: now(),
             );
 
-            Log::info('Lot split', [
+            Log::info('Lot split', LogContext::with([
                 'parent_lot_id' => $parentLot->id,
                 'child_count' => count($createdChildren),
                 'total_split_volume' => $totalChildVolume,
                 'remaining_parent_volume' => $newParentVolume,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return [
                 'parent' => $parentLot->fresh(),

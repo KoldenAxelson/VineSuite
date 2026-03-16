@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\BlendServiceInterface;
+use App\Contracts\LotServiceInterface;
+use App\Exceptions\Domain\DuplicateOperationException;
+use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\BlendTrial;
 use App\Models\BlendTrialComponent;
 use App\Models\Lot;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 /**
  * BlendService — business logic for blend trials and finalization.
@@ -22,10 +26,11 @@ use Illuminate\Validation\ValidationException;
  * TTB compliance: >=75% of a single variety to label as that variety.
  * Cost rolls through proportionally (tracked via events for COGS).
  */
-class BlendService
+class BlendService implements BlendServiceInterface
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
+        private readonly LotServiceInterface $lotService,
     ) {}
 
     /**
@@ -90,15 +95,13 @@ class BlendService
                 ]);
             }
 
-            Log::info('Blend trial created', [
+            Log::info('Blend trial created', LogContext::with([
                 'blend_trial_id' => $trial->id,
                 'name' => $trial->name,
                 'component_count' => count($components),
                 'total_volume' => $totalVolume,
                 'ttb_label_variety' => $ttbLabelVariety,
-                'tenant_id' => tenant('id'),
-                'user_id' => $createdBy,
-            ]);
+            ], $createdBy));
 
             return $trial->load(['components.sourceLot', 'creator']);
         });
@@ -107,14 +110,17 @@ class BlendService
     /**
      * Finalize a blend trial — creates a new lot and deducts from sources.
      *
-     * @throws ValidationException If trial is not in draft status or source lots lack volume
+     * @throws DuplicateOperationException If trial is not in draft status
+     * @throws InsufficientVolumeException If source lots lack volume
      */
     public function finalizeTrial(BlendTrial $trial, string $performedBy): BlendTrial
     {
         if ($trial->status !== 'draft') {
-            throw ValidationException::withMessages([
-                'status' => ['Only draft blend trials can be finalized.'],
-            ]);
+            throw new DuplicateOperationException(
+                operationType: 'blend_finalization',
+                entityId: $trial->id,
+                message: 'Only draft blend trials can be finalized.',
+            );
         }
 
         return DB::transaction(function () use ($trial, $performedBy) {
@@ -127,11 +133,12 @@ class BlendService
                 $availableVolume = (float) $sourceLot->volume_gallons;
 
                 if ($requiredVolume > $availableVolume) {
-                    throw ValidationException::withMessages([
-                        'components' => [
-                            "Source lot \"{$sourceLot->name}\" has only {$availableVolume} gallons available, but {$requiredVolume} gallons required.",
-                        ],
-                    ]);
+                    throw new InsufficientVolumeException(
+                        lotId: $sourceLot->id,
+                        lotName: $sourceLot->name,
+                        available: $availableVolume,
+                        requested: $requiredVolume,
+                    );
                 }
             }
 
@@ -178,33 +185,22 @@ class BlendService
                 performedAt: now(),
             );
 
-            // Deduct volumes from source lots and write events
+            // Deduct volumes from source lots via centralized LotService
             $componentDetails = [];
             foreach ($trial->components as $component) {
                 $sourceLot = $component->sourceLot;
                 $deductVolume = (float) $component->volume_gallons;
 
-                // Deduct volume from source lot
-                $oldVolume = (float) $sourceLot->volume_gallons;
-                $sourceLot->update([
-                    'volume_gallons' => $oldVolume - $deductVolume,
-                ]);
-
-                // Write volume_deducted event on the source lot
-                $this->eventLogger->log(
-                    entityType: 'lot',
-                    entityId: $sourceLot->id,
-                    operationType: 'volume_deducted',
-                    payload: [
-                        'reason' => 'blend_finalization',
+                // Deduct volume via LotService — handles event logging and invariant checks
+                $this->lotService->adjustVolume(
+                    lot: $sourceLot,
+                    deltaGallons: -$deductVolume,
+                    reason: 'blend_finalization',
+                    performedBy: $performedBy,
+                    context: [
                         'blend_trial_id' => $trial->id,
                         'resulting_lot_id' => $blendedLot->id,
-                        'volume_deducted_gallons' => $deductVolume,
-                        'old_volume_gallons' => $oldVolume,
-                        'new_volume_gallons' => $oldVolume - $deductVolume,
                     ],
-                    performedBy: $performedBy,
-                    performedAt: now(),
                 );
 
                 $componentDetails[] = [
@@ -239,14 +235,12 @@ class BlendService
                 performedAt: now(),
             );
 
-            Log::info('Blend trial finalized', [
+            Log::info('Blend trial finalized', LogContext::with([
                 'blend_trial_id' => $trial->id,
                 'resulting_lot_id' => $blendedLot->id,
                 'total_volume' => $trial->total_volume_gallons,
                 'component_count' => $trial->components->count(),
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $trial->fresh(['components.sourceLot', 'creator', 'resultingLot']);
         });

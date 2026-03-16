@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LabAnalysis;
 use App\Models\LabThreshold;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -61,14 +62,13 @@ class LabThresholdChecker
         }
 
         if (! empty($alerts)) {
-            Log::warning('Lab threshold alert triggered', [
+            Log::warning('Lab threshold alert triggered', LogContext::with([
                 'analysis_id' => $analysis->id,
                 'lot_id' => $analysis->lot_id,
                 'test_type' => $testType,
                 'value' => $value,
                 'alert_count' => count($alerts),
-                'tenant_id' => tenant('id'),
-            ]);
+            ]));
         }
 
         return $alerts;

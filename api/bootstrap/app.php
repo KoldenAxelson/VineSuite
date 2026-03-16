@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\Domain\DomainException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -63,6 +64,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 'meta' => (object) [],
                 'errors' => $errors,
             ], $e->status);
+        });
+
+        $exceptions->render(function (DomainException $e) {
+            return response()->json([
+                'data' => null,
+                'meta' => (object) [],
+                'errors' => [$e->toApiError()],
+            ], 422);
         });
 
         $exceptions->render(function (AuthenticationException $e, Request $request) {

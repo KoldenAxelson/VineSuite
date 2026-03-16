@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\BlendServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBlendTrialRequest;
 use App\Http\Resources\BlendTrialResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\BlendTrial;
-use App\Services\BlendService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BlendController extends Controller
 {
     public function __construct(
-        protected BlendService $blendService,
+        protected BlendServiceInterface $blendService,
     ) {}
 
     /**

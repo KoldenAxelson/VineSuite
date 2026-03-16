@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Event;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -62,11 +63,10 @@ class EventLogger
             $existing = Event::where('idempotency_key', $idempotencyKey)->first();
 
             if ($existing) {
-                Log::debug('EventLogger: duplicate idempotency key, returning existing event', [
+                Log::debug('EventLogger: duplicate idempotency key, returning existing event', LogContext::with([
                     'idempotency_key' => $idempotencyKey,
                     'event_id' => $existing->id,
-                    'tenant_id' => tenant('id'),
-                ]);
+                ]));
 
                 return $existing;
             }
@@ -85,14 +85,12 @@ class EventLogger
             'idempotency_key' => $idempotencyKey,
         ]);
 
-        Log::info('EventLogger: event created', [
+        Log::info('EventLogger: event created', LogContext::with([
             'event_id' => $event->id,
             'entity_type' => $entityType,
             'entity_id' => $entityId,
             'operation_type' => $operationType,
-            'performed_by' => $performedBy,
-            'tenant_id' => tenant('id'),
-        ]);
+        ], $performedBy));
 
         return $event;
     }
@@ -104,26 +102,27 @@ class EventLogger
      * from the operation type naming convention. This keeps the API surface
      * unchanged and prevents inconsistency.
      *
-     * See docs/references/event-source-partitioning.md for the full mapping.
+     * Prefix-to-source mappings are defined in config/event-sources.php.
+     * New modules add their prefixes to that config file instead of modifying
+     * this method — keeping EventLogger closed for modification.
+     *
+     * @see config/event-sources.php
+     * @see docs/references/event-source-partitioning.md
      */
     private function resolveSource(string $operationType): string
     {
-        return match (true) {
-            str_starts_with($operationType, 'lab_'),
-            str_starts_with($operationType, 'fermentation_'),
-            str_starts_with($operationType, 'sensory_') => 'lab',
+        /** @var array<string, array<int, string>> $sourceMap */
+        $sourceMap = config('event-sources', []);
 
-            str_starts_with($operationType, 'stock_'),
-            str_starts_with($operationType, 'purchase_'),
-            str_starts_with($operationType, 'equipment_'),
-            str_starts_with($operationType, 'dry_goods_'),
-            str_starts_with($operationType, 'raw_material_') => 'inventory',
+        foreach ($sourceMap as $source => $prefixes) {
+            foreach ($prefixes as $prefix) {
+                if (str_starts_with($operationType, $prefix)) {
+                    return $source;
+                }
+            }
+        }
 
-            str_starts_with($operationType, 'cost_'),
-            str_starts_with($operationType, 'cogs_') => 'accounting',
-
-            default => 'production',
-        };
+        return 'production';
     }
 
     /**

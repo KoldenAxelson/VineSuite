@@ -157,13 +157,7 @@ class VesselResource extends Resource
                             ->formatStateUsing(fn ($state): string => number_format((float) $state, 1).'%'),
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'in_use' => 'success',
-                                'empty' => 'secondary',
-                                'cleaning' => 'warning',
-                                'out_of_service' => 'danger',
-                                default => 'secondary',
-                            }),
+                            ->color(fn (string $state, $record): string => $record->statusColor()),
                         Infolists\Components\TextEntry::make('material'),
                         Infolists\Components\TextEntry::make('location'),
                         Infolists\Components\TextEntry::make('purchase_date')->date(),

@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LotResource\Pages;
 use App\Models\Lot;
+use App\Services\LotService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists;
@@ -101,13 +102,7 @@ class LotResource extends Resource
                 Tables\Columns\TextColumn::make('vintage')
                     ->sortable(),
                 Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'info' => 'in_progress',
-                        'warning' => 'aging',
-                        'success' => 'finished',
-                        'primary' => 'bottled',
-                        'secondary' => fn (string $state): bool => in_array($state, ['sold', 'archived']),
-                    ])
+                    ->color(fn (string $state, Lot $record): string => $record->statusColor())
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('volume_gallons')
@@ -149,7 +144,15 @@ class LotResource extends Resource
                     ->icon('heroicon-o-archive-box')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->action(fn ($records) => $records->each(fn (Lot $lot) => $lot->update(['status' => 'archived']))),
+                    ->action(function ($records): void {
+                        $lotService = app(LotService::class);
+                        $userId = auth()->id();
+                        $records->each(fn (Lot $lot) => $lotService->updateLot(
+                            $lot,
+                            ['status' => 'archived'],
+                            $userId,
+                        ));
+                    }),
             ])
             ->defaultSort('created_at', 'desc');
     }
@@ -165,13 +168,7 @@ class LotResource extends Resource
                         Infolists\Components\TextEntry::make('vintage'),
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'in_progress' => 'info',
-                                'aging' => 'warning',
-                                'finished' => 'success',
-                                'bottled' => 'primary',
-                                default => 'secondary',
-                            }),
+                            ->color(fn (string $state, Lot $record): string => $record->statusColor()),
                         Infolists\Components\TextEntry::make('volume_gallons')
                             ->label('Volume (gallons)')
                             ->numeric(4),

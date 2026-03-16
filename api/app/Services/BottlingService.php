@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\BottlingServiceInterface;
+use App\Contracts\LotServiceInterface;
+use App\Exceptions\Domain\DuplicateOperationException;
+use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\BottlingComponent;
 use App\Models\BottlingRun;
 use App\Models\Lot;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 /**
  * BottlingService — business logic for bottling runs.
  *
  * Bottling converts bulk wine (gallons) into case goods (bottles/cases).
  * On completion:
- * - Lot volume is deducted
+ * - Lot volume is deducted via LotService::adjustVolume()
  * - Cases produced is calculated
  * - SKU is auto-generated if not provided
  * - `bottling_completed` event is written
@@ -24,10 +28,11 @@ use Illuminate\Validation\ValidationException;
  *
  * Packaging material inventory deduction is stubbed for 04-inventory.md.
  */
-class BottlingService
+class BottlingService implements BottlingServiceInterface
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
+        private readonly LotServiceInterface $lotService,
     ) {}
 
     /**
@@ -65,14 +70,12 @@ class BottlingService
                 ]);
             }
 
-            Log::info('Bottling run created', [
+            Log::info('Bottling run created', LogContext::with([
                 'bottling_run_id' => $run->id,
                 'lot_id' => $run->lot_id,
                 'bottles_filled' => $bottlesFilled,
                 'format' => $run->bottle_format,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $run->load(['components', 'lot', 'performer']);
         });
@@ -81,14 +84,17 @@ class BottlingService
     /**
      * Complete a bottling run — deducts lot volume and writes event.
      *
-     * @throws ValidationException If run is already completed or lot has insufficient volume
+     * @throws DuplicateOperationException If run is already completed
+     * @throws InsufficientVolumeException If lot has insufficient volume
      */
     public function completeBottlingRun(BottlingRun $run, string $performedBy): BottlingRun
     {
         if ($run->status === 'completed') {
-            throw ValidationException::withMessages([
-                'status' => ['This bottling run is already completed.'],
-            ]);
+            throw new DuplicateOperationException(
+                operationType: 'bottling_run',
+                entityId: $run->id,
+                message: 'This bottling run is already completed.',
+            );
         }
 
         return DB::transaction(function () use ($run, $performedBy) {
@@ -96,19 +102,15 @@ class BottlingService
             $volumeToDeduct = (float) $run->volume_bottled_gallons;
             $lotVolume = (float) $lot->volume_gallons;
 
-            if ($volumeToDeduct > $lotVolume) {
-                throw ValidationException::withMessages([
-                    'volume' => [
-                        "Lot \"{$lot->name}\" has only {$lotVolume} gallons available, but {$volumeToDeduct} gallons needed for bottling.",
-                    ],
-                ]);
-            }
-
-            // Deduct volume from lot
-            $newVolume = $lotVolume - $volumeToDeduct;
-            $lot->update([
-                'volume_gallons' => $newVolume,
-            ]);
+            // Deduct volume from lot — throws InsufficientVolumeException if not enough
+            $lot = $this->lotService->adjustVolume(
+                lot: $lot,
+                deltaGallons: -$volumeToDeduct,
+                reason: 'bottling_completed',
+                performedBy: $performedBy,
+                context: ['bottling_run_id' => $run->id],
+            );
+            $newVolume = (float) $lot->volume_gallons;
 
             // Auto-generate SKU if not provided
             $sku = $run->sku;
@@ -179,15 +181,13 @@ class BottlingService
             // TODO: Auto-deduct packaging materials from dry goods inventory (04-inventory.md)
             // TODO: Create case goods inventory entry (04-inventory.md)
 
-            Log::info('Bottling run completed', [
+            Log::info('Bottling run completed', LogContext::with([
                 'bottling_run_id' => $run->id,
                 'lot_id' => $lot->id,
                 'sku' => $sku,
                 'cases_produced' => $casesProduced,
                 'volume_deducted' => $volumeToDeduct,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $run->fresh(['components', 'lot', 'performer']);
         });

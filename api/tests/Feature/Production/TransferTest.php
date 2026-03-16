@@ -171,8 +171,8 @@ it('rejects transfer exceeding source vessel volume', function () {
     ]);
 
     $response->assertStatus(422);
-    $fields = array_column($response->json('errors'), 'field');
-    expect($fields)->toContain('volume_gallons');
+    $codes = array_column($response->json('errors'), 'code');
+    expect($codes)->toContain('INSUFFICIENT_VOLUME');
 });
 
 it('updates source and target vessel volumes after transfer', function () {

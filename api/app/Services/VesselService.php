@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Vessel;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 class VesselService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -47,14 +48,12 @@ class VesselService
             performedAt: now(),
         );
 
-        Log::info('Vessel created', [
+        Log::info('Vessel created', LogContext::with([
             'vessel_id' => $vessel->id,
             'name' => $vessel->name,
             'type' => $vessel->type,
             'capacity_gallons' => $vessel->capacity_gallons,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
 
         return $vessel;
     }
@@ -86,13 +85,11 @@ class VesselService
             );
         }
 
-        Log::info('Vessel updated', [
+        Log::info('Vessel updated', LogContext::with([
             'vessel_id' => $vessel->id,
             'changes' => $data,
             'old_values' => $oldValues,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
 
         return $vessel->fresh();
     }

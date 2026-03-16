@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Event;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -61,12 +62,11 @@ class EventProcessor
             } catch (\Throwable $e) {
                 $failed++;
 
-                Log::error('EventProcessor: failed to process event', [
+                Log::error('EventProcessor: failed to process event', LogContext::with([
                     'index' => $index,
                     'idempotency_key' => $eventData['idempotency_key'] ?? null,
                     'error' => $e->getMessage(),
-                    'tenant_id' => tenant('id'),
-                ]);
+                ]));
 
                 $results[] = [
                     'index' => $index,
@@ -78,14 +78,12 @@ class EventProcessor
             }
         }
 
-        Log::info('EventProcessor: batch processed', [
+        Log::info('EventProcessor: batch processed', LogContext::with([
             'total' => count($events),
             'accepted' => $accepted,
             'skipped' => $skipped,
             'failed' => $failed,
-            'user_id' => $userId,
-            'tenant_id' => tenant('id'),
-        ]);
+        ], $userId));
 
         return [
             'results' => $results,
@@ -98,19 +96,17 @@ class EventProcessor
     /**
      * Process a single event within its own DB transaction.
      *
+     * Idempotency is handled by EventLogger::log() — if the idempotency key
+     * already exists, the existing event is returned. We detect new vs existing
+     * via Eloquent's wasRecentlyCreated flag: true for Event::create(), false
+     * for events returned from the idempotency lookup.
+     *
      * @param  array<string, mixed>  $eventData
      * @return array{event: Event, status: string}
      */
     protected function processEvent(array $eventData, string $userId): array
     {
         return DB::transaction(function () use ($eventData, $userId) {
-            // Check if this idempotency key already exists
-            $existing = Event::where('idempotency_key', $eventData['idempotency_key'])->first();
-
-            if ($existing) {
-                return ['event' => $existing, 'status' => 'skipped'];
-            }
-
             $event = $this->eventLogger->log(
                 entityType: $eventData['entity_type'],
                 entityId: $eventData['entity_id'],
@@ -123,10 +119,12 @@ class EventProcessor
                 isSynced: true,
             );
 
-            // Future: dispatch to event-specific handlers here
-            // e.g., $this->dispatchHandler($event);
+            $status = $event->wasRecentlyCreated ? 'accepted' : 'skipped';
 
-            return ['event' => $event, 'status' => 'accepted'];
+            // Future: dispatch to event-specific handlers here
+            // e.g., if ($status === 'accepted') $this->dispatchHandler($event);
+
+            return ['event' => $event, 'status' => $status];
         });
     }
 }

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Barrel;
 use App\Models\Vessel;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Log;
 class BarrelService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -74,15 +75,13 @@ class BarrelService
                 performedAt: now(),
             );
 
-            Log::info('Barrel created', [
+            Log::info('Barrel created', LogContext::with([
                 'barrel_id' => $barrel->id,
                 'vessel_id' => $vessel->id,
                 'name' => $vessel->name,
                 'cooperage' => $barrel->cooperage,
                 'oak_type' => $barrel->oak_type,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $barrel->load('vessel');
         });
@@ -138,13 +137,11 @@ class BarrelService
                 );
             }
 
-            Log::info('Barrel updated', [
+            Log::info('Barrel updated', LogContext::with([
                 'barrel_id' => $barrel->id,
                 'vessel_id' => $vessel->id,
                 'changes' => $data,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             $barrel->refresh();
             $barrel->load('vessel');

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\PhysicalCount;
 use App\Models\PhysicalCountLine;
 use App\Models\StockLevel;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -70,12 +71,11 @@ class PhysicalCountService
                 performedAt: now(),
             );
 
-            Log::info('Physical count started', [
+            Log::info('Physical count started', LogContext::with([
                 'count_id' => $count->id,
                 'location_id' => $locationId,
                 'lines' => $stockLevels->count(),
-                'tenant_id' => tenant('id'),
-            ]);
+            ], $startedBy));
 
             return $count->load('lines.sku');
         });
@@ -183,12 +183,11 @@ class PhysicalCountService
                 performedAt: now(),
             );
 
-            Log::info('Physical count approved', [
+            Log::info('Physical count approved', LogContext::with([
                 'count_id' => $physicalCount->id,
                 'location_id' => $physicalCount->location_id,
                 'adjustments' => $adjustmentCount,
-                'tenant_id' => tenant('id'),
-            ]);
+            ], $approvedBy));
 
             return $physicalCount->load('lines.sku');
         });
@@ -224,11 +223,10 @@ class PhysicalCountService
             performedAt: now(),
         );
 
-        Log::info('Physical count cancelled', [
+        Log::info('Physical count cancelled', LogContext::with([
             'count_id' => $physicalCount->id,
             'location_id' => $physicalCount->location_id,
-            'tenant_id' => tenant('id'),
-        ]);
+        ], $cancelledBy));
 
         return $physicalCount;
     }

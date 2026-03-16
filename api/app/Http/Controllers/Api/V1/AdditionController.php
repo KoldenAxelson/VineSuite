@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\AdditionServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAdditionRequest;
 use App\Http\Resources\AdditionResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Addition;
-use App\Services\AdditionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdditionController extends Controller
 {
     public function __construct(
-        protected AdditionService $additionService,
+        protected AdditionServiceInterface $additionService,
     ) {}
 
     /**

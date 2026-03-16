@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\TransferServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTransferRequest;
 use App\Http\Resources\TransferResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Transfer;
-use App\Services\TransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TransferController extends Controller
 {
     public function __construct(
-        protected TransferService $transferService,
+        protected TransferServiceInterface $transferService,
     ) {}
 
     /**

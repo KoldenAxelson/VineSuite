@@ -110,12 +110,7 @@ class EquipmentResource extends Resource
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'operational' => 'success',
-                        'maintenance' => 'warning',
-                        'retired' => 'gray',
-                        default => 'secondary',
-                    })
+                    ->color(fn (string $state, $record): string => $record->statusColor())
                     ->formatStateUsing(fn (string $state) => ucfirst($state))
                     ->sortable(),
 

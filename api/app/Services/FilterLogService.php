@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\FilterLog;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 class FilterLogService
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -68,15 +69,13 @@ class FilterLogService
                 performedAt: $filterLog->performed_at,
             );
 
-            Log::info('Filtering logged', [
+            Log::info('Filtering logged', LogContext::with([
                 'filter_log_id' => $filterLog->id,
                 'lot_id' => $filterLog->lot_id,
                 'filter_type' => $filterLog->filter_type,
                 'volume' => $filterLog->volume_processed_gallons,
                 'fining_agent' => $filterLog->fining_agent,
-                'tenant_id' => tenant('id'),
-                'user_id' => $performedBy,
-            ]);
+            ], $performedBy));
 
             return $filterLog->load(['lot', 'vessel', 'performer']);
         });

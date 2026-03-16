@@ -175,4 +175,17 @@ class Equipment extends Model
 
         return $this->next_maintenance_due->isPast();
     }
+
+    /**
+     * Filament badge color for the current status.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'operational' => 'success',
+            'maintenance' => 'warning',
+            'retired' => 'gray',
+            default => 'secondary',
+        };
+    }
 }

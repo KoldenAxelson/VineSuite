@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\LotServiceInterface;
+use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\Lot;
+use App\Support\LogContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -15,10 +18,10 @@ use Illuminate\Support\Facades\Log;
  * - Status transitions with validation
  * - Structured logging with tenant context
  */
-class LotService
+class LotService implements LotServiceInterface
 {
     public function __construct(
-        protected EventLogger $eventLogger,
+        private readonly EventLogger $eventLogger,
     ) {}
 
     /**
@@ -48,15 +51,13 @@ class LotService
             performedAt: now(),
         );
 
-        Log::info('Lot created', [
+        Log::info('Lot created', LogContext::with([
             'lot_id' => $lot->id,
             'name' => $lot->name,
             'variety' => $lot->variety,
             'vintage' => $lot->vintage,
             'volume_gallons' => $lot->volume_gallons,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
 
         return $lot;
     }
@@ -88,13 +89,69 @@ class LotService
             );
         }
 
-        Log::info('Lot updated', [
+        Log::info('Lot updated', LogContext::with([
             'lot_id' => $lot->id,
             'changes' => $data,
             'old_values' => $oldValues,
-            'tenant_id' => tenant('id'),
-            'user_id' => $performedBy,
-        ]);
+        ], $performedBy));
+
+        return $lot->fresh();
+    }
+
+    /**
+     * Adjust lot volume by a delta (positive or negative).
+     *
+     * This is the single codepath for all volume mutations. It enforces:
+     * - Volume cannot go below zero (throws InsufficientVolumeException)
+     * - Every change is logged as a volume_adjusted event
+     * - Structured logging with tenant context
+     *
+     * @param  Lot  $lot  The lot to adjust
+     * @param  float  $deltaGallons  Volume change (negative for deductions)
+     * @param  string  $reason  Why the volume changed (e.g., 'bottling_completed', 'blend_finalization')
+     * @param  string  $performedBy  UUID of the user
+     * @param  array<string, mixed>  $context  Additional event payload context
+     * @return Lot The updated lot (fresh from DB)
+     *
+     * @throws InsufficientVolumeException If deduction would result in negative volume
+     */
+    public function adjustVolume(Lot $lot, float $deltaGallons, string $reason, string $performedBy, array $context = []): Lot
+    {
+        $oldVolume = (float) $lot->volume_gallons;
+        $newVolume = $oldVolume + $deltaGallons;
+
+        if ($newVolume < 0) {
+            throw new InsufficientVolumeException(
+                lotId: $lot->id,
+                lotName: $lot->name,
+                available: $oldVolume,
+                requested: abs($deltaGallons),
+            );
+        }
+
+        $lot->update(['volume_gallons' => $newVolume]);
+
+        $this->eventLogger->log(
+            entityType: 'lot',
+            entityId: $lot->id,
+            operationType: 'volume_adjusted',
+            payload: array_merge([
+                'reason' => $reason,
+                'old_volume_gallons' => $oldVolume,
+                'new_volume_gallons' => $newVolume,
+                'delta_gallons' => $deltaGallons,
+            ], $context),
+            performedBy: $performedBy,
+            performedAt: now(),
+        );
+
+        Log::info('Lot volume adjusted', LogContext::with([
+            'lot_id' => $lot->id,
+            'reason' => $reason,
+            'delta' => $deltaGallons,
+            'old_volume' => $oldVolume,
+            'new_volume' => $newVolume,
+        ], $performedBy));
 
         return $lot->fresh();
     }
