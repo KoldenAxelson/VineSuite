@@ -354,3 +354,62 @@
 - Expiration alert delivery: The scopes are ready, but how should expiring/expired materials be surfaced? Options: Filament dashboard widget with "expiring within 30 days" count, email digest. Deferred.
 - Auto-deduct unit conversion: Currently assumes addition's total_amount is in the same unit as the raw material's unit_of_measure. If a user adds 50g of a material tracked in kg, the deduction would be wrong (50 instead of 0.05). Unit conversion logic may be needed when the UI for linking additions to inventory is built.
 - Should the auto-deduct feature be toggleable per-tenant? Some wineries may want to track raw materials without automatic deductions from the addition workflow.
+
+---
+
+## Sub-Task 8: Equipment and Maintenance Tracking
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200009_create_equipment_table.php` — Creates the `equipment` table with UUID primary key, name (varchar 150), equipment_type (varchar 50), serial_number (varchar 100 nullable), manufacturer (varchar 150 nullable), model_number (varchar 100 nullable), purchase_date (date nullable), purchase_value (decimal 12,2 nullable), location (varchar 150 nullable), status (varchar 30 default 'operational'), next_maintenance_due (date nullable), is_active (default true), notes (text nullable), timestamps. Indexes on equipment_type, status, is_active, next_maintenance_due.
+- `api/database/migrations/tenant/2026_03_15_200010_create_maintenance_logs_table.php` — Creates the `maintenance_logs` table with UUID primary key, equipment_id FK (cascade delete), maintenance_type (varchar 50), performed_date (date), performed_by (UUID nullable), description (text nullable), findings (text nullable), cost (decimal 10,2 nullable), next_due_date (date nullable), passed (boolean nullable — for calibration/inspection pass/fail), notes (text nullable), timestamps. Indexes on equipment_id, maintenance_type, performed_date, next_due_date.
+- `api/app/Models/Equipment.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` traits. Constants: EQUIPMENT_TYPES (tank, pump, press, filter, bottling_line, lab_instrument, forklift, other), STATUSES (operational, maintenance, retired). Relationships: `maintenanceLogs()` HasMany. Scopes: `active()`, `ofType()`, `ofStatus()`, `maintenanceDue()` (overdue by date), `maintenanceDueSoon()` (within N days). Helper: `isMaintenanceOverdue()`. Casts: purchase_date/next_maintenance_due as date, purchase_value as decimal:2.
+- `api/app/Models/MaintenanceLog.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` traits. Constants: MAINTENANCE_TYPES (cleaning, cip, calibration, repair, inspection, preventive). Relationships: `equipment()` BelongsTo, `performer()` BelongsTo (User via performed_by). Scopes: `ofType()`, `forEquipment()`, `performedBetween()`, `calibrationRecords()`, `cipRecords()`. Casts: performed_date/next_due_date as date, cost as decimal:2, passed as boolean.
+- `api/database/factories/EquipmentFactory.php` — Realistic names per type (e.g., "SS Fermentation Tank #1", "Peristaltic Pump P-1", "pH Meter Hanna HI2020"). States: `inMaintenance()`, `retired()`, `maintenanceOverdue()`, `inactive()`.
+- `api/database/factories/MaintenanceLogFactory.php` — Realistic descriptions per type (e.g., CIP cycle details, calibration buffer info). States: `calibration()`, `cip()`, `failedCalibration()`.
+- `api/app/Http/Resources/EquipmentResource.php` — Includes computed `is_maintenance_overdue` boolean, nested `maintenance_logs` when loaded via `relationLoaded()` pattern.
+- `api/app/Http/Resources/MaintenanceLogResource.php` — Includes `passed` boolean for calibration/inspection results, nested `equipment` when loaded.
+- `api/app/Http/Requests/StoreEquipmentRequest.php` — Required: name (max 150), equipment_type (in EQUIPMENT_TYPES). Optional: serial_number, manufacturer, model_number, purchase_date, purchase_value (numeric ≥0), location, status (in STATUSES), next_maintenance_due, is_active, notes.
+- `api/app/Http/Requests/UpdateEquipmentRequest.php` — Same rules as Store but all fields `sometimes`.
+- `api/app/Http/Requests/StoreMaintenanceLogRequest.php` — Required: equipment_id (uuid, exists:equipment), maintenance_type (in MAINTENANCE_TYPES), performed_date. Optional: performed_by (uuid), description, findings, cost (numeric ≥0), next_due_date, passed (boolean), notes.
+- `api/app/Http/Controllers/Api/V1/EquipmentController.php` — CRUD with filters for is_active, equipment_type, status, maintenance_overdue, maintenance_due_within_days. Show endpoint eager-loads maintenance logs ordered by performed_date desc. EventLogger: `equipment_created`, `equipment_updated`.
+- `api/app/Http/Controllers/Api/V1/MaintenanceLogController.php` — Nested index under equipment with maintenance_type filter, flat store endpoint. Auto-sets performed_by to current user if not provided. Auto-updates equipment's `next_maintenance_due` when log has `next_due_date`. EventLogger: `equipment_maintenance_logged` with self-contained payload (equipment_name, maintenance_type, performed_date, passed, next_due_date).
+- `api/app/Filament/Resources/EquipmentResource.php` + Pages (List, Create, View, Edit) — Under "Inventory" navigation group, sort 6, icon heroicon-o-wrench-screwdriver. Form: 3 sections (Equipment Details, Purchase & Maintenance, Notes). Table: searchable name, badges for equipment_type and status (color-coded: operational=success, maintenance=warning, retired=gray), serial_number, location, next_maintenance_due, maintenance_logs_count, is_active. Filters: equipment_type select, status select, is_active ternary, maintenance overdue toggle.
+- `api/routes/api.php` — Added EquipmentController + MaintenanceLogController imports and 7 routes: GET /equipment (authenticated), GET /equipment/{equipment} (authenticated), POST /equipment (admin+), PUT /equipment/{equipment} (admin+), GET /equipment/{equipment}/maintenance-logs (authenticated), GET /equipment/{equipment}/maintenance-logs/{maintenanceLog} (authenticated), POST /maintenance-logs (winemaker+).
+
+### Key Decisions
+- **Maintenance due tracking on Equipment model**: `next_maintenance_due` lives on the equipment record for quick dashboard/filter queries. It's automatically updated when a maintenance log with `next_due_date` is created, keeping the equipment record in sync without needing a cron job.
+- **Flat POST for maintenance logs**: Maintenance log creation uses a flat POST /maintenance-logs endpoint (not nested under equipment) because the equipment_id is in the request body. This allows creating logs without knowing the equipment's route parameter name.
+- **CIP and calibration audit scopes**: Dedicated `cipRecords()` and `calibrationRecords()` scopes on MaintenanceLog for common audit queries. Auditors frequently request all CIP records for a time period or all calibration records for lab instruments.
+- **Pass/fail on maintenance log**: The `passed` boolean is nullable — it's only meaningful for calibration and inspection types. For cleaning, CIP, repair, and preventive, it's left null.
+- **Winemaker+ for maintenance logs, admin+ for equipment**: Winemakers and cellar staff routinely log CIP and calibration records, so maintenance log creation is winemaker+. Equipment register management (creating/modifying equipment records) is admin+ since it's less frequent and more administrative.
+- **Status color coding in Filament**: operational=green, maintenance=yellow, retired=gray provides at-a-glance visibility into fleet health.
+
+### Deviations from Spec
+- Spec mentions "value" as a field — implemented as `purchase_value` (decimal 12,2) to be unambiguous about whether it's purchase price vs. current depreciated value. Current value tracking would require a depreciation model.
+- Spec does not mention `manufacturer`, `model_number`, or `location` fields — added because they're standard equipment register fields needed for compliance and asset management.
+- Spec does not detail maintenance log fields beyond "dates and notes" — added `performed_by`, `description`, `findings`, `cost`, `next_due_date`, and `passed` based on typical winery compliance requirements (CIP records, calibration certificates).
+
+### Patterns Established
+- **Parent auto-update from child**: MaintenanceLogController updates Equipment's `next_maintenance_due` when a log with `next_due_date` is created. This "child updates parent" pattern avoids stale scheduling data.
+- **Audit-oriented scopes**: `calibrationRecords()` and `cipRecords()` are thin wrappers over `ofType()` but make audit query intent explicit. Similar dedicated scopes can be added for other common audit queries.
+- **Nested read, flat write**: Maintenance logs are listed via nested routes (GET /equipment/{id}/maintenance-logs) but created via flat routes (POST /maintenance-logs). This balances RESTful nesting for reads with simplicity for writes.
+
+### Test Summary
+- `tests/Feature/Inventory/EquipmentTest.php` (30 tests)
+  - Tier 1: event logging — equipment_created with inventory source and payload, equipment_updated with inventory source, equipment_maintenance_logged with equipment_name and maintenance_type (3 tests)
+  - Tier 1: tenant isolation — cross-tenant Equipment access prevention (1 test)
+  - Tier 1: data integrity — maintenanceDue scope identifies overdue equipment, isMaintenanceOverdue() helper logic, maintenance log auto-updates equipment next_maintenance_due, cascade delete of maintenance logs when equipment deleted (4 tests)
+  - Tier 2: CRUD — create equipment with all fields, create with minimal fields (defaults verified), list with pagination, filter by equipment_type, filter by status, filter by maintenance_overdue, show with nested maintenance logs, update with partial fields (8 tests)
+  - Tier 2: maintenance log CRUD — create calibration log with pass/fail, create CIP log, list logs for equipment, filter logs by maintenance_type (4 tests)
+  - Tier 2: validation — missing required equipment fields, invalid equipment_type, invalid status, missing required maintenance log fields, invalid maintenance_type (5 tests)
+  - Tier 2: RBAC — admin can create equipment (201), winemaker cannot create equipment (403), winemaker can create maintenance logs (201), cellar_hand cannot create maintenance logs (403), any user can list/view equipment (200) (5 tests)
+  - Tier 2: API envelope — correct structure with is_maintenance_overdue field, unauthenticated rejection (2 tests)
+- Known gaps: Filament resource CRUD not tested via Livewire. Maintenance log update/delete not implemented (logs are append-only for audit compliance). Bulk maintenance scheduling not built. Equipment depreciation tracking not implemented.
+- Skipped (Tier 3): factory definitions, model scope edge cases, Filament filter interactions, MaintenanceLogResource serialization.
+
+### Open Questions
+- Should maintenance logs be truly immutable (no update/delete) for audit compliance? Currently there's no update or delete endpoint — this is intentional for CIP and calibration audit trails.
+- Equipment depreciation: Should current_value be tracked separately from purchase_value with a depreciation schedule? Deferred — would need an accounting-oriented sub-task.
+- Maintenance scheduling automation: Should there be a recurring maintenance schedule (e.g., "CIP every 2 weeks for all tanks") that auto-generates work orders or reminders? Currently maintenance is tracked reactively via manual log entries.

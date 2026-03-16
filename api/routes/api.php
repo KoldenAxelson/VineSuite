@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
 use App\Http\Controllers\Api\V1\CaseGoodsSkuController;
 use App\Http\Controllers\Api\V1\DryGoodsController;
+use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FermentationChartController;
 use App\Http\Controllers\Api\V1\FermentationController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LotController;
 use App\Http\Controllers\Api\V1\LotSplitController;
+use App\Http\Controllers\Api\V1\MaintenanceLogController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
 use App\Http\Controllers\Api\V1\RawMaterialController;
@@ -328,6 +330,23 @@ Route::middleware([
         Route::middleware('role:owner,admin')->group(function () {
             Route::post('/raw-materials', [RawMaterialController::class, 'store'])->name('raw-materials.store');
             Route::put('/raw-materials/{rawMaterial}', [RawMaterialController::class, 'update'])->name('raw-materials.update');
+        });
+
+        // ─── Inventory: Equipment ───────────────────────────────────────
+        Route::get('/equipment', [EquipmentController::class, 'index'])->name('equipment.index');
+        Route::get('/equipment/{equipment}', [EquipmentController::class, 'show'])->name('equipment.show');
+
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::post('/equipment', [EquipmentController::class, 'store'])->name('equipment.store');
+            Route::put('/equipment/{equipment}', [EquipmentController::class, 'update'])->name('equipment.update');
+        });
+
+        // ─── Inventory: Maintenance Logs ────────────────────────────────
+        Route::get('/equipment/{equipment}/maintenance-logs', [MaintenanceLogController::class, 'index'])->name('maintenance-logs.index');
+        Route::get('/equipment/{equipment}/maintenance-logs/{maintenanceLog}', [MaintenanceLogController::class, 'show'])->name('maintenance-logs.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/maintenance-logs', [MaintenanceLogController::class, 'store'])->name('maintenance-logs.store');
         });
 
         // Team list — any authenticated user can view team members
