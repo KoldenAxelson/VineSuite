@@ -475,3 +475,74 @@
 - Should bulk wine purchases/sales be tracked in this module or deferred to cost accounting (Phase 5)? Currently there's no write capability — this is purely a view layer.
 - Should the aging schedule include configurable bottling targets per lot? Would require adding a `target_bottling_date` field to the Lot model.
 - Should there be a variance threshold alert (e.g., flag lots with >5% variance)? Currently all variances are returned and the client decides what's concerning.
+
+---
+
+## Sub-Task 10: Purchase Order System
+**Completed:** 2026-03-15
+**Status:** Done
+
+### What Was Built
+- `api/database/migrations/tenant/2026_03_15_200011_create_purchase_orders_table.php` — Creates the `purchase_orders` table with UUID primary key, vendor_name (varchar 200), vendor_id (UUID nullable), order_date (date), expected_date (date nullable), status (varchar 30 default 'ordered'), total_cost (decimal 12,2 default 0), notes (text nullable), timestamps. Indexes on status, order_date, vendor_name.
+- `api/database/migrations/tenant/2026_03_15_200012_create_purchase_order_lines_table.php` — Creates the `purchase_order_lines` table with UUID primary key, purchase_order_id FK (cascade delete), item_type (varchar 30: dry_goods or raw_material), item_id (UUID — polymorphic reference to DryGoodsItem or RawMaterial), item_name (varchar 200 — denormalized for portability), quantity_ordered (decimal 12,2), quantity_received (decimal 12,2 default 0), cost_per_unit (decimal 10,4 nullable), timestamps. Indexes on purchase_order_id, (item_type, item_id).
+- `api/app/Models/PurchaseOrder.php` — Eloquent model with `HasUuids`, `HasFactory`, `LogsActivity` traits. Constants: STATUSES (ordered, partial, received, cancelled). Relationship: `lines()` HasMany. Scopes: `ofStatus()`, `open()` (ordered+partial), `forVendor()` (ilike search), `overdue()` (open + past expected_date). Helpers: `isFullyReceived()`, `isPartiallyReceived()`, `recalculateTotalCost()` (sums quantity_ordered × cost_per_unit across lines). Casts: order_date/expected_date as date, total_cost as decimal:2.
+- `api/app/Models/PurchaseOrderLine.php` — Eloquent model with `HasUuids`, `HasFactory` traits. Constants: ITEM_TYPES (dry_goods, raw_material). Relationship: `purchaseOrder()` BelongsTo. Helpers: `quantityRemaining()`, `isFullyReceived()`. Casts: quantity_ordered/quantity_received as decimal:2, cost_per_unit as decimal:4.
+- `api/database/factories/PurchaseOrderFactory.php` — Realistic vendor names (Cork Supply USA, Enartis Vinquiry, Scott Laboratories, etc.). States: `received()`, `partial()`, `cancelled()`, `overdue()`.
+- `api/database/factories/PurchaseOrderLineFactory.php` — Realistic item names per type (dry goods: bottles, corks, capsules; raw materials: yeast, acids, nutrients). States: `dryGoods()`, `rawMaterial()`, `fullyReceived()`, `partiallyReceived()`.
+- `api/app/Http/Resources/PurchaseOrderResource.php` — Includes nested lines (via relationLoaded pattern), computed `is_fully_received` boolean, total_cost as float.
+- `api/app/Http/Resources/PurchaseOrderLineResource.php` — Includes computed `quantity_remaining`, `line_total` (quantity_ordered × cost_per_unit), `is_fully_received`.
+- `api/app/Http/Requests/StorePurchaseOrderRequest.php` — Required: vendor_name, order_date, lines (array min:1). Lines require: item_type (in ITEM_TYPES), item_id (uuid), item_name, quantity_ordered (gt:0). Optional: expected_date (after_or_equal order_date), cost_per_unit.
+- `api/app/Http/Requests/UpdatePurchaseOrderRequest.php` — All PO header fields `sometimes`. Does not update lines (lines are immutable after creation).
+- `api/app/Http/Requests/ReceivePurchaseOrderRequest.php` — Required: lines array with line_id (uuid), quantity_received (gt:0). Optional: cost_per_unit (capture actual cost at receipt).
+- `api/app/Http/Controllers/Api/V1/PurchaseOrderController.php` — Full CRUD plus receive endpoint:
+  - `index()` — Paginated list with filters: status, vendor (ilike), open_only, overdue. Eager-loads lines.
+  - `show()` — Single PO with lines.
+  - `store()` — Creates PO with lines in a transaction. Recalculates total_cost from lines. EventLogger: `purchase_order_created` with vendor_name, line_count, total_cost.
+  - `update()` — Updates PO header only. EventLogger: `purchase_order_updated`.
+  - `receive()` — Key endpoint: receives items on a PO (full or partial). For each line: increments quantity_received, calls `incrementInventory()` to update DryGoodsItem or RawMaterial on_hand with `lockForUpdate()`. Updates cost_per_unit on both line and inventory item if provided. Recalculates total_cost. Auto-sets PO status to 'received' when all lines fully received, 'partial' when any line has received qty > 0. Rejects receive on cancelled or already-received POs (422). EventLogger: `purchase_order_received` with lines_received detail.
+- `api/app/Filament/Resources/PurchaseOrderResource.php` + Pages (List, Create, View, Edit) — Under "Inventory" navigation group, sort 8, icon heroicon-o-clipboard-document-list. Form: 2 sections (Order Details with vendor/dates/status in 2-col grid, Cost & Notes with disabled total_cost and notes textarea). Table: searchable vendor_name, order_date, expected_date, status badge (ordered=primary, partial=warning, received=success, cancelled=gray), lines_count, total_cost money. Filters: status select, overdue toggle.
+- `api/routes/api.php` — Added PurchaseOrderController import and 5 routes: GET /purchase-orders (authenticated), GET /purchase-orders/{purchaseOrder} (authenticated), POST /purchase-orders (winemaker+), PUT /purchase-orders/{purchaseOrder} (winemaker+), POST /purchase-orders/{purchaseOrder}/receive (winemaker+).
+
+### Key Decisions
+- **Denormalized item_name on lines**: Each line stores the item_name at order time for data portability. If the DryGoodsItem or RawMaterial is renamed later, the PO line retains the original name.
+- **Polymorphic item reference via item_type + item_id**: Lines reference either DryGoodsItem or RawMaterial via a string discriminator (item_type) and UUID (item_id). This avoids two separate FK columns and keeps the schema clean.
+- **Receive endpoint increments on_hand with locking**: Uses `lockForUpdate()->find()` on the inventory item before incrementing, consistent with the AdditionService deduct pattern. Prevents race conditions on concurrent receives.
+- **Cost capture at receipt**: The receive endpoint allows overriding cost_per_unit at receipt time (actual cost may differ from PO cost). This updates both the PO line and the inventory item's cost_per_unit (last cost method for COGS).
+- **Auto-status management**: PO status transitions automatically: ordered → partial (first partial receive) → received (all lines fully received). Manual override to 'cancelled' via update endpoint. No receive allowed on cancelled/received POs.
+- **Lines immutable after creation**: The update endpoint only modifies PO header fields. Lines cannot be added/removed/modified after creation — this matches typical procurement workflow where amendments create a new PO.
+- **Winemaker+ for all write operations**: Consistent with the spec's recommendation that PO management is a winemaker-level activity, not cellar hand.
+- **Total cost recalculated from lines**: The total_cost on the PO is always derived from SUM(quantity_ordered × cost_per_unit) across lines, never set directly. This ensures consistency.
+
+### Deviations from Spec
+- Spec does not mention a `receive` endpoint — added because receiving is the core workflow for POs (creating a PO without being able to receive against it would be incomplete).
+- Spec mentions `quantity_received` on PurchaseOrderLine but doesn't detail the receive flow — implemented full/partial receive with inventory integration.
+- Added `item_name` denormalization on PurchaseOrderLine (not in spec) for self-contained event payloads and data portability, consistent with the established pattern.
+- Spec does not mention cost_per_unit override at receipt time — added for COGS accuracy (PO price vs actual receipt price).
+
+### Patterns Established
+- **Parent-child transactional creation**: PO + lines created atomically in a DB transaction, with total_cost recalculated from children. This pattern applies to any parent-child entity pair.
+- **Receive-and-increment pattern**: The receive endpoint demonstrates updating a child record (line.quantity_received) and a related record (inventory item.on_hand) in a single transaction with row-level locking. Reusable for any "receive goods and update stock" workflow.
+- **Status auto-progression**: PO status progresses automatically based on line state (ordered → partial → received). No manual status management needed for the happy path.
+
+### Test Summary
+- `tests/Feature/Inventory/PurchaseOrderTest.php` (30 tests)
+  - Tier 1: event logging — purchase_order_created with inventory source, vendor_name, line_count, total_cost; purchase_order_received with line details (2 tests)
+  - Tier 1: tenant isolation — cross-tenant PO prevention via $tenant->run() (1 test)
+  - Tier 1: inventory math — dry goods on_hand increment on receive, raw material on_hand increment on receive, cost_per_unit update at receipt, auto-status to received when all lines full, auto-status to partial when partially received, reject receive on cancelled PO, reject receive on already-received PO (7 tests)
+  - Tier 2: CRUD — create PO with lines (total_cost verified), list with pagination, show with nested lines, update header fields, filter by status, filter open only, filter by vendor (7 tests)
+  - Tier 2: validation — required fields (vendor_name, order_date, lines), empty lines array, invalid line fields (item_type, item_id, item_name, quantity_ordered), invalid status (4 tests)
+  - Tier 2: RBAC — unauthenticated rejection, read_only can list, cellar_hand denied create (403), winemaker allowed create (201) (4 tests)
+  - Tier 2: API envelope — paginated list structure (current_page, last_page, per_page, total), single PO structure with nested lines (2 tests)
+  - Data integrity — total_cost recalculated from lines, cascade delete of lines when PO deleted (2 tests)
+  - Emptied/excluded states — cancelled and received POs reject receive attempts (covered in inventory math tests)
+- Known gaps: Filament resource CRUD not tested via Livewire (Tier 3). No PO amendment workflow. No partial line deletion. No PO approval workflow.
+- Skipped (Tier 3): Factory definitions, model scope edge cases, Filament filter interactions, resource serialization of nullable fields.
+
+### Bugs Fixed During Development
+- **5 PHPStan errors**: (1-2) Unused `$request` in closure `use` clauses for store() and receive() transaction callbacks — removed from `use`. (3-4) HasMany generic type missing `$this` template parameter — changed to `HasMany<PurchaseOrderLine, $this>`. (5) BelongsTo generic type using concrete class instead of `$this` — changed to `BelongsTo<PurchaseOrder, $this>`.
+- **6 test failures**: (1) Pagination meta at `meta.pagination.total` — VineSuite uses flat `meta.total`. (2-5) Used `assertJsonValidationErrors()` — VineSuite custom ApiResponse returns errors as `errors[].field` array, not Laravel's standard keyed format; switched to `array_column($response->json('errors'), 'field')` + `toContain()`. (6) Envelope structure assumed `meta.pagination` nesting — VineSuite paginated responses put pagination fields directly in `meta`.
+
+### Open Questions
+- Should PO lines be editable after creation? Currently immutable — amendments require creating a new PO. This is intentional for audit trail but some users may want line-level edits.
+- Should there be a PO approval workflow (draft → approved → ordered)? Currently POs are created directly in 'ordered' status.
+- Should PO receiving update the inventory item's cost_per_unit via weighted average instead of last-cost replacement? Current implementation uses last-cost (simpler), but weighted average is more accurate for COGS.

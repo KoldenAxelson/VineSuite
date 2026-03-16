@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\MaintenanceLogController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
 use App\Http\Controllers\Api\V1\PressLogController;
+use App\Http\Controllers\Api\V1\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\RawMaterialController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\StockTransferController;
@@ -348,6 +349,16 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/maintenance-logs', [MaintenanceLogController::class, 'store'])->name('maintenance-logs.store');
+        });
+
+        // ─── Inventory: Purchase Orders ─────────────────────────────────
+        Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+        Route::get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
+            Route::put('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+            Route::post('/purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
         });
 
         // ─── Inventory: Bulk Wine Inventory ─────────────────────────────
