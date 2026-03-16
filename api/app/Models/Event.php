@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Carbon\Carbon $performed_at Client timestamp (may be from offline device)
  * @property \Carbon\Carbon|null $synced_at Server receipt timestamp (null for locally-created events)
  * @property string|null $device_id Identifies which client submitted
+ * @property string $event_source Module source (production, lab, inventory, accounting, etc.)
  * @property string|null $idempotency_key Prevents duplicate event submission on retry
  * @property \Carbon\Carbon $created_at
  */
@@ -45,6 +46,7 @@ class Event extends Model
         'entity_type',
         'entity_id',
         'operation_type',
+        'event_source',
         'payload',
         'performed_by',
         'performed_at',

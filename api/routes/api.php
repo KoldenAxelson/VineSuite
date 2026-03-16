@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\BarrelController;
 use App\Http\Controllers\Api\V1\BarrelOperationController;
 use App\Http\Controllers\Api\V1\BlendController;
 use App\Http\Controllers\Api\V1\BottlingRunController;
+use App\Http\Controllers\Api\V1\CaseGoodsSkuController;
 use App\Http\Controllers\Api\V1\EventSyncController;
 use App\Http\Controllers\Api\V1\FermentationChartController;
 use App\Http\Controllers\Api\V1\FermentationController;
@@ -272,6 +273,15 @@ Route::middleware([
 
         Route::middleware('role:owner,admin,winemaker')->group(function () {
             Route::post('/lots/{lotId}/sensory-notes', [SensoryNoteController::class, 'store'])->name('sensory-notes.store');
+        });
+
+        // ─── Inventory: Case Goods SKUs ──────────────────────────────
+        Route::get('/skus', [CaseGoodsSkuController::class, 'index'])->name('skus.index');
+        Route::get('/skus/{sku}', [CaseGoodsSkuController::class, 'show'])->name('skus.show');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/skus', [CaseGoodsSkuController::class, 'store'])->name('skus.store');
+            Route::put('/skus/{sku}', [CaseGoodsSkuController::class, 'update'])->name('skus.update');
         });
 
         // Team list — any authenticated user can view team members

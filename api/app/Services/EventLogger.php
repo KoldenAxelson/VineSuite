@@ -76,6 +76,7 @@ class EventLogger
             'entity_type' => $entityType,
             'entity_id' => $entityId,
             'operation_type' => $operationType,
+            'event_source' => $this->resolveSource($operationType),
             'payload' => $payload,
             'performed_by' => $performedBy,
             'performed_at' => $performedAt ?? now(),
@@ -94,6 +95,35 @@ class EventLogger
         ]);
 
         return $event;
+    }
+
+    /**
+     * Derive the event_source from the operation type prefix.
+     *
+     * Callers never set event_source directly — it's resolved automatically
+     * from the operation type naming convention. This keeps the API surface
+     * unchanged and prevents inconsistency.
+     *
+     * See docs/references/event-source-partitioning.md for the full mapping.
+     */
+    private function resolveSource(string $operationType): string
+    {
+        return match (true) {
+            str_starts_with($operationType, 'lab_'),
+            str_starts_with($operationType, 'fermentation_'),
+            str_starts_with($operationType, 'sensory_') => 'lab',
+
+            str_starts_with($operationType, 'stock_'),
+            str_starts_with($operationType, 'purchase_'),
+            str_starts_with($operationType, 'equipment_'),
+            str_starts_with($operationType, 'dry_goods_'),
+            str_starts_with($operationType, 'raw_material_') => 'inventory',
+
+            str_starts_with($operationType, 'cost_'),
+            str_starts_with($operationType, 'cogs_') => 'accounting',
+
+            default => 'production',
+        };
     }
 
     /**

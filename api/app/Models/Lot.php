@@ -199,6 +199,16 @@ class Lot extends Model
         return $this->hasMany(SensoryNote::class)->orderByDesc('date');
     }
 
+    /**
+     * Case goods SKUs produced from this lot.
+     *
+     * @return HasMany<CaseGoodsSku, $this>
+     */
+    public function caseGoodsSkus(): HasMany
+    {
+        return $this->hasMany(CaseGoodsSku::class)->orderByDesc('created_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

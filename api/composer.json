@@ -11,7 +11,9 @@
         "laravel/cashier": "^16.4",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
+        "laravel/scout": "^11.0",
         "laravel/tinker": "^2.10.1",
+        "meilisearch/meilisearch-php": "^1.16",
         "spatie/laravel-permission": "^7.2",
         "stancl/tenancy": "^3.9"
     },
