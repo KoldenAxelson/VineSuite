@@ -9,11 +9,12 @@
 
 | Tier | Price | Who It's For |
 |---|---|---|
-| **Starter** | $99/mo | Boutique winery (<2k cases/yr), currently on spreadsheets |
-| **Growth** | $199/mo | Tasting room + wine club + online store |
-| **Pro** | $349/mo | Multi-label / custom crush / wants AI + API access |
+| **Free** | $0 | Full platform, volume-limited (25 lots, 10 vessels, 1 staff). Try everything. |
+| **Basic** | $99/mo | Boutique winery (<2k cases/yr), production + compliance + COGS |
+| **Pro** | $179/mo | Tasting room + wine club + ecommerce + CRM |
+| **Max** | $299/mo | Multi-label / custom crush / AI + API + wholesale |
 
-**Payment processing:** Managed Stripe (platform fee, target 0.4-0.6%) or BYO Processor (Growth+, flat SaaS fee, zero transaction fee).
+**Payment processing:** Managed Stripe Connect (platform fee auto-deducted). BYO processor abstraction planned for Pro+ tiers.
 
 ---
 

@@ -9,22 +9,22 @@
 
 Go to **Products** → **Add product**:
 
-### Starter Plan
-- **Name:** VineSuite Starter
-- **Description:** For small wineries. Core production tracking, basic compliance.
+### Basic Plan
+- **Name:** VineSuite Basic
+- **Description:** Production tracking, compliance, COGS, lab/fermentation, cellar app.
 - **Pricing:** Monthly — **$99/month**
 - Copy the **Price ID** (starts with `price_...`)
 
-### Growth Plan
-- **Name:** VineSuite Growth
-- **Description:** Growing wineries. Full production suite, POS, wine club, mobile apps.
-- **Pricing:** Monthly — **$249/month**
-- Copy the **Price ID**
-
 ### Pro Plan
 - **Name:** VineSuite Pro
-- **Description:** Established wineries. Everything in Growth plus public API, advanced analytics, priority support.
-- **Pricing:** Monthly — **$499/month**
+- **Description:** Everything in Basic + DTC (wine club, ecommerce, POS, CRM, reservations).
+- **Pricing:** Monthly — **$179/month**
+- Copy the **Price ID**
+
+### Max Plan
+- **Name:** VineSuite Max
+- **Description:** Everything in Pro + AI features, public API, multi-brand, wholesale.
+- **Pricing:** Monthly — **$299/month**
 - Copy the **Price ID**
 
 ---
@@ -34,17 +34,17 @@ Go to **Products** → **Add product**:
 Open `api/.env`:
 
 ```
-STRIPE_PRICE_STARTER=price_xxxxxxxxxxxxxxxx
-STRIPE_PRICE_GROWTH=price_xxxxxxxxxxxxxxxx
+STRIPE_PRICE_BASIC=price_xxxxxxxxxxxxxxxx
 STRIPE_PRICE_PRO=price_xxxxxxxxxxxxxxxx
+STRIPE_PRICE_MAX=price_xxxxxxxxxxxxxxxx
 ```
 
 Also add placeholders to `api/.env.example`:
 
 ```
-STRIPE_PRICE_STARTER=
-STRIPE_PRICE_GROWTH=
+STRIPE_PRICE_BASIC=
 STRIPE_PRICE_PRO=
+STRIPE_PRICE_MAX=
 ```
 
 ---
@@ -95,7 +95,7 @@ curl -X POST http://localhost:8000/api/v1/billing/checkout \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "X-Tenant-ID: YOUR_TENANT_ID" \
   -H "Content-Type: application/json" \
-  -d '{"plan": "starter"}'
+  -d '{"plan": "basic"}'
 ```
 
 Should return `checkout_url` pointing to Stripe's hosted checkout. Use test card `4242 4242 4242 4242` with any future expiry and any CVC.

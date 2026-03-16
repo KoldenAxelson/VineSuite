@@ -101,7 +101,7 @@ These surfaces are specced but not yet built. Key tech decisions only — full s
 
 ## 6. Payments Architecture (Summary)
 
-Two modes: **Managed** (Stripe Connect, platform fee auto-deducted) and **BYO Processor** (Growth+, winery's own Stripe/Square account, flat SaaS fee only). A `PaymentProcessor` interface abstracts the provider. Cards tokenized at processor level (PCI SAQ-A). POS uses Stripe Terminal native SDKs with offline capture.
+Currently Stripe-only via Laravel Cashier + Stripe Connect (platform fee auto-deducted). Future: `PaymentProcessor` interface to abstract BYO processors (Square, etc.) for Pro+ tiers. Cards tokenized at processor level (PCI SAQ-A). POS uses Stripe Terminal native SDKs with offline capture.
 
 ---
 
@@ -109,9 +109,9 @@ Two modes: **Managed** (Stripe Connect, platform fee auto-deducted) and **BYO Pr
 
 All integrations follow push (event → job → API call) or pull (webhook → validate → event) patterns.
 
-Key integrations: Stripe (all tiers), QuickBooks/Xero (Growth), Sovos ShipCompliant (Growth), Mailchimp/Klaviyo (Growth/Pro), FedEx/UPS (Growth), Anthropic API for AI features (Pro), ETS Labs CSV import.
+Key integrations: Stripe (all tiers), QuickBooks/Xero (Pro+), Sovos ShipCompliant (Pro+), Mailchimp/Klaviyo (Pro/Max), FedEx/UPS (Pro+), Anthropic API for AI features (Max), ETS Labs CSV import.
 
-Pro tier gets configurable outbound webhooks with HMAC signatures and retry logic.
+Max tier gets configurable outbound webhooks with HMAC signatures and retry logic.
 
 ---
 
