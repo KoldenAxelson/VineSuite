@@ -38,6 +38,7 @@ A multi-surface SaaS platform for small-to-mid-size wineries. All surfaces consu
 - Consistent envelope: `{ "data": {}, "meta": {}, "errors": [] }`
 - Bearer token auth (Sanctum), scoped per client type
 - Rate limiting per token via built-in throttle middleware
+- Bidirectional mobile sync: push events via `POST /events/sync` (idempotent batch), pull state via `GET /sync/pull?since=` (unified delta). See `diagrams/sync-architecture.mermaid`.
 
 ### Multi-Tenancy
 - Schema-per-tenant via `stancl/tenancy`. Each winery gets an isolated PostgreSQL schema.

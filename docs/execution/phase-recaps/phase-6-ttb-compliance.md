@@ -51,10 +51,10 @@
 
 ## Known Debt
 
-1. **Part III receipts won't fire until bulk wine receipt events exist** — `stock_received` events from inventory module don't carry `volume_gallons` in payload. Impact: low (most small wineries don't receive wine in bond). Fix: enrich stock_received payload or add dedicated bulk receipt event.
-2. **New event types not yet emittable from production UI** — Sweetening, fortification, amelioration, transfers to bonded premises, exports, etc. have calculator support but no production workflow to emit them. Impact: medium. Fix: add to production module as features are needed.
-3. **Packaging cost name-matching fragility** — Carried from Phase 5. BottlingComponent.product_name matched to DryGoodsItem.name via ilike for COGS. Impact: low.
-4. **Auto-deduction from bottling not wired** — Carried from Phase 4. BottlingService doesn't auto-deduct dry goods inventory. Impact: medium.
+1. **Part III receipts won't fire until bulk wine receipt events exist** — `stock_received` events from inventory module don't carry `volume_gallons` in payload. Impact: low (most small wineries don't receive wine in bond). Fix: enrich stock_received payload or add dedicated bulk receipt event. **Deferred → Phase 9+.** Tracked in `ideas/bulk-wine-receipt-events.md`.
+2. **New event types not yet emittable from production UI** — Sweetening, fortification, amelioration, transfers to bonded premises, exports, etc. have calculator support but no production workflow to emit them. Impact: medium. Fix: add to production module as features are needed. **Deferred → Phase 9+.** Tracked in `ideas/ttb-production-event-workflows.md`.
+3. ~~**Packaging cost name-matching fragility**~~ — **✅ Resolved.** Added `dryGoodsItem()` BelongsTo relationship on BottlingComponent. CostAccumulationService now uses FK via `inventory_item_id` with fallback to ilike for legacy data. Validation accepts `inventory_item_id` on bottling components.
+4. ~~**Auto-deduction from bottling not wired**~~ — **✅ Resolved.** BottlingService.completeBottlingRun() now calls `deductPackagingInventory()` which decrements DryGoodsItem.on_hand for each component with `inventory_item_id`, writes `dry_goods_deducted` event, follows AdditionService pattern (lockForUpdate, allows negative on_hand).
 
 ## Diagrams Created/Updated
 

@@ -10,6 +10,7 @@ use App\Exceptions\Domain\DuplicateOperationException;
 use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\BottlingComponent;
 use App\Models\BottlingRun;
+use App\Models\DryGoodsItem;
 use App\Models\Lot;
 use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +26,8 @@ use Illuminate\Support\Facades\Log;
  * - SKU is auto-generated if not provided
  * - `bottling_completed` event is written
  * - Lot status can be set to 'bottled'
- *
- * Phase 5 addition: On completion, calculates per-bottle COGS via CostAccumulationService.
+ * - Packaging materials auto-deducted from dry goods inventory (when inventory_item_id linked)
+ * - Per-bottle COGS calculated via CostAccumulationService
  */
 class BottlingService implements BottlingServiceInterface
 {
@@ -67,6 +68,7 @@ class BottlingService implements BottlingServiceInterface
                     'quantity_used' => $component['quantity_used'],
                     'quantity_wasted' => $component['quantity_wasted'] ?? 0,
                     'unit' => $component['unit'] ?? 'each',
+                    'inventory_item_id' => $component['inventory_item_id'] ?? null,
                     'notes' => $component['notes'] ?? null,
                 ]);
             }
@@ -179,6 +181,9 @@ class BottlingService implements BottlingServiceInterface
                 performedAt: now(),
             );
 
+            // Auto-deduct packaging materials from dry goods inventory
+            $this->deductPackagingInventory($run, $performedBy);
+
             // Calculate per-bottle COGS
             $this->costService->calculateBottlingCogs(
                 lot: $lot,
@@ -196,5 +201,66 @@ class BottlingService implements BottlingServiceInterface
 
             return $run->fresh(['components', 'lot', 'performer']);
         });
+    }
+
+    /**
+     * Deduct packaging materials from dry goods inventory for each linked component.
+     *
+     * Follows the same pattern as AdditionService::deductInventory():
+     * lockForUpdate to prevent races, allows negative on_hand (winery may need to
+     * record usage even if stock count is inaccurate), writes dry_goods_deducted event.
+     */
+    private function deductPackagingInventory(BottlingRun $run, string $performedBy): void
+    {
+        foreach ($run->components as $component) {
+            if (! $component->inventory_item_id) {
+                continue;
+            }
+
+            /** @var DryGoodsItem|null $dryGoodsItem */
+            $dryGoodsItem = DryGoodsItem::lockForUpdate()->find($component->inventory_item_id);
+
+            if (! $dryGoodsItem) {
+                Log::warning('Bottling component linked to non-existent dry goods item', LogContext::with([
+                    'bottling_run_id' => $run->id,
+                    'component_id' => $component->id,
+                    'inventory_item_id' => $component->inventory_item_id,
+                ]));
+
+                continue;
+            }
+
+            $deductAmount = (float) $component->quantity_used;
+            $previousOnHand = (float) $dryGoodsItem->on_hand;
+
+            $dryGoodsItem->decrement('on_hand', $deductAmount);
+
+            $this->eventLogger->log(
+                entityType: 'dry_goods_item',
+                entityId: $dryGoodsItem->id,
+                operationType: 'dry_goods_deducted',
+                payload: [
+                    'dry_goods_name' => $dryGoodsItem->name,
+                    'bottling_run_id' => $run->id,
+                    'component_type' => $component->component_type,
+                    'deducted_quantity' => $deductAmount,
+                    'unit' => $component->unit,
+                    'previous_on_hand' => $previousOnHand,
+                    'new_on_hand' => $previousOnHand - $deductAmount,
+                ],
+                performedBy: $performedBy,
+                performedAt: now(),
+            );
+
+            Log::info('Dry goods auto-deducted from bottling', LogContext::with([
+                'dry_goods_id' => $dryGoodsItem->id,
+                'dry_goods_name' => $dryGoodsItem->name,
+                'bottling_run_id' => $run->id,
+                'component_type' => $component->component_type,
+                'deducted' => $deductAmount,
+                'previous_on_hand' => $previousOnHand,
+                'new_on_hand' => $previousOnHand - $deductAmount,
+            ]));
+        }
     }
 }

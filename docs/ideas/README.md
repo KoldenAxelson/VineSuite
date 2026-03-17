@@ -30,3 +30,12 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 | `smart-allocation.md` | Algorithmic optimization of production across channels | ⏳ Deferred → Phase 8. See Task 20 "Ideas to Evaluate". |
 | `grower-tools.md` | Standalone tools for grape growers with cross-tenant data flow | ⏳ Deferred → Phase 8+. See Task 17 "Ideas to Evaluate". |
 | `custom-crush-ap-portal.md` | Full AP holder support with cross-tenant facility management | ⏳ Deferred → Phase 8+. See Task 21 "Ideas to Evaluate". |
+
+### Technical Debt Ideas (2026-03-17)
+
+From Phase 6 known debt items. These are implementation gaps where the consuming layer exists but the emission path does not.
+
+| File | Summary | Status |
+|------|---------|--------|
+| `bulk-wine-receipt-events.md` | Bulk wine receipt events for TTB Part III (bonded premises, customs, other) | ⏳ Deferred → Phase 9+ (POS/sales channels) |
+| `ttb-production-event-workflows.md` | 18 TTB event types with calculator support but no production UI to emit them | ⏳ Deferred → Phase 9+ (Tier 1 events with POS, Tier 2-3 later) |

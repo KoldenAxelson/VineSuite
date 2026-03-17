@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\V1\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\RawMaterialController;
 use App\Http\Controllers\Api\V1\SensoryNoteController;
 use App\Http\Controllers\Api\V1\StockTransferController;
+use App\Http\Controllers\Api\V1\SyncPullController;
 use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\VesselController;
 use App\Http\Controllers\Api\V1\WineryProfileController;
@@ -119,6 +120,9 @@ Route::middleware([
 
         // Event sync — mobile apps batch-submit events
         Route::post('/events/sync', EventSyncController::class)->name('events.sync');
+
+        // Sync pull — mobile apps pull latest state (delta since last sync)
+        Route::get('/sync/pull', SyncPullController::class)->name('sync.pull');
 
         // Billing — owner/admin only
         Route::middleware('role:owner,admin')->prefix('billing')->group(function () {

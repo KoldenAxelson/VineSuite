@@ -116,4 +116,6 @@ Phase 7 (Task 07) is pure mobile infrastructure: Kotlin Multiplatform project sc
 | `grower-tools.md` | **Defer → Phase 8+** | Cross-tenant architecture needed. |
 | `smart-allocation.md` | **Defer → Phase 8** | Needs sales channels. |
 | `custom-crush-ap-portal.md` | **Defer → Phase 8+** | No overlap. |
+| `bulk-wine-receipt-events.md` | **Defer → Phase 9+** | Technical debt from Phase 6. Bulk wine receipt events for TTB Part III. No overlap with KMP core — this is a server-side API/service concern. Natural fit when building POS or wholesale channels that handle bonded wine transfers. |
+| `ttb-production-event-workflows.md` | **Defer → Phase 9+** | Technical debt from Phase 6. 18 TTB event types with calculator support but no emission path. Tier 1 events (sweetening, fortification, evaporation) should land with the first production-heavy sales channel. No KMP overlap. |
 | `research-gap-analysis.md` | **Reference only** | No change. |

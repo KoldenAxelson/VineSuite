@@ -156,11 +156,17 @@ The shared core consumes these endpoints (created in earlier phases):
 |--------|------|-------------|
 | POST | `/api/v1/auth/login` | Login, receive token |
 | POST | `/api/v1/events/sync` | Batch push events |
-| GET | `/api/v1/lots` | Pull current lots |
-| GET | `/api/v1/vessels` | Pull current vessels |
-| GET | `/api/v1/work-orders` | Pull work orders |
-| GET | `/api/v1/barrels` | Pull barrel registry |
-| GET | `/api/v1/raw-materials` | Pull addition product library |
+| GET | `/api/v1/sync/pull?since={ISO8601}` | **Unified delta pull** — returns lots, vessels, work orders, barrels, and raw materials modified since timestamp in a single payload. Omit `since` for initial full sync. Response includes `synced_at` for the next pull. Capped at 500 per entity; `has_more` flag signals pagination needed. |
+
+Individual entity endpoints also remain available for targeted queries:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/lots` | Pull current lots (paginated, filterable) |
+| GET | `/api/v1/vessels` | Pull current vessels (paginated, filterable) |
+| GET | `/api/v1/work-orders` | Pull work orders (paginated, filterable) |
+| GET | `/api/v1/barrels` | Pull barrel registry (paginated, filterable) |
+| GET | `/api/v1/raw-materials` | Pull addition product library (paginated, filterable) |
 
 ## Events
 The shared core generates these events locally (pushed to server via sync):

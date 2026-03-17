@@ -310,10 +310,11 @@ class CostAccumulationService
 
         // Calculate packaging cost from bottling run components (dry goods with cost_per_unit)
         $packagingCostTotal = '0.0000';
-        $bottlingRun->load('components');
+        $bottlingRun->load('components.dryGoodsItem');
         foreach ($bottlingRun->components as $component) {
-            // Look up the dry goods item cost
-            $dryGoodsItem = DryGoodsItem::where('name', 'ilike', "%{$component->product_name}%")->first();
+            // Use FK relationship when available, fall back to name match for legacy data
+            $dryGoodsItem = $component->dryGoodsItem
+                ?? DryGoodsItem::where('name', 'ilike', "%{$component->product_name}%")->first();
             if ($dryGoodsItem && $dryGoodsItem->cost_per_unit) {
                 $componentCost = bcmul((string) $component->quantity_used, (string) $dryGoodsItem->cost_per_unit, 4);
                 $packagingCostTotal = bcadd($packagingCostTotal, $componentCost, 4);

@@ -1,8 +1,8 @@
 # VineSuite — Docs Index
 
-Multi-surface winery SaaS platform: Laravel 12 + PostgreSQL + Filament (TALL stack), with planned KMP native mobile apps. Multi-tenant (schema-per-tenant). Phases 1-4 complete (Foundation, Production Core, Lab & Fermentation, Inventory). Phase 5 (Cost Accounting & COGS) is next.
+Multi-surface winery SaaS platform: Laravel 12 + PostgreSQL + Filament (TALL stack), with planned KMP native mobile apps. Multi-tenant (schema-per-tenant). Phases 1-6 complete (Foundation, Production Core, Lab & Fermentation, Inventory, Cost Accounting, TTB Compliance). Phase 7 (KMP Shared Core) is next.
 
-**~680+ tests, 33 event types, PHPStan level 6 (zero errors), Pint (zero style issues).**
+**~870+ tests, 50+ event types, PHPStan level 6 (zero errors), Pint (zero style issues).**
 
 ---
 
@@ -12,7 +12,7 @@ Load only what you need. 3-5 files per session max.
 
 ### Core
 - `architecture.md` — Stack, API, event log, multi-tenancy, key decisions. Load on first session or cross-cutting changes.
-- `CONVENTIONS.md` — Cross-cutting code patterns from Phases 1-4: services, API, Filament, data model, tests, seeders. Load on every coding session.
+- `CONVENTIONS.md` — Cross-cutting code patterns from Phases 1-6: services, API, Filament, data model, tests, seeders. Load on every coding session.
 - `WORKFLOW.md` — Task lifecycle (LOAD->BUILD->TEST->VERIFY->RECORD->UPDATE), phase completion, context loading cheat sheet.
 
 ### References (load when touching that subsystem)
@@ -59,7 +59,7 @@ Load only what you need. 3-5 files per session max.
 | `make up` / `down` / `restart` | Start, stop, restart Docker services |
 | `make fresh` | Drop all, flush Redis, re-migrate, re-seed |
 | `make test` | Run Pest test suite |
-| `make test G=inventory` | Run only one test group (`foundation`, `production`, `lab`, `inventory`, `accounting`) |
+| `make test G=inventory` | Run only one test group (`foundation`, `production`, `lab`, `inventory`, `accounting`, `compliance`) |
 | `make test F=Transfer` | Run tests matching a filter name |
 | `make testsuite` | Full QA: Pest → Pint → PHPStan |
 | `make quicktest F=Transfer` | Filtered Pest only, no full suite |

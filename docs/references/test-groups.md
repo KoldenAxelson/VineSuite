@@ -1,6 +1,6 @@
 # Test Groups
 
-> Module-level grouping for 779+ tests (~520s full run). Enables fast local iteration and parallel CI.
+> Module-level grouping for 870+ tests (~600s full run). Enables fast local iteration and parallel CI.
 
 ---
 
@@ -20,12 +20,12 @@ describe('Lab Analysis', function () {
 
 | Group | Module | Files | Count | Phases |
 |---|---|---|---|---|
-| `foundation` | Auth, tenant, RBAC, event log | ~10 | ~141 | 1 |
+| `foundation` | Auth, tenant, RBAC, event log, sync (push + pull) | ~11 | ~151+ | 1 |
 | `production` | Lots, vessels, transfers, additions, work orders, blending, bottling | ~15 | ~213 | 2 |
 | `lab` | Lab analyses, fermentation, sensory, demo data | ~8 | ~124 | 3 |
 | `inventory` | SKUs, stock movements, dry goods, equipment, POs, counts, bulk wine | ~11 | ~200+ | 4 |
 | `accounting` | Cost entries, labor costs, overhead allocation, cost rollthrough, bottling COGS | 5 | ~30+ | 5 |
-| `compliance` | TTB report generation, wine type classification, event source mapping | 1 | ~17+ | 6 |
+| `compliance` | TTB report generation, wine type classification, event source mapping, DTC, certifications, label compliance, lot traceability | ~5 | ~62+ | 6 |
 
 ---
 
@@ -43,7 +43,7 @@ make test G=lab F=LabAnalysis      # Group + filter
 
 ## Local Development
 
-At 779 tests, full suite takes ~520s. Use groups to iterate faster:
+At 870+ tests, full suite takes ~600s. Use groups to iterate faster:
 
 ```bash
 # Make a change to fermentation code

@@ -123,6 +123,12 @@ $events = Event::whereRaw("payload->>'grape_variety' = ?", ['Pinot Noir'])->get(
 | `purchase_order_created` | po_number, vendor_name, line_count, total_amount |
 | `purchase_order_received` | po_number, vendor_name, lines_received |
 
+**Inventory Deductions:**
+| Operation | Payload | Notes |
+|---|---|---|
+| `raw_material_deducted` | raw_material_name, addition_id, lot_id, deducted_amount, unit_of_measure, previous_on_hand, new_on_hand | Auto-triggered by AdditionService when addition has inventory_item_id |
+| `dry_goods_deducted` | dry_goods_name, bottling_run_id, component_type, deducted_quantity, unit, previous_on_hand, new_on_hand | Auto-triggered by BottlingService when component has inventory_item_id |
+
 **Item Registry:**
 | Operation | Payload |
 |---|---|

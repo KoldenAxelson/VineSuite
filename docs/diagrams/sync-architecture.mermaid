@@ -9,7 +9,7 @@ graph TB
 
     subgraph Server["Laravel API"]
         SyncEndpoint["/api/v1/events/sync"]
-        PullEndpoint["/api/v1/sync/pull"]
+        PullEndpoint["/api/v1/sync/pull?since="]
         IdempotencyCheck["Idempotency Check<br/>(reject duplicate keys)"]
         VolumeValidator["Volume Validator<br/>(destructive ops only)"]
         EventLog["Event Log"]
@@ -33,10 +33,10 @@ graph TB
     SyncEndpoint -->|"200 OK + synced IDs"| KMP
     KMP -->|mark synced| Outbox
 
-    KMP -->|pull latest| PullEndpoint
+    KMP -->|"GET ?since=timestamp"| PullEndpoint
     PullEndpoint --> StateTable
-    StateTable -->|delta since last sync| KMP
-    KMP -->|update local| SQLite
+    StateTable -->|"lots, vessels, orders,<br/>barrels, materials"| KMP
+    KMP -->|"store synced_at,<br/>update local"| SQLite
 
     style Outbox fill:#ff9,stroke:#333
     style EventLog fill:#9f9,stroke:#333

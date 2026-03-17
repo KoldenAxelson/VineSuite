@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Bottling component — a packaging material consumed during a bottling run.
  *
  * Tracks bottles, corks, capsules, labels, and cartons used.
- * Inventory auto-deduction will be wired in 04-inventory.md.
+ * When `inventory_item_id` is set, links to a DryGoodsItem for cost lookup
+ * and auto-deduction at bottling completion.
  */
 class BottlingComponent extends Model
 {
@@ -62,5 +63,15 @@ class BottlingComponent extends Model
     public function bottlingRun(): BelongsTo
     {
         return $this->belongsTo(BottlingRun::class);
+    }
+
+    /**
+     * Linked dry goods inventory item for cost lookup and auto-deduction.
+     *
+     * @return BelongsTo<DryGoodsItem, $this>
+     */
+    public function dryGoodsItem(): BelongsTo
+    {
+        return $this->belongsTo(DryGoodsItem::class, 'inventory_item_id');
     }
 }

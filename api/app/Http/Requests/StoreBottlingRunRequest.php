@@ -40,6 +40,7 @@ class StoreBottlingRunRequest extends FormRequest
             'components.*.quantity_used' => ['required', 'integer', 'min:1'],
             'components.*.quantity_wasted' => ['nullable', 'integer', 'min:0'],
             'components.*.unit' => ['nullable', 'string', 'max:50'],
+            'components.*.inventory_item_id' => ['nullable', 'uuid', 'exists:dry_goods_items,id'],
             'components.*.notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

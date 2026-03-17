@@ -1,6 +1,6 @@
 # VineSuite — Code Conventions
 
-Cross-cutting patterns established across Phases 1-4. Follow these when writing any code. Reference docs have details — this file is the checklist.
+Cross-cutting patterns established across Phases 1-6. Follow these when writing any code. Reference docs have details — this file is the checklist.
 
 ---
 
@@ -9,12 +9,15 @@ Cross-cutting patterns established across Phases 1-4. Follow these when writing 
 - **EventLogger is the only write path for events.** `app(EventLogger::class)->log()` — never `Event::create()` directly. Seeders follow the same rule. → `references/event-log.md`
 - **InventoryService is the only write path for stock mutations.** `receive()`, `sell()`, `adjust()`, `transfer()` — each wraps in a transaction with `lockForUpdate()`. Never modify StockLevel directly. → `04-inventory.info.md` Sub-Task 3
 - **Workflow-as-service for multi-step processes.** PhysicalCountService manages `startCount` → `recordCounts` → `approve`/`cancel`. Approval triggers InventoryService for variance adjustments.
+- **Inventory auto-deduction follows a consistent pattern.** AdditionService deducts RawMaterial; BottlingService deducts DryGoodsItem. Both use `lockForUpdate()`, allow negative on_hand, and write deduction events (`raw_material_deducted`, `dry_goods_deducted`). Deduction is keyed on `inventory_item_id` FK — no deduction when null.
+- **FK over string matching for inventory linkage.** BottlingComponent uses `inventory_item_id` FK to DryGoodsItem for cost lookup and auto-deduction. Legacy fallback to `ilike` name match exists in CostAccumulationService but new code should always set the FK.
 
 ## API
 
 - **Envelope format on all routes.** `ApiResponse::success()`, `created()`, `paginated()`, `error()`. Validation errors include field-level details.
 - **REST JSON at `/api/v1/`.** Bearer token auth (Sanctum), scoped per client type.
 - **Token name encodes client type.** Format: `client_type|context` (e.g., `portal|My MacBook`). Rate limiter reads the prefix. → `references/auth-rbac.md`
+- **Bidirectional sync via push + pull.** Push: `POST /api/v1/events/sync` (batch events with idempotency keys). Pull: `GET /api/v1/sync/pull?since={ISO8601}` (unified delta of lots, vessels, work orders, barrels, raw materials). Response `synced_at` becomes the client's next `since`. Capped at 500 per entity; `has_more` signals pagination.
 
 ## Event Log
 
