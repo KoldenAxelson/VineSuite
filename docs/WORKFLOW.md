@@ -42,11 +42,12 @@ LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE
 
 ## Phase Completion
 
-Three artifacts, in this order:
+Four artifacts, in this order:
 
 1. **Phase recap** — Synthesize using `templates/phase-recap.template.md`. Condensed summary (not copy-paste of INFO files): deliverables, decisions, deviations, patterns, debt. Future sessions load recaps instead of individual INFO files.
 2. **Handoff for next phase** — Write using `templates/handoff.template.md`. Save to `execution/handoffs/{NN}-{module}-handoff.md`. Covers: what to read, relevant context from completed phases, carry-over debt, phase-specific notes. This is the first file the next agent reads.
 3. **Starter prompt** — Draft using `templates/starter-prompt.template.md`. A 3-sentence prompt the human pastes into the next AI session. Points agent to the handoff doc.
+4. **Root README update** — Update the project root `README.md` with current data: build progress table (phase status, test counts), total sub-task count, event type count, and demo data description. This is the public-facing project summary — keep it accurate after every phase.
 
 ## Ideas Triage
 
@@ -81,7 +82,7 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 
 1. Never skip the INFO file.
 2. Keep references current. Stale context is worse than no context.
-3. Phase recaps + handoff + starter prompt mandatory before starting next phase.
+3. Phase recaps + handoff + starter prompt + root README update mandatory before starting next phase.
 4. Triage ideas at phase boundaries.
 5. Load narrow (3-5 files), not wide.
 6. Record decisions — code is readable, the *why* isn't.

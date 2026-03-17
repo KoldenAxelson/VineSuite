@@ -69,3 +69,25 @@ Not given its own idea doc. The research identifies that churn *scoring* (Task 2
 #### Notes on Vineyard-Side AI / Harvest Prediction
 
 Not given its own idea doc. The research highlights satellite imagery and digital twin technology, but this is expensive, complex, and low-priority for MVP. A more realistic near-term feature: weather API integration (frost alerts, heat spike warnings) and historical yield trending from VineSuite's own harvest data. Recommendation: add as a sub-task in Task 20 (AI Features) during Phase 8, or as an extension to Task 17 (Vineyard) if the data is rich enough by then.
+
+---
+
+### Phase 5 → Phase 6 Triage — Cost Accounting → TTB Compliance
+
+| Idea | Disposition | Rationale |
+|------|-------------|-----------|
+| `label-compliance-engine.md` | **Absorb into Phase 6** | Already flagged in Task 06's "Ideas to Evaluate" block. Blend-to-label validation (75% varietal, 85% AVA, 95% vintage) fits naturally with TTB compliance. Blend composition data from Phase 2 and cost rollthrough proportions from Phase 5 confirm volume ratios. Add as extension to WineTypeClassifier or separate sub-task. |
+| `unified-tax-engine.md` | **Absorb (as constraint)** | Phase 6 builds TTB wine type classification and DTC rules. Design WineTypeClassifier output to be consumable by a future tax service. Don't build the tax engine itself — that's Phase 9 (POS). |
+| `data-portability.md` | **Defer → Phase 7+** | Export needs more modules. Cost data (Phase 5) and compliance data (Phase 6) both enrich exports. Revisit after Phase 6. |
+| `pricing-and-plan-tiers.md` | **Defer** | Standing carry-forward. TTB compliance is Pro/Enterprise but plan gating not built. |
+| `progressive-onboarding.md` | **Defer** | Standing carry-forward. Phase 6 resources go under "Compliance" nav group. |
+| `gradual-migration-path.md` | **Defer** | No Phase 6 overlap. TTB reports generated from own event log. |
+| `harvest-season-resilience.md` | **Defer → Phase 7+** | TTB report gen is monthly batch, not high-concurrency. |
+| `customer-support-escalation.md` | **Defer → Post-launch** | No overlap. |
+| `grape-marketplace.md` | **Defer → Phase 8+** | Prerequisites met but cross-tenant infra missing. |
+| `hobbyist-pipeline.md` | **Defer → Phase 7+** | Home winemakers exempt from TTB (<200 gal/year). |
+| `water-sgma-tracking.md` | **Defer → Phase 7 (Task 17)** | No overlap. |
+| `grower-tools.md` | **Defer → Phase 8+** | Needs cross-tenant architecture. |
+| `smart-allocation.md` | **Defer → Phase 8** | Needs inventory + sales channels. |
+| `custom-crush-ap-portal.md` | **Defer → Phase 8+** | Phase 6 License model should accommodate multiple permit holders per facility for future AP portal. |
+| `research-gap-analysis.md` | **Reference only** | No change. |

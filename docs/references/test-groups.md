@@ -1,6 +1,6 @@
 # Test Groups
 
-> Module-level grouping for 478+ tests (~250s full run). Enables fast local iteration and parallel CI.
+> Module-level grouping for 779+ tests (~520s full run). Enables fast local iteration and parallel CI.
 
 ---
 
@@ -24,7 +24,7 @@ describe('Lab Analysis', function () {
 | `production` | Lots, vessels, transfers, additions, work orders, blending, bottling | ~15 | ~213 | 2 |
 | `lab` | Lab analyses, fermentation, sensory, demo data | ~8 | ~124 | 3 |
 | `inventory` | SKUs, stock movements, dry goods, equipment, POs, counts, bulk wine | ~11 | ~200+ | 4 |
-| `accounting` | Cost accounting | — | — | 5 (future) |
+| `accounting` | Cost entries, labor costs, overhead allocation, cost rollthrough, bottling COGS | 5 | ~30+ | 5 |
 
 ---
 
@@ -42,7 +42,7 @@ make test G=lab F=LabAnalysis      # Group + filter
 
 ## Local Development
 
-At 478 tests, full suite takes ~250s. Use groups to iterate faster:
+At 779 tests, full suite takes ~520s. Use groups to iterate faster:
 
 ```bash
 # Make a change to fermentation code
@@ -64,7 +64,7 @@ make test G=lab        # 30s, 124 tests
 ## Rules
 
 1. Every test file belongs to exactly one group
-2. Group names = build phases (foundation, production, lab, inventory)
+2. Group names = build phases (foundation, production, lab, inventory, accounting)
 3. Add groups when touching test files
 4. New test files always include group from start
 5. Full `make testsuite` always runs all groups — groups are acceleration tools only
