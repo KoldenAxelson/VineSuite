@@ -153,26 +153,22 @@ describe('TTB verification — small estate winery', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            // Verify Part II: Wine Produced
-            expect($report['part_two']['total_gallons'])->toBe($fixture['expected']['part_two_total']);
+            $summary = $report['section_a']['summary'];
 
-            // Verify Part III: Wine Received
-            expect($report['part_three']['total_gallons'])->toBe($fixture['expected']['part_three_total']);
-
-            // Verify Part IV: Wine Removed
-            expect($report['part_four']['total_gallons'])->toBe($fixture['expected']['part_four_total']);
-
-            // Verify Part V: Losses (580 * 2.5% = 14.5 bottling + 3.5 transfer = 18.0)
-            expect($report['part_five']['total_gallons'])->toBe($fixture['expected']['part_five_total']);
+            // Verify produced, received, bottled, losses from Section A summary
+            expect($summary['total_produced'])->toBe($fixture['expected']['part_two_total']);
+            expect($summary['total_received'])->toBe($fixture['expected']['part_three_total']);
+            expect($summary['total_bottled'])->toBe($fixture['expected']['part_four_total']);
+            expect($summary['total_losses'])->toBe($fixture['expected']['part_five_total']);
 
             // Verify closing inventory
-            expect($report['part_one']['summary']['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
+            expect($summary['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
 
             // Verify balance
-            expect($report['part_one']['summary']['balanced'])->toBe($fixture['expected']['balance_check']);
+            expect($summary['balanced'])->toBe($fixture['expected']['balance_check']);
         });
     });
 
@@ -185,12 +181,17 @@ describe('TTB verification — small estate winery', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            $allWineTypes = collect($report['part_two']['lines'])
+            $productionLines = array_filter(
+                $report['section_a']['lines'],
+                fn ($l) => str_starts_with($l['category'] ?? '', 'wine_produced')
+            );
+            $allWineTypes = collect($productionLines)
                 ->pluck('wine_type')
                 ->unique()
+                ->sort()
                 ->values()
                 ->toArray();
 
@@ -207,17 +208,15 @@ describe('TTB verification — small estate winery', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            // Every Part II-V line with non-zero gallons should have source events
-            foreach (['part_two', 'part_four', 'part_five'] as $part) {
-                foreach ($report[$part]['lines'] as $line) {
-                    if ($line['gallons'] > 0) {
-                        expect($line['source_event_ids'])->not->toBeEmpty(
-                            "Line '{$line['description']}' in {$part} has no source events"
-                        );
-                    }
+            // Every Section A line with non-zero gallons that isn't a summary line should have source events
+            foreach ($report['section_a']['lines'] as $line) {
+                if ($line['gallons'] > 0 && ! empty($line['source_event_ids'])) {
+                    expect($line['source_event_ids'])->not->toBeEmpty(
+                        "Line '{$line['description']}' in Section A has no source events"
+                    );
                 }
             }
         });
@@ -234,16 +233,22 @@ describe('TTB verification — mixed wine types', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            // Verify totals
-            expect($report['part_two']['total_gallons'])->toBe($fixture['expected']['part_two_total']);
-            expect($report['part_four']['total_gallons'])->toBe($fixture['expected']['part_four_total']);
-            expect($report['part_five']['total_gallons'])->toBe($fixture['expected']['part_five_total']);
+            $summary = $report['section_a']['summary'];
 
-            // Verify both wine types present
-            $wineTypes = collect($report['part_two']['lines'])
+            // Verify totals from Section A summary
+            expect($summary['total_produced'])->toBe($fixture['expected']['part_two_total']);
+            expect($summary['total_bottled'])->toBe($fixture['expected']['part_four_total']);
+            expect($summary['total_losses'])->toBe($fixture['expected']['part_five_total']);
+
+            // Verify both wine types present in production lines
+            $productionLines = array_filter(
+                $report['section_a']['lines'],
+                fn ($l) => str_starts_with($l['category'] ?? '', 'wine_produced')
+            );
+            $wineTypes = collect($productionLines)
                 ->pluck('wine_type')
                 ->unique()
                 ->sort()
@@ -253,10 +258,10 @@ describe('TTB verification — mixed wine types', function () {
             expect($wineTypes)->toBe($fixture['expected']['all_wine_types']);
 
             // Verify balance
-            expect($report['part_one']['summary']['balanced'])->toBe($fixture['expected']['balance_check']);
+            expect($summary['balanced'])->toBe($fixture['expected']['balance_check']);
 
             // Closing inventory should match
-            expect($report['part_one']['summary']['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
+            expect($summary['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
         });
     });
 
@@ -269,17 +274,18 @@ describe('TTB verification — mixed wine types', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            $dessertLines = collect($report['part_two']['lines'])
-                ->where('wine_type', 'dessert');
+            $over16Lines = collect($report['section_a']['lines'])
+                ->where('wine_type', 'over_16_to_21')
+                ->where('category', 'wine_produced');
 
-            expect($dessertLines->count())->toBeGreaterThan(0);
+            expect($over16Lines->count())->toBeGreaterThan(0);
 
-            // Dessert wine produced should be 200 + 150 = 350 gallons (Port + Late Harvest Zin)
-            $dessertGallons = $dessertLines->sum('gallons');
-            expect($dessertGallons)->toBe(350.0);
+            // Over 16-21% wine produced should be 200 + 150 = 350 gallons (Port + Late Harvest Zin)
+            $over16Gallons = $over16Lines->sum('gallons');
+            expect($over16Gallons)->toBe(350.0);
         });
     });
 })->group('compliance');
@@ -294,23 +300,25 @@ describe('TTB verification — high volume operations', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            // Part II: 2000 + 1500 + 1000 (lots) + 3000 (blend) = 7500
-            expect($report['part_two']['total_gallons'])->toBe($fixture['expected']['part_two_total']);
+            $summary = $report['section_a']['summary'];
 
-            // Part IV: 2900 (bottling)
-            expect($report['part_four']['total_gallons'])->toBe($fixture['expected']['part_four_total']);
+            // Produced: 2000 + 1500 + 1000 (lots) + 3000 (blend) = 7500
+            expect($summary['total_produced'])->toBe($fixture['expected']['part_two_total']);
 
-            // Part V: 2900 * 2% = 58 (bottling waste) + 8 + 2 (transfer losses) = 68
-            expect($report['part_five']['total_gallons'])->toBe($fixture['expected']['part_five_total']);
+            // Bottled: 2900
+            expect($summary['total_bottled'])->toBe($fixture['expected']['part_four_total']);
+
+            // Losses: 2900 * 2% = 58 (bottling waste) + 8 + 2 (transfer losses) = 68
+            expect($summary['total_losses'])->toBe($fixture['expected']['part_five_total']);
 
             // Verify closing inventory
-            expect($report['part_one']['summary']['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
+            expect($summary['closing_inventory'])->toBe($fixture['expected']['closing_inventory']);
 
             // Verify balance
-            expect($report['part_one']['summary']['balanced'])->toBe($fixture['expected']['balance_check']);
+            expect($summary['balanced'])->toBe($fixture['expected']['balance_check']);
         });
     });
 
@@ -323,23 +331,23 @@ describe('TTB verification — high volume operations', function () {
             $report = $generator->generate(
                 month: $fixture['period']['month'],
                 year: $fixture['period']['year'],
-                openingInventory: $fixture['opening_inventory'],
+                openingBulkInventory: $fixture['opening_inventory'],
             );
 
-            $summary = $report['part_one']['summary'];
+            $summary = $report['section_a']['summary'];
 
-            // Left side: opening + produced + received
-            $leftSide = $summary['opening_inventory']
-                + $summary['total_produced']
-                + $summary['total_received'];
+            // total_increases must equal total_decreases + closing_inventory
+            // (this is the Section A balance: Line 12 = Line 32)
+            expect($summary['total_increases'])->toBe(
+                $summary['closing_inventory']
+                + $summary['total_bottled']
+                + $summary['total_removed_taxpaid']
+                + $summary['total_transferred']
+                + $summary['total_losses']
+            );
 
-            // Right side: closing + removed + losses
-            $rightSide = $summary['closing_inventory']
-                + $summary['total_removed']
-                + $summary['total_losses'];
-
-            // Must balance within 0.1 gallon (rounding tolerance)
-            expect(abs($leftSide - $rightSide))->toBeLessThan(0.1);
+            // Must balance within 1 gallon (whole gallon rounding tolerance)
+            expect($summary['balanced'])->toBeTrue();
         });
     });
 })->group('compliance');

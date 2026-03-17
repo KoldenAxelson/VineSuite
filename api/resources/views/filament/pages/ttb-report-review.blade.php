@@ -43,115 +43,198 @@
         </div>
     @endif
 
-    {{-- Part I: Summary --}}
-    @php $summary = $this->getSummary(); @endphp
-    @if(!empty($summary))
+    {{-- Part I: Section A (Bulk Wines) Summary --}}
+    @php $sectionA = $this->getSectionASummary(); @endphp
+    @if(!empty($sectionA))
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Part I — Summary of Operations</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Part I — Section A: Bulk Wines</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
                     <div class="text-xs text-gray-500 uppercase">Opening Inventory</div>
-                    <div class="text-xl font-bold">{{ number_format($summary['opening_inventory'] ?? 0, 1) }}</div>
+                    <div class="text-xl font-bold">{{ number_format($sectionA['opening_inventory'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
                     <div class="text-xs text-gray-500 uppercase">Produced</div>
-                    <div class="text-xl font-bold text-blue-600">{{ number_format($summary['total_produced'] ?? 0, 1) }}</div>
+                    <div class="text-xl font-bold text-blue-600">{{ number_format($sectionA['total_produced'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
                     <div class="text-xs text-gray-500 uppercase">Received</div>
-                    <div class="text-xl font-bold text-green-600">{{ number_format($summary['total_received'] ?? 0, 1) }}</div>
+                    <div class="text-xl font-bold text-green-600">{{ number_format($sectionA['total_received'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
                 <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
-                    <div class="text-xs text-gray-500 uppercase">Total Available</div>
-                    <div class="text-xl font-bold text-purple-600">{{ number_format($summary['total_available'] ?? 0, 1) }}</div>
+                    <div class="text-xs text-gray-500 uppercase">Total (Lines 1-11)</div>
+                    <div class="text-xl font-bold text-purple-600">{{ number_format($sectionA['total_increases'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
                 <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
-                    <div class="text-xs text-gray-500 uppercase">Removed</div>
-                    <div class="text-xl font-bold text-orange-600">{{ number_format($summary['total_removed'] ?? 0, 1) }}</div>
+                    <div class="text-xs text-gray-500 uppercase">Bottled</div>
+                    <div class="text-xl font-bold text-orange-600">{{ number_format($sectionA['total_bottled'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
                     <div class="text-xs text-gray-500 uppercase">Losses</div>
-                    <div class="text-xl font-bold text-red-600">{{ number_format($summary['total_losses'] ?? 0, 1) }}</div>
+                    <div class="text-xl font-bold text-red-600">{{ number_format($sectionA['total_losses'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
                 </div>
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center col-span-2">
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
                     <div class="text-xs text-gray-500 uppercase">Closing Inventory</div>
-                    <div class="text-2xl font-bold">{{ number_format($summary['closing_inventory'] ?? 0, 1) }}</div>
+                    <div class="text-xl font-bold">{{ number_format($sectionA['closing_inventory'] ?? 0) }}</div>
                     <div class="text-xs text-gray-400">gallons</div>
-                    @if($summary['balanced'] ?? false)
-                        <span class="text-xs text-green-600 font-semibold">Balance verified</span>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Balance</div>
+                    @if($sectionA['balanced'] ?? false)
+                        <div class="text-lg font-bold text-green-600">Verified</div>
                     @else
-                        <span class="text-xs text-red-600 font-semibold">BALANCE ERROR</span>
+                        <div class="text-lg font-bold text-red-600">ERROR</div>
                     @endif
                 </div>
             </div>
         </div>
     @endif
 
-    {{-- Parts II-V: Line Items --}}
-    @php $linesByPart = $this->getLinesByPart(); @endphp
-    @foreach(['II' => 'Wine Produced', 'III' => 'Wine Received in Bond', 'IV' => 'Wine Removed from Bond', 'V' => 'Losses'] as $part => $title)
+    {{-- Part I: Section B (Bottled Wines) Summary --}}
+    @php $sectionB = $this->getSectionBSummary(); @endphp
+    @if(!empty($sectionB))
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Part {{ $part }} — {{ $title }}</h3>
-            @if(isset($linesByPart[$part]) && $linesByPart[$part]->isNotEmpty())
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b dark:border-gray-700">
-                            <th class="text-left py-2 px-3">Line</th>
-                            <th class="text-left py-2 px-3">Description</th>
-                            <th class="text-left py-2 px-3">Wine Type</th>
-                            <th class="text-right py-2 px-3">Gallons</th>
-                            <th class="text-center py-2 px-3">Events</th>
-                            <th class="text-center py-2 px-3">Review</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($linesByPart[$part] as $line)
-                            <tr
-                                class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                                wire:click="drillDown('{{ $line->id }}')"
-                            >
-                                <td class="py-2 px-3 font-mono">{{ $line->line_number }}</td>
-                                <td class="py-2 px-3">{{ $line->description }}</td>
-                                <td class="py-2 px-3">
-                                    <span @class([
-                                        'inline-block px-2 py-0.5 rounded text-xs font-semibold',
-                                        'bg-blue-100 text-blue-800' => $line->wine_type === 'table',
-                                        'bg-amber-100 text-amber-800' => $line->wine_type === 'dessert',
-                                        'bg-cyan-100 text-cyan-800' => $line->wine_type === 'sparkling',
-                                        'bg-purple-100 text-purple-800' => $line->wine_type === 'special_natural',
-                                        'bg-gray-100 text-gray-800' => $line->wine_type === 'all',
-                                    ])>
-                                        {{ ucfirst(str_replace('_', ' ', $line->wine_type)) }}
-                                    </span>
-                                </td>
-                                <td class="py-2 px-3 text-right font-mono">{{ number_format((float) $line->gallons, 1) }}</td>
-                                <td class="py-2 px-3 text-center">
-                                    @if(count($line->source_event_ids ?? []) > 0)
-                                        <span class="text-blue-600">{{ count($line->source_event_ids) }}</span>
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="py-2 px-3 text-center">
-                                    @if($line->needs_review)
-                                        <span class="text-yellow-600">⚠</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p class="text-sm text-gray-400 italic">No activity in this part for the reporting period.</p>
-            @endif
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Part I — Section B: Bottled Wines</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Opening Inventory</div>
+                    <div class="text-xl font-bold">{{ number_format($sectionB['opening_inventory'] ?? 0) }}</div>
+                    <div class="text-xs text-gray-400">gallons</div>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Bottled (from bulk)</div>
+                    <div class="text-xl font-bold text-blue-600">{{ number_format($sectionB['total_bottled'] ?? 0) }}</div>
+                    <div class="text-xs text-gray-400">gallons</div>
+                </div>
+                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Total (Lines 1-6)</div>
+                    <div class="text-xl font-bold text-purple-600">{{ number_format($sectionB['total_increases'] ?? 0) }}</div>
+                    <div class="text-xs text-gray-400">gallons</div>
+                </div>
+                <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Removed (Taxpaid)</div>
+                    <div class="text-xl font-bold text-orange-600">{{ number_format($sectionB['total_removed_taxpaid'] ?? 0) }}</div>
+                    <div class="text-xs text-gray-400">gallons</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Closing Inventory</div>
+                    <div class="text-xl font-bold">{{ number_format($sectionB['closing_inventory'] ?? 0) }}</div>
+                    <div class="text-xs text-gray-400">gallons</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Balance</div>
+                    @if($sectionB['balanced'] ?? false)
+                        <div class="text-lg font-bold text-green-600">Verified</div>
+                    @else
+                        <div class="text-lg font-bold text-red-600">ERROR</div>
+                    @endif
+                </div>
+            </div>
         </div>
-    @endforeach
+    @endif
+
+    {{-- Section A: Bulk Wines Line Items --}}
+    @php $linesBySection = $this->getLinesBySection(); @endphp
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Section A — Bulk Wine Line Items</h3>
+        @if(isset($linesBySection['A']) && $linesBySection['A']->isNotEmpty())
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b dark:border-gray-700">
+                        <th class="text-left py-2 px-3">Line</th>
+                        <th class="text-left py-2 px-3">Description</th>
+                        <th class="text-left py-2 px-3">Wine Type</th>
+                        <th class="text-right py-2 px-3">Gallons</th>
+                        <th class="text-center py-2 px-3">Events</th>
+                        <th class="text-center py-2 px-3">Review</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($linesBySection['A'] as $line)
+                        <tr
+                            class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                            wire:click="drillDown('{{ $line->id }}')"
+                        >
+                            <td class="py-2 px-3 font-mono">{{ $line->line_number }}</td>
+                            <td class="py-2 px-3">{{ $line->description }}</td>
+                            <td class="py-2 px-3">
+                                @include('filament.pages.partials.wine-type-badge', ['wineType' => $line->wine_type])
+                            </td>
+                            <td class="py-2 px-3 text-right font-mono">{{ number_format((int) $line->gallons) }}</td>
+                            <td class="py-2 px-3 text-center">
+                                @if(count($line->source_event_ids ?? []) > 0)
+                                    <span class="text-blue-600">{{ count($line->source_event_ids) }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
+                                @endif
+                            </td>
+                            <td class="py-2 px-3 text-center">
+                                @if($line->needs_review)
+                                    <span class="text-yellow-600">&#9888;</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="text-sm text-gray-400 italic">No activity in Section A for the reporting period.</p>
+        @endif
+    </div>
+
+    {{-- Section B: Bottled Wines Line Items --}}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Section B — Bottled Wine Line Items</h3>
+        @if(isset($linesBySection['B']) && $linesBySection['B']->isNotEmpty())
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b dark:border-gray-700">
+                        <th class="text-left py-2 px-3">Line</th>
+                        <th class="text-left py-2 px-3">Description</th>
+                        <th class="text-left py-2 px-3">Wine Type</th>
+                        <th class="text-right py-2 px-3">Gallons</th>
+                        <th class="text-center py-2 px-3">Events</th>
+                        <th class="text-center py-2 px-3">Review</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($linesBySection['B'] as $line)
+                        <tr
+                            class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                            wire:click="drillDown('{{ $line->id }}')"
+                        >
+                            <td class="py-2 px-3 font-mono">{{ $line->line_number }}</td>
+                            <td class="py-2 px-3">{{ $line->description }}</td>
+                            <td class="py-2 px-3">
+                                @include('filament.pages.partials.wine-type-badge', ['wineType' => $line->wine_type])
+                            </td>
+                            <td class="py-2 px-3 text-right font-mono">{{ number_format((int) $line->gallons) }}</td>
+                            <td class="py-2 px-3 text-center">
+                                @if(count($line->source_event_ids ?? []) > 0)
+                                    <span class="text-blue-600">{{ count($line->source_event_ids) }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
+                                @endif
+                            </td>
+                            <td class="py-2 px-3 text-center">
+                                @if($line->needs_review)
+                                    <span class="text-yellow-600">&#9888;</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="text-sm text-gray-400 italic">No activity in Section B for the reporting period.</p>
+        @endif
+    </div>
 
     {{-- Drill-Down Panel --}}
     @if($this->selectedLineId && count($this->drillDownEvents) > 0)

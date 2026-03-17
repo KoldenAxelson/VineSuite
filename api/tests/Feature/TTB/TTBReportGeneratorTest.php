@@ -78,7 +78,7 @@ afterEach(function () {
 // ─── Tier 1: Wine Type Classification ────────────────────────────────
 
 describe('wine type classification', function () {
-    it('classifies table wine when alcohol is 14% or below', function () {
+    it('classifies table wine when alcohol is 16% or below (CBMA threshold)', function () {
         [$tenant, $token, $userId] = seedAndGetComplianceTenant('ttb-classify-1');
 
         $tenant->run(function () use ($userId) {
@@ -103,14 +103,14 @@ describe('wine type classification', function () {
             $classifier = app(WineTypeClassifier::class);
             $result = $classifier->classify($lot->id);
 
-            expect($result['type'])->toBe('table');
+            expect($result['type'])->toBe('not_over_16');
             expect($result['alcohol_pct'])->toBe(13.5);
             expect($result['needs_review'])->toBeFalse();
             expect($result['source'])->toBe('lab_analysis');
         });
     });
 
-    it('classifies dessert wine when alcohol is above 14%', function () {
+    it('classifies dessert wine when alcohol is above 16%', function () {
         [$tenant, $token, $userId] = seedAndGetComplianceTenant('ttb-classify-2');
 
         $tenant->run(function () use ($userId) {
@@ -135,13 +135,13 @@ describe('wine type classification', function () {
             $classifier = app(WineTypeClassifier::class);
             $result = $classifier->classify($lot->id);
 
-            expect($result['type'])->toBe('dessert');
+            expect($result['type'])->toBe('over_16_to_21');
             expect($result['alcohol_pct'])->toBe(19.5);
             expect($result['needs_review'])->toBeFalse();
         });
     });
 
-    it('classifies exactly 14% as table wine', function () {
+    it('classifies exactly 16% as table wine (CBMA boundary)', function () {
         [$tenant, $token, $userId] = seedAndGetComplianceTenant('ttb-classify-3');
 
         $tenant->run(function () use ($userId) {
@@ -157,7 +157,7 @@ describe('wine type classification', function () {
                 'lot_id' => $lot->id,
                 'test_date' => '2024-11-20',
                 'test_type' => 'alcohol',
-                'value' => '14.0',
+                'value' => '16.0',
                 'unit' => '%v/v',
                 'source' => 'manual',
                 'performed_by' => $userId,
@@ -166,7 +166,7 @@ describe('wine type classification', function () {
             $classifier = app(WineTypeClassifier::class);
             $result = $classifier->classify($lot->id);
 
-            expect($result['type'])->toBe('table');
+            expect($result['type'])->toBe('not_over_16');
         });
     });
 
@@ -185,7 +185,7 @@ describe('wine type classification', function () {
             $classifier = app(WineTypeClassifier::class);
             $result = $classifier->classify($lot->id);
 
-            expect($result['type'])->toBe('table');
+            expect($result['type'])->toBe('not_over_16');
             expect($result['alcohol_pct'])->toBeNull();
             expect($result['needs_review'])->toBeTrue();
             expect($result['source'])->toBe('default_no_lab_data');
@@ -235,12 +235,12 @@ describe('wine type classification', function () {
                 'performed_by' => $userId,
             ]);
 
-            // Newer reading: 15.2% (dessert — e.g., fortified)
+            // Newer reading: 18.5% (dessert — e.g., fortified)
             LabAnalysis::create([
                 'lot_id' => $lot->id,
                 'test_date' => '2024-12-01',
                 'test_type' => 'alcohol',
-                'value' => '15.2',
+                'value' => '18.5',
                 'unit' => '%v/v',
                 'source' => 'manual',
                 'performed_by' => $userId,
@@ -249,40 +249,44 @@ describe('wine type classification', function () {
             $classifier = app(WineTypeClassifier::class);
             $result = $classifier->classify($lot->id);
 
-            expect($result['type'])->toBe('dessert');
-            expect($result['alcohol_pct'])->toBe(15.2);
+            expect($result['type'])->toBe('over_16_to_21');
+            expect($result['alcohol_pct'])->toBe(18.5);
         });
     });
 })->group('compliance');
 
 // ─── Tier 1: Part I Balance Equation ─────────────────────────────────
 
-describe('Part I balance equation', function () {
-    it('calculates correct closing inventory', function () {
+describe('Part I Section A balance equation', function () {
+    it('calculates correct closing inventory for bulk wines', function () {
         $partOne = new PartOneCalculator;
 
-        $result = $partOne->calculate(
+        $result = $partOne->calculateSectionA(
             openingInventory: 5000.0,
             totalProduced: 2000.0,
             totalReceived: 500.0,
-            totalRemoved: 1500.0,
+            totalBottled: 1500.0,
+            totalRemovedTaxpaid: 0.0,
+            totalTransferred: 0.0,
             totalLosses: 100.0,
         );
 
-        // Closing = 5000 + 2000 + 500 - 1500 - 100 = 5900
+        // Closing = round(5000 + 2000 + 500, 0) - round(1500 + 0 + 0 + 100, 0) = 7500 - 1600 = 5900
         expect($result['closing_inventory'])->toBe(5900.0);
-        expect($result['total_available'])->toBe(7500.0);
+        expect($result['total_increases'])->toBe(7500.0);
         expect($result['balanced'])->toBeTrue();
     });
 
     it('handles zero activity month', function () {
         $partOne = new PartOneCalculator;
 
-        $result = $partOne->calculate(
+        $result = $partOne->calculateSectionA(
             openingInventory: 3000.0,
             totalProduced: 0.0,
             totalReceived: 0.0,
-            totalRemoved: 0.0,
+            totalBottled: 0.0,
+            totalRemovedTaxpaid: 0.0,
+            totalTransferred: 0.0,
             totalLosses: 0.0,
         );
 
@@ -290,22 +294,26 @@ describe('Part I balance equation', function () {
         expect($result['balanced'])->toBeTrue();
     });
 
-    it('generates correct line items', function () {
+    it('generates correct Section A line items', function () {
         $partOne = new PartOneCalculator;
 
-        $lines = $partOne->generateLineItems(
+        $lines = $partOne->generateSectionALineItems(
             openingInventory: 5000.0,
             totalProduced: 2000.0,
             totalReceived: 0.0,
-            totalRemoved: 1000.0,
+            totalBottled: 1000.0,
+            totalRemovedTaxpaid: 0.0,
+            totalTransferred: 0.0,
             totalLosses: 50.0,
         );
 
-        expect($lines)->toHaveCount(7);
-        expect($lines[0]['category'])->toBe('opening_inventory');
+        expect($lines)->toHaveCount(4);
+        expect($lines[0]['category'])->toBe('on_hand_beginning');
         expect($lines[0]['gallons'])->toBe(5000.0);
-        expect($lines[6]['category'])->toBe('closing_inventory');
-        expect($lines[6]['gallons'])->toBe(5950.0);
+        expect($lines[0]['section'])->toBe('A');
+        // Closing = 7000 - 1050 = 5950
+        expect($lines[2]['category'])->toBe('on_hand_end');
+        expect($lines[2]['gallons'])->toBe(5950.0);
     });
 })->group('compliance');
 
@@ -390,10 +398,10 @@ describe('Part II wine produced', function () {
             expect($totalGallons)->toBe(1800.0);
             expect(count($lines))->toBeGreaterThanOrEqual(1);
 
-            // All lines should be table wine (both lots < 14%)
+            // All lines should be Not Over 16% wine (both lots under 16% CBMA threshold)
             foreach ($lines as $line) {
                 if ($line['category'] === 'wine_produced') {
-                    expect($line['wine_type'])->toBe('table');
+                    expect($line['wine_type'])->toBe('not_over_16');
                 }
             }
         });
@@ -513,8 +521,14 @@ describe('Part IV wine removed from bond', function () {
             $to = Carbon::create(2025, 1, 31)->endOfDay();
             $lines = $partFour->calculate($from, $to);
 
-            $total = $partFour->totalGallons($lines);
-            expect($total)->toBe(950.5);
+            // Part IV now produces Section A (decrease from bulk) and Section B (increase to bottled)
+            $sectionALines = array_filter($lines, fn ($l) => $l['section'] === 'A');
+            $sectionBLines = array_filter($lines, fn ($l) => $l['section'] === 'B');
+
+            // Section A: bottled volume removed from bulk = 951 (rounded to whole gallons)
+            expect($partFour->totalGallons($sectionALines))->toBe(951.0);
+            // Section B: same volume received as bottled wine
+            expect($partFour->totalGallons($sectionBLines))->toBe(951.0);
         });
     });
 })->group('compliance');
@@ -595,7 +609,7 @@ describe('Part V losses', function () {
             $lines = $partFive->calculate($from, $to);
 
             $total = $partFive->totalGallons($lines);
-            expect($total)->toBe(2.5);
+            expect($total)->toBe(3.0);
         });
     });
 
@@ -641,7 +655,7 @@ describe('Part V losses', function () {
 // ─── Tier 1: Full Report Generation (Integration) ───────────────────
 
 describe('full TTB report generation', function () {
-    it('generates a complete report with all five parts', function () {
+    it('generates a complete report with Section A and Section B', function () {
         [$tenant, $token, $userId] = seedAndGetComplianceTenant('ttb-full-1');
 
         $tenant->run(function () use ($userId) {
@@ -711,37 +725,28 @@ describe('full TTB report generation', function () {
             $report = $generator->generate(
                 month: 1,
                 year: 2025,
-                openingInventory: 3000.0,
+                openingBulkInventory: 3000.0,
             );
 
             // Verify structure
             expect($report)->toHaveKeys([
-                'period', 'part_one', 'part_two', 'part_three',
-                'part_four', 'part_five', 'needs_review', 'review_flags', 'generated_at',
+                'period', 'section_a', 'section_b',
+                'needs_review', 'review_flags', 'generated_at',
             ]);
 
             // Verify period
             expect($report['period']['month'])->toBe(1);
             expect($report['period']['year'])->toBe(2025);
 
-            // Verify Part II (produced)
-            expect($report['part_two']['total_gallons'])->toBe(2000.0);
-
-            // Verify Part IV (removed)
-            expect($report['part_four']['total_gallons'])->toBe(500.0);
-
-            // Verify Part V (losses: 500 * 2% = 10 gallons bottling + 5 gallons transfer = 15)
-            expect($report['part_five']['total_gallons'])->toBe(15.0);
-
-            // Verify Part I balance
-            $summary = $report['part_one']['summary'];
+            // Verify Section A summary (bulk wine operations)
+            $summary = $report['section_a']['summary'];
             expect($summary['opening_inventory'])->toBe(3000.0);
             expect($summary['total_produced'])->toBe(2000.0);
             expect($summary['total_received'])->toBe(0.0);
-            expect($summary['total_available'])->toBe(5000.0);
-            expect($summary['total_removed'])->toBe(500.0);
+            expect($summary['total_bottled'])->toBe(500.0);
+            // Losses: 500 * 2% = 10 bottling waste + 5 transfer = 15
             expect($summary['total_losses'])->toBe(15.0);
-            // Closing = 5000 - 500 - 15 = 4485
+            // Closing = 3000 + 2000 + 0 - 500 - 0 - 0 - 15 = 4485
             expect($summary['closing_inventory'])->toBe(4485.0);
             expect($summary['balanced'])->toBeTrue();
         });
@@ -755,15 +760,15 @@ describe('full TTB report generation', function () {
             $report = $generator->generate(
                 month: 2,
                 year: 2025,
-                openingInventory: 1000.0,
+                openingBulkInventory: 1000.0,
             );
 
-            expect($report['part_one']['summary']['closing_inventory'])->toBe(1000.0);
-            expect($report['part_two']['total_gallons'])->toBe(0.0);
-            expect($report['part_three']['total_gallons'])->toBe(0.0);
-            expect($report['part_four']['total_gallons'])->toBe(0.0);
-            expect($report['part_five']['total_gallons'])->toBe(0.0);
-            expect($report['part_one']['summary']['balanced'])->toBeTrue();
+            expect($report['section_a']['summary']['closing_inventory'])->toBe(1000.0);
+            expect($report['section_a']['summary']['total_produced'])->toBe(0.0);
+            expect($report['section_a']['summary']['total_received'])->toBe(0.0);
+            expect($report['section_a']['summary']['total_bottled'])->toBe(0.0);
+            expect($report['section_a']['summary']['total_losses'])->toBe(0.0);
+            expect($report['section_a']['summary']['balanced'])->toBeTrue();
         });
     });
 
@@ -830,15 +835,18 @@ describe('full TTB report generation', function () {
             );
 
             $generator = app(TTBReportGenerator::class);
-            $report = $generator->generate(month: 1, year: 2025, openingInventory: 0.0);
+            $report = $generator->generate(month: 1, year: 2025, openingBulkInventory: 0.0);
 
-            // Part II should have both table and dessert lines
-            $partTwoLines = $report['part_two']['lines'];
-            $wineTypes = array_column($partTwoLines, 'wine_type');
+            // Section A lines should have both not_over_16 and over_16_to_21 wine types
+            $productionLines = array_filter(
+                $report['section_a']['lines'],
+                fn ($l) => ($l['category'] ?? '') === 'wine_produced'
+            );
+            $wineTypes = array_column($productionLines, 'wine_type');
 
-            expect($wineTypes)->toContain('table');
-            expect($wineTypes)->toContain('dessert');
-            expect($report['part_two']['total_gallons'])->toBe(700.0);
+            expect($wineTypes)->toContain('not_over_16');
+            expect($wineTypes)->toContain('over_16_to_21');
+            expect($report['section_a']['summary']['total_produced'])->toBe(700.0);
         });
     });
 
@@ -867,14 +875,14 @@ describe('full TTB report generation', function () {
             );
 
             $generator = app(TTBReportGenerator::class);
-            $report = $generator->generate(month: 1, year: 2025, openingInventory: 0.0);
+            $report = $generator->generate(month: 1, year: 2025, openingBulkInventory: 0.0);
 
             expect($report['needs_review'])->toBeTrue();
             expect($report['review_flags'])->not->toBeEmpty();
         });
     });
 
-    it('rounds all volumes to nearest tenth of a gallon', function () {
+    it('rounds all volumes to whole gallons per TTB practice', function () {
         [$tenant, $token, $userId] = seedAndGetComplianceTenant('ttb-full-5');
 
         $tenant->run(function () use ($userId) {
@@ -898,10 +906,10 @@ describe('full TTB report generation', function () {
             );
 
             $generator = app(TTBReportGenerator::class);
-            $report = $generator->generate(month: 1, year: 2025, openingInventory: 0.0);
+            $report = $generator->generate(month: 1, year: 2025, openingBulkInventory: 0.0);
 
-            // Volume should be rounded to nearest tenth
-            expect($report['part_two']['total_gallons'])->toBe(333.3);
+            // Volume should be rounded to whole gallons per TTB practice
+            expect($report['section_a']['summary']['total_produced'])->toBe(333.0);
         });
     });
 })->group('compliance');

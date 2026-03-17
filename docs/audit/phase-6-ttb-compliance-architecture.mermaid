@@ -3,6 +3,7 @@ title: "Phase 6 — TTB & Regulatory Compliance Layer Architecture"
 ---
 graph TB
     subgraph EventLog["Immutable Event Log (Source of Truth)"]
+        direction LR
         E1[lot_created]
         E2[blend_finalized]
         E3[stock_received]
@@ -12,26 +13,34 @@ graph TB
         E7[rack_completed]
         E8[filtering_logged]
         E9[addition_created]
+        E10[sweetening_completed]
+        E11[fortification_completed]
+        E12[amelioration_completed]
+        E13[evaporation_measured]
+        E14[breakage_reported]
+        E15[wine_transferred_bonded]
     end
 
-    subgraph WineClassification["Wine Type Classification"]
+    subgraph WineClassification["Wine Type Classification (CBMA)"]
         WTC[WineTypeClassifier]
         LA[LabAnalysis Records]
         LA -->|most recent alcohol %| WTC
-        WTC -->|"≤14% → table ⚠️"| TYPE_TABLE["table wine"]
-        WTC -->|">14% → dessert ⚠️"| TYPE_DESSERT["dessert wine"]
-        WTC -->|"payload wine_style"| TYPE_SPARKLING["sparkling"]
-        WTC -->|"payload wine_style"| TYPE_SPECIAL["special_natural"]
-        WTC -->|"no lab data"| TYPE_DEFAULT["table + needs_review"]
+        WTC -->|"≤16% → col a"| COL_A["(a) Not Over 16%"]
+        WTC -->|">16-21% → col b"| COL_B["(b) Over 16-21%"]
+        WTC -->|">21-24% → col c"| COL_C["(c) Over 21-24%"]
+        WTC -->|"payload → col d"| COL_D["(d) Artificially Carbonated"]
+        WTC -->|"payload → col e"| COL_E["(e) Sparkling"]
+        WTC -->|"payload → col f"| COL_F["(f) Hard Cider"]
+        WTC -->|"no lab data"| COL_DEFAULT["(a) + needs_review"]
     end
 
     subgraph TTBEngine["TTB Report Generation Engine"]
         direction TB
-        P2[PartTwoCalculator<br/>Wine Produced]
-        P3[PartThreeCalculator<br/>Wine Received]
-        P4[PartFourCalculator<br/>Wine Removed]
-        P5[PartFiveCalculator<br/>Losses]
-        P1[PartOneCalculator<br/>Balance Sheet]
+        P2["PartTwoCalculator<br/>Wine Produced (Lines 2-6)<br/>5 production methods"]
+        P3["PartThreeCalculator<br/>Wine Received (Lines 7-10)<br/>4 receipt types"]
+        P4["PartFourCalculator<br/>Wine Removed<br/>Sec A (Lines 13-24) + Sec B (Lines 2-17)<br/>13 removal categories"]
+        P5["PartFiveCalculator<br/>Losses (Lines 29-30)<br/>5 loss types"]
+        P1["PartOneCalculator<br/>Section A Balance (Lines 1,12,31,32)<br/>Section B Balance (Lines 1,7,20,21)"]
 
         P2 & P3 & P4 & P5 --> P1
     end
@@ -45,22 +54,22 @@ graph TB
     end
 
     subgraph TTBStorage["Report Storage"]
-        RPT[TTBReport Model<br/>UUID PK, JSONB data]
-        RPT_LINES[TTBReportLine Model<br/>part, line_number, gallons]
+        RPT["TTBReport Model<br/>UUID PK, JSONB data<br/>section_a + section_b"]
+        RPT_LINES["TTBReportLine Model<br/>section, line_number, wine_type, gallons"]
         RPT -->|hasMany| RPT_LINES
     end
 
     subgraph TTBOutput["Report Output"]
-        PDF[TTBReportPdfGenerator<br/>DomPDF → Form 5120.17 layout]
-        UI[ReviewTTBReport Page<br/>Drill-down, Approve]
+        PDF["TTBReportPdfGenerator<br/>DomPDF → Form 5120.17<br/>6 wine type columns"]
+        UI["ReviewTTBReport Page<br/>Section A/B summaries<br/>Drill-down, Approve"]
         RPT --> PDF
         RPT --> UI
     end
 
-    E1 & E2 -->|production events| P2
+    E1 & E2 & E10 & E11 & E12 -->|production events| P2
     E3 -->|receipt events| P3
-    E4 & E5 -->|removal events| P4
-    E6 & E7 & E8 -->|loss events| P5
+    E4 & E5 & E14 & E15 -->|removal events| P4
+    E6 & E7 & E8 & E13 -->|loss events| P5
     WTC -.->|classifies lots| P2 & P3 & P4 & P5
     GEN -->|creates| RPT
 
@@ -96,6 +105,10 @@ graph TB
         E9 -.->|"addition events"| CERT
     end
 
-    style WTC fill:#ff9800,stroke:#e65100,color:#000
-    style TYPE_TABLE fill:#ff9800,stroke:#e65100,color:#000
-    style TYPE_DESSERT fill:#ff9800,stroke:#e65100,color:#000
+    style WTC fill:#4caf50,stroke:#2e7d32,color:#000
+    style COL_A fill:#e3f2fd,stroke:#1565c0,color:#000
+    style COL_B fill:#fff3e0,stroke:#e65100,color:#000
+    style COL_C fill:#fce4ec,stroke:#c62828,color:#000
+    style COL_D fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    style COL_E fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style COL_F fill:#fff8e1,stroke:#f57f17,color:#000

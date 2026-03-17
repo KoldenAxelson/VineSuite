@@ -212,3 +212,106 @@
 
 ### Test Summary
 - `tests/Feature/TTB/CertificationComplianceTest.php` — 6 tests: no-certs passes, USDA Organic flags prohibited input, approved input passes, multiple certifications flag independently, lot audit trail with mixed compliance, active certifications list.
+
+---
+
+## Post-Phase Legal Compliance Audit & Structural Rework
+**Completed:** 2026-03-16
+**Status:** Done
+
+### Critical Corrections Applied
+
+The initial implementation had several legal compliance errors that were identified and corrected across two follow-up sessions:
+
+1. **CBMA alcohol threshold (HIGH RISK):** Original code used 14% as the table/dessert boundary. Per the Craft Beverage Modernization Act (effective 01/01/2018), the threshold is **16%**. All `WineTypeClassifier` constants corrected.
+
+2. **Wine type columns (HIGH RISK):** Original code used 4 wine types (`table`, `dessert`, `sparkling`, `special_natural`). TTB Form 5120.17sm (01/2018) requires **6 columns**: (a) Not Over 16%, (b) Over 16-21%, (c) Over 21-24%, (d) Artificially Carbonated, (e) Sparkling, (f) Hard Cider. `WineTypeClassifier` rewritten with `COL_A` through `COL_F` constants.
+
+3. **Whole gallon rounding (MEDIUM RISK):** Original code rounded to nearest tenth (`round($x, 1)`). Per TTB practice, "there is no requirement to extend beyond whole numbers." All rounding changed to `round($x, 0)`.
+
+4. **Section A/B separation (HIGH RISK):** Original code had a single inventory balance. TTB Form 5120.17 requires **separate balance sheets** for bulk wine (Section A, 32 lines) and bottled wine (Section B, 21 lines). `PartOneCalculator` rewritten with `calculateSectionA()` and `calculateSectionB()`. Bottling events now create dual entries (Section A decrease + Section B increase).
+
+5. **Report data structure:** Changed from `part_one`..`part_five` flat structure to `section_a`/`section_b` with independent summaries and line arrays.
+
+6. **PDF export:** `TTBReportPdfGenerator` and `pdf/ttb-5120-17.blade.php` rewritten to use new section structure and render all 6 wine type columns.
+
+7. **Review UI:** Separated `getSummary()` into `getSectionASummary()` / `getSectionBSummary()`. Rewrote review blade template with correct data keys.
+
+8. **View page blank fix:** `ViewTTBReport` page had no infolist — now redirects to ReviewTTBReport.
+
+### Expanded TTB Form Line Items
+
+The initial implementation only covered 2 of 5 production methods and 3 of 12+ removal categories. All calculators were expanded to cover the full TTB Form 5120.17 line structure:
+
+**PartTwoCalculator (Section A production, Lines 2-6):**
+- Line 2: Fermentation (`lot_created`) — existed
+- Line 3: Sweetening (`sweetening_completed`) — **added**
+- Line 4: Wine spirits/fortification (`fortification_completed`) — **added**
+- Line 5: Blending (`blend_finalized`) — existed
+- Line 6: Amelioration (`amelioration_completed`) — **added**
+
+**PartThreeCalculator (Section A receipts, Lines 7-10):**
+- Line 7: Received from bonded premises (`stock_received`) — existed
+- Line 8: Received from customs (`wine_received_customs`) — **added**
+- Line 9: Returned to bond from bottled (`wine_returned_to_bulk`) — **added**
+- Line 10: Other received (`wine_received_other`) — **added**
+
+**PartFourCalculator (Section A removals, Lines 13-24):**
+- Line 13: Bottled/packaged (`bottling_completed`) — existed
+- Line 14: Taxpaid bulk removal (`taxpaid_bulk_removal`) — **added**
+- Line 15: Transferred to bonded premises (`wine_transferred_bonded`) — **added**
+- Line 17: Exported (`wine_exported`) — **added**
+- Line 18: Distilling material (`used_as_distilling_material`) — **added**
+- Line 19: Vinegar (`used_as_vinegar`) — **added**
+- Line 23: Breakage/spillage (`breakage_reported`) — **added**
+- Line 24: Other (`other_bulk_removal`) — **added**
+
+**PartFourCalculator (Section B receipts, Lines 3-5):**
+- Line 2: Bottled from bulk (`bottling_completed`) — existed
+- Line 3: Received from bonded (`bottled_received_bonded`) — **added**
+- Line 4: Received from customs (`bottled_received_customs`) — **added**
+- Line 5: Returned to bond (`bottled_returned_to_bond`) — **added**
+
+**PartFourCalculator (Section B removals, Lines 8-17):**
+- Line 8: Sales/taxpaid (`stock_sold`) — existed
+- Line 9: Transferred bonded (`bottled_transferred_bonded`) — **added**
+- Line 11: Exported (`bottled_exported`) — **added**
+- Line 12: Returned to bulk (`bottled_returned_to_bulk`) — **added**
+- Line 13: Breakage (`bottled_breakage`) — **added**
+- Line 17: Other (`bottled_other_removal`) — **added**
+
+**PartFiveCalculator (Section A losses, Lines 29-30):**
+- Line 29: Transfer variance, bottling waste, filtering — existed
+- Line 29: Evaporation (`evaporation_measured`) — **added**
+- Line 30: Racking lees — existed
+
+**TTBReportGenerator:** Replaced all hardcoded `0.0` totals with computed values from line item categories.
+
+**Line number fix:** All calculators now use fixed line numbers per TTB form row (multiple wine types share the same line number, differentiated by column).
+
+### Files Modified
+- `app/Services/TTB/WineTypeClassifier.php` — 6 column constants, CBMA thresholds, hard cider/artificially carbonated detection
+- `app/Services/TTB/PartOneCalculator.php` — Section A/B separate balance sheets
+- `app/Services/TTB/PartTwoCalculator.php` — 3 new production methods, fixed line numbers
+- `app/Services/TTB/PartThreeCalculator.php` — 3 new receipt types
+- `app/Services/TTB/PartFourCalculator.php` — 13 new removal/receipt categories, fixed line numbers
+- `app/Services/TTB/PartFiveCalculator.php` — evaporation loss
+- `app/Services/TTB/TTBReportGenerator.php` — section_a/section_b structure, computed totals
+- `app/Services/TTB/TTBReportPdfGenerator.php` — section-based rendering
+- `app/Jobs/GenerateMonthlyTTBReportJob.php` — dual opening inventory
+- `app/Models/TTBReportLine.php` — updated docblock wine types
+- `resources/views/pdf/ttb-5120-17.blade.php` — 6-column rendering
+- `resources/views/filament/pages/ttb-report-review.blade.php` — separate section summaries
+- `app/Filament/Resources/TTBReportResource/Pages/ReviewTTBReport.php` — section-specific summary methods
+- `app/Filament/Resources/TTBReportResource/Pages/ViewTTBReport.php` — redirect to review
+- All test files updated, 3 fixture files updated
+- `database/seeders/ComplianceSeeder.php` — **created** (demo TTB reports + licenses)
+
+### Files Created
+- `resources/views/filament/pages/partials/wine-type-badge.blade.php` — shared wine type badge partial
+- `tests/Feature/TTB/TTBExpandedLineItemsTest.php` — 12 tests for new line items
+
+### Test Summary
+- All existing 50 compliance tests updated and passing
+- 12 new expanded line item tests passing
+- ~841 total tests passing, PHPStan level 6 (zero errors), Pint (zero style issues)

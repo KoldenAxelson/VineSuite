@@ -5,25 +5,22 @@ declare(strict_types=1);
 namespace App\Filament\Resources\TTBReportResource\Pages;
 
 use App\Filament\Resources\TTBReportResource;
-use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
+/**
+ * Redirects to the Review page which has the full report UI.
+ *
+ * The Review page handles all statuses (draft, reviewed, filed) —
+ * it only shows the "Approve" button for drafts.
+ */
 class ViewTTBReport extends ViewRecord
 {
     protected static string $resource = TTBReportResource::class;
 
-    protected function getHeaderActions(): array
+    public function mount(int|string $record): void
     {
-        return [
-            Actions\Action::make('review')
-                ->label('Review & Approve')
-                ->icon('heroicon-o-check-badge')
-                ->url(fn () => TTBReportResource::getUrl('review', ['record' => $this->record]))
-                ->visible(function (): bool {
-                    $record = $this->record;
+        parent::mount($record);
 
-                    return $record instanceof \App\Models\TTBReport && $record->canReview();
-                }),
-        ];
+        $this->redirect(TTBReportResource::getUrl('review', ['record' => $this->record]));
     }
 }

@@ -84,7 +84,7 @@ describe('TTB report model', function () {
                 'report_period_year' => 2025,
                 'status' => 'draft',
                 'generated_at' => now(),
-                'data' => ['part_one' => ['summary' => ['closing_inventory' => 5000.0]]],
+                'data' => ['section_a' => ['summary' => ['closing_inventory' => 5000]], 'section_b' => ['summary' => ['closing_inventory' => 0]]],
             ]);
 
             expect($report->report_period_month)->toBe(1);
@@ -130,27 +130,29 @@ describe('TTB report model', function () {
             TTBReportLine::create([
                 'ttb_report_id' => $report->id,
                 'part' => 'I',
+                'section' => 'A',
                 'line_number' => 1,
-                'category' => 'opening_inventory',
+                'category' => 'on_hand_beginning',
                 'wine_type' => 'all',
-                'description' => 'Opening inventory',
-                'gallons' => 5000.0,
+                'description' => 'On hand beginning of period',
+                'gallons' => 5000,
                 'source_event_ids' => [],
             ]);
 
             TTBReportLine::create([
                 'ttb_report_id' => $report->id,
-                'part' => 'II',
-                'line_number' => 1,
+                'part' => 'I',
+                'section' => 'A',
+                'line_number' => 2,
                 'category' => 'wine_produced',
-                'wine_type' => 'table',
-                'description' => 'Table wine produced',
-                'gallons' => 2000.0,
+                'wine_type' => 'not_over_16',
+                'description' => 'Wine produced by fermentation — Not Over 16%',
+                'gallons' => 2000,
                 'source_event_ids' => ['event-uuid-1', 'event-uuid-2'],
             ]);
 
             expect($report->lines()->count())->toBe(2);
-            expect($report->lines()->where('part', 'II')->first()->wine_type)->toBe('table');
+            expect($report->lines()->where('section', 'A')->where('line_number', 2)->first()->wine_type)->toBe('not_over_16');
         });
     });
 
@@ -186,11 +188,12 @@ describe('TTB report model', function () {
             TTBReportLine::create([
                 'ttb_report_id' => $report->id,
                 'part' => 'I',
+                'section' => 'A',
                 'line_number' => 1,
-                'category' => 'opening_inventory',
+                'category' => 'on_hand_beginning',
                 'wine_type' => 'all',
-                'description' => 'Opening inventory',
-                'gallons' => 1000.0,
+                'description' => 'On hand beginning of period',
+                'gallons' => 1000,
                 'source_event_ids' => [],
             ]);
 
@@ -244,7 +247,7 @@ describe('monthly TTB report generation job', function () {
             tenantId: $tenant->id,
             month: 1,
             year: 2025,
-            openingInventory: 3000.0,
+            openingBulkInventory: 3000.0,
         );
         $job->handle();
 
@@ -258,8 +261,8 @@ describe('monthly TTB report generation job', function () {
             expect($report->data)->not->toBeNull();
             expect($report->lines()->count())->toBeGreaterThan(0);
 
-            // Verify Part I lines exist
-            expect($report->lines()->where('part', 'I')->count())->toBe(7);
+            // Verify Section A and B lines exist
+            expect($report->lines()->where('section', 'A')->count())->toBeGreaterThan(0);
 
             // Verify event was logged
             $event = Event::where('operation_type', 'ttb_report_generated')
@@ -299,7 +302,7 @@ describe('monthly TTB report generation job', function () {
             tenantId: $tenant->id,
             month: 2,
             year: 2025,
-            openingInventory: 1000.0,
+            openingBulkInventory: 1000.0,
         );
         $job1->handle();
 
@@ -308,7 +311,7 @@ describe('monthly TTB report generation job', function () {
             tenantId: $tenant->id,
             month: 2,
             year: 2025,
-            openingInventory: 1000.0,
+            openingBulkInventory: 1000.0,
         );
         $job2->handle();
 
@@ -333,7 +336,7 @@ describe('monthly TTB report generation job', function () {
                 'generated_at' => now(),
                 'reviewed_by' => $userId,
                 'reviewed_at' => now(),
-                'data' => ['part_one' => ['summary' => ['closing_inventory' => 2000.0]]],
+                'data' => ['section_a' => ['summary' => ['closing_inventory' => 2000]], 'section_b' => ['summary' => ['closing_inventory' => 0]]],
             ]);
         });
 

@@ -71,9 +71,9 @@
         "part_two_total": 850.0,
         "part_three_total": 0.0,
         "part_four_total": 480.0,
-        "part_five_total": 7.2,
-        "closing_inventory": 3362.8,
+        "part_five_total": 7.0,
+        "closing_inventory": 3363.0,
         "balance_check": true,
-        "all_wine_types": ["dessert", "table"]
+        "all_wine_types": ["not_over_16", "over_16_to_21"]
     }
 }

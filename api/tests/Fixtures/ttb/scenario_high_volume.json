@@ -120,6 +120,6 @@
         "part_five_total": 68.0,
         "closing_inventory": 14532.0,
         "balance_check": true,
-        "all_wine_types": ["table"]
+        "all_wine_types": ["not_over_16"]
     }
 }

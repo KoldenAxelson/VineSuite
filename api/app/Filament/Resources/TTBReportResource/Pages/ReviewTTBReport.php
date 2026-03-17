@@ -41,30 +41,40 @@ class ReviewTTBReport extends Page
     }
 
     /**
-     * Get all line items grouped by part.
+     * Get all line items grouped by section.
      *
      * @return array<string, \Illuminate\Database\Eloquent\Collection<int, TTBReportLine>>
      */
-    public function getLinesByPart(): array
+    public function getLinesBySection(): array
     {
-        $lines = $this->record->lines()->orderBy('part')->orderBy('line_number')->get();
+        $lines = $this->record->lines()->orderBy('section')->orderBy('line_number')->get();
 
         $grouped = [];
-        foreach (['I', 'II', 'III', 'IV', 'V'] as $part) {
-            $grouped[$part] = $lines->where('part', $part)->values();
+        foreach (['A', 'B'] as $section) {
+            $grouped[$section] = $lines->where('section', $section)->values();
         }
 
         return $grouped;
     }
 
     /**
-     * Get the Part I summary from the stored report data.
+     * Get the Section A (bulk wines) summary.
      *
      * @return array<string, mixed>
      */
-    public function getSummary(): array
+    public function getSectionASummary(): array
     {
-        return $this->reportData['part_one']['summary'] ?? [];
+        return $this->reportData['section_a']['summary'] ?? [];
+    }
+
+    /**
+     * Get the Section B (bottled wines) summary.
+     *
+     * @return array<string, mixed>
+     */
+    public function getSectionBSummary(): array
+    {
+        return $this->reportData['section_b']['summary'] ?? [];
     }
 
     /**

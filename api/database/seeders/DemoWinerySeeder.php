@@ -84,6 +84,9 @@ class DemoWinerySeeder extends Seeder
 
             // Seed DTC compliance rules (all 50 states + DC)
             $this->call(DTCComplianceRulesSeeder::class);
+
+            // Seed TTB reports and licenses/permits
+            $this->call(ComplianceSeeder::class);
         });
 
         Log::info('DemoWinerySeeder: demo winery created', [

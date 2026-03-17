@@ -17,11 +17,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id UUID
  * @property string $ttb_report_id
  * @property string $part I, II, III, IV, V
+ * @property string $section A or B
  * @property int $line_number
  * @property string $category
- * @property string $wine_type table, dessert, sparkling, special_natural, all
+ * @property string $wine_type not_over_16, over_16_to_21, over_21_to_24, artificially_carbonated, sparkling, hard_cider, all
  * @property string $description
- * @property float $gallons
+ * @property int $gallons
  * @property array<int, string> $source_event_ids
  * @property bool $needs_review
  * @property string|null $notes
@@ -42,6 +43,7 @@ class TTBReportLine extends Model
     protected $fillable = [
         'ttb_report_id',
         'part',
+        'section',
         'line_number',
         'category',
         'wine_type',
@@ -56,7 +58,7 @@ class TTBReportLine extends Model
     {
         return [
             'line_number' => 'integer',
-            'gallons' => 'decimal:1',
+            'gallons' => 'integer',
             'source_event_ids' => 'array',
             'needs_review' => 'boolean',
         ];

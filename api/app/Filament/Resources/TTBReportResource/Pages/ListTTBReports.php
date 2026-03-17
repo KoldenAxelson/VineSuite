@@ -32,12 +32,18 @@ class ListTTBReports extends ListRecords
                         ->numeric()
                         ->default(now()->subMonth()->year)
                         ->required(),
-                    Forms\Components\TextInput::make('opening_inventory')
-                        ->label('Opening Inventory (gallons)')
+                    Forms\Components\TextInput::make('opening_bulk_inventory')
+                        ->label('Opening Bulk Wine Inventory')
                         ->numeric()
-                        ->step(0.1)
+                        ->step(1)
                         ->default(0)
-                        ->helperText('Leave at 0 to auto-detect from previous month\'s closing inventory.'),
+                        ->helperText('Leave at 0 to auto-detect from previous month.'),
+                    Forms\Components\TextInput::make('opening_bottled_inventory')
+                        ->label('Opening Bottled Wine Inventory')
+                        ->numeric()
+                        ->step(1)
+                        ->default(0)
+                        ->helperText('Leave at 0 to auto-detect from previous month.'),
                 ])
                 ->action(function (array $data): void {
                     /** @var \App\Models\Tenant|null $tenant */
@@ -50,7 +56,8 @@ class ListTTBReports extends ListRecords
                         tenantId: $tenant->id,
                         month: (int) $data['month'],
                         year: (int) $data['year'],
-                        openingInventory: (float) ($data['opening_inventory'] ?? 0),
+                        openingBulkInventory: (float) ($data['opening_bulk_inventory'] ?? 0),
+                        openingBottledInventory: (float) ($data['opening_bottled_inventory'] ?? 0),
                     );
 
                     Notification::make()

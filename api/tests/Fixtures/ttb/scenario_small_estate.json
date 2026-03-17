@@ -84,9 +84,9 @@
         "part_two_total": 1800.0,
         "part_three_total": 0.0,
         "part_four_total": 580.0,
-        "part_five_total": 18.0,
-        "closing_inventory": 6202.0,
+        "part_five_total": 19.0,
+        "closing_inventory": 6201.0,
         "balance_check": true,
-        "all_wine_types": ["table"]
+        "all_wine_types": ["not_over_16"]
     }
 }

@@ -11,10 +11,10 @@ For small-to-mid-size wineries (500–15,000 cases/year). Freemium with 4 tiers:
 **API:** Laravel 12, PHP 8.4, PostgreSQL 16, Redis 7, stancl/tenancy v3.9 (schema-per-tenant)
 **Portal:** Filament v3 on tenant subdomains
 **Auth:** Sanctum tokens, 7 winery roles, ~55 granular permissions
-**Testing:** Pest + PHPStan level 6 + Pint. ~779 tests. All against real PostgreSQL.
+**Testing:** Pest + PHPStan level 6 + Pint. ~841 tests. All against real PostgreSQL.
 **CI/CD:** GitHub Actions — Pint → PHPStan → Pest on every push.
 
-**Core architecture:** Immutable append-only event log with 37+ event types across 4 source partitions (production, lab, inventory, accounting). Every business operation writes an event; materialized tables are derived state. PostgreSQL trigger enforces immutability at the DB level. Enables offline sync, TTB compliance as a downstream query, and full lot traceability from grape to glass.
+**Core architecture:** Immutable append-only event log with 50+ event types across 5 source partitions (production, lab, inventory, accounting, compliance). Every business operation writes an event; materialized tables are derived state. PostgreSQL trigger enforces immutability at the DB level. Enables offline sync, TTB compliance as a downstream query, and full lot traceability from grape to glass.
 
 ---
 
@@ -27,14 +27,14 @@ For small-to-mid-size wineries (500–15,000 cases/year). Freemium with 4 tiers:
 | 2b | Lab & Fermentation (analysis, thresholds, fermentation curves, sensory) | ✅ Complete | 124 |
 | 2c | Inventory (case goods, dry goods, raw materials, equipment, POs, counts) | ✅ Complete | 265 |
 | 2d | Cost Accounting & COGS (lot costs, labor, overhead, blends, COGS at bottling) | ✅ Complete | ~36 |
-| 3 | TTB Compliance (5120.17 auto-gen, DTC rules, lot traceability) | ⬜ Up Next | — |
-| 4 | KMP Shared Core (SQLDelight, sync engine, Ktor client) | ⬜ | — |
+| 3 | TTB Compliance (5120.17 auto-gen, PDF export, DTC rules, lot traceability, certifications) | ✅ Complete | ~62 |
+| 4 | KMP Shared Core (SQLDelight, sync engine, Ktor client) | ⬜ Up Next | — |
 | 5 | Cellar App (Android + iOS, offline-first) | ⬜ | — |
 | 6 | POS App (Stripe Terminal, cash, splits, tips, offline) | ⬜ | — |
 | 7 | Growth Features (wine club, ecommerce, reservations, CRM, vineyard, reporting) | ⬜ | — |
 | 8 | Pro Features (AI, multi-brand, wholesale, public API, VineBook, migrations) | ⬜ | — |
 
-**56/186 sub-tasks complete.** 25 task files spanning the full product vision. See `docs/execution/tasks/00-index.md` for the full breakdown.
+**65/186 sub-tasks complete.** 25 task files spanning the full product vision. See `docs/execution/tasks/00-index.md` for the full breakdown.
 
 ---
 
@@ -66,7 +66,7 @@ make fresh                  # Flush Redis + reset DB + re-seed
 
 ## Demo Data
 
-`make fresh` creates "Paso Robles Cellars" with realistic data across 5 completed phases: 38 lots across 4 vintages, 67 vessels, 65+ additions, 30 work orders, 2 blend trials, 4 bottling runs, 30+ lab analyses with threshold alerts, 10 fermentation rounds with daily entries, full inventory with stock levels and purchase orders, equipment with maintenance logs, a completed physical count with variance reconciliation, and full cost accounting (150+ cost entries, labor/overhead rates, COGS summaries with margin reporting). Everything writes to a fully consistent immutable event log.
+`make fresh` creates "Paso Robles Cellars" with realistic data across 6 completed phases: 38 lots across 4 vintages, 67 vessels, 65+ additions, 30 work orders, 2 blend trials, 4 bottling runs, 30+ lab analyses with threshold alerts, 10 fermentation rounds with daily entries, full inventory with stock levels and purchase orders, equipment with maintenance logs, a completed physical count with variance reconciliation, full cost accounting (150+ cost entries, labor/overhead rates, COGS summaries with margin reporting), 3 TTB reports (filed/reviewed/draft) with full Section A/B line items, 5 regulatory licenses (TTB permit, state licenses, COLAs), and DTC shipping rules for all 50 states + DC. Everything writes to a fully consistent immutable event log.
 
 ## Documentation
 

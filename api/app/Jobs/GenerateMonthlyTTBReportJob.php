@@ -37,7 +37,8 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
         private readonly string $tenantId,
         private readonly int $month,
         private readonly int $year,
-        private readonly float $openingInventory = 0.0,
+        private readonly float $openingBulkInventory = 0.0,
+        private readonly float $openingBottledInventory = 0.0,
     ) {}
 
     public function handle(): void
@@ -64,19 +65,21 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
                 return;
             }
 
-            // Determine opening inventory
-            $openingInventory = $this->openingInventory;
-            if ($openingInventory === 0.0) {
+            // Determine opening inventories
+            $openingBulkInventory = $this->openingBulkInventory;
+            $openingBottledInventory = $this->openingBottledInventory;
+            if ($openingBulkInventory === 0.0 && $openingBottledInventory === 0.0) {
                 $generator = app(TTBReportGenerator::class);
                 $previous = $generator->getPreviousClosingInventory($this->month, $this->year);
                 if ($previous !== null) {
-                    $openingInventory = $previous;
+                    $openingBulkInventory = $previous['bulk'];
+                    $openingBottledInventory = $previous['bottled'];
                 }
             }
 
             // Generate report data
             $generator = app(TTBReportGenerator::class);
-            $reportData = $generator->generate($this->month, $this->year, $openingInventory);
+            $reportData = $generator->generate($this->month, $this->year, $openingBulkInventory, $openingBottledInventory);
 
             DB::transaction(function () use ($existing, $reportData) {
                 // Delete existing draft and its lines if regenerating
@@ -94,12 +97,10 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
                     'data' => $reportData,
                 ]);
 
-                // Create line items for each part
-                $this->createLineItems($report, 'I', $reportData['part_one']['lines']);
-                $this->createLineItems($report, 'II', $reportData['part_two']['lines']);
-                $this->createLineItems($report, 'III', $reportData['part_three']['lines']);
-                $this->createLineItems($report, 'IV', $reportData['part_four']['lines']);
-                $this->createLineItems($report, 'V', $reportData['part_five']['lines']);
+                // Create line items for Section A (bulk wines)
+                $this->createLineItems($report, 'I', $reportData['section_a']['lines']);
+                // Create line items for Section B (bottled wines)
+                $this->createLineItems($report, 'I', $reportData['section_b']['lines']);
 
                 // Log the event
                 app(EventLogger::class)->log(
@@ -111,6 +112,8 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
                         'period_month' => $this->month,
                         'period_year' => $this->year,
                         'status' => 'draft',
+                        'section_a' => $reportData['section_a']['summary'],
+                        'section_b' => $reportData['section_b']['summary'],
                         'needs_review' => $reportData['needs_review'],
                         'review_flag_count' => count($reportData['review_flags']),
                     ],
@@ -126,9 +129,9 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
     }
 
     /**
-     * Create line items for a report part.
+     * Create line items for a report section.
      *
-     * @param  array<int, array{line_number: int, category: string, wine_type: string, description: string, gallons: float, source_event_ids: array<int, string>, needs_review: bool}>  $lines
+     * @param  array<int, array{section: string, line_number: int, category: string, wine_type: string, description: string, gallons: int, source_event_ids: array<int, string>, needs_review: bool}>  $lines
      */
     private function createLineItems(TTBReport $report, string $part, array $lines): void
     {
@@ -136,6 +139,7 @@ class GenerateMonthlyTTBReportJob implements ShouldQueue
             TTBReportLine::create([
                 'ttb_report_id' => $report->id,
                 'part' => $part,
+                'section' => $line['section'],
                 'line_number' => $line['line_number'],
                 'category' => $line['category'],
                 'wine_type' => $line['wine_type'],

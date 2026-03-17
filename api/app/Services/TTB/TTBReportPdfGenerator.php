@@ -24,15 +24,17 @@ class TTBReportPdfGenerator
     public function generate(TTBReport $report): string
     {
         $wineryProfile = WineryProfile::first();
-        $linesByPart = $this->getLinesByPart($report);
-        $summary = $report->data['part_one']['summary'] ?? [];
+        $linesBySection = $this->getLinesBySection($report);
+        $sectionASummary = $report->data['section_a']['summary'] ?? [];
+        $sectionBSummary = $report->data['section_b']['summary'] ?? [];
 
         /** @phpstan-ignore-next-line */
         $pdf = Pdf::loadView('pdf.ttb-5120-17', [
             'report' => $report,
             'winery' => $wineryProfile,
-            'linesByPart' => $linesByPart,
-            'summary' => $summary,
+            'linesBySection' => $linesBySection,
+            'sectionASummary' => $sectionASummary,
+            'sectionBSummary' => $sectionBSummary,
             'reviewFlags' => $report->data['review_flags'] ?? [],
         ]);
 
@@ -62,17 +64,17 @@ class TTBReportPdfGenerator
     }
 
     /**
-     * Get line items grouped by part for rendering.
+     * Get line items grouped by section (A/B) for rendering.
      *
      * @return array<string, \Illuminate\Database\Eloquent\Collection<int, \App\Models\TTBReportLine>>
      */
-    private function getLinesByPart(TTBReport $report): array
+    private function getLinesBySection(TTBReport $report): array
     {
-        $lines = $report->lines()->orderBy('part')->orderBy('line_number')->get();
+        $lines = $report->lines()->orderBy('section')->orderBy('line_number')->get();
 
         $grouped = [];
-        foreach (['I', 'II', 'III', 'IV', 'V'] as $part) {
-            $grouped[$part] = $lines->where('part', $part)->values();
+        foreach (['A', 'B'] as $section) {
+            $grouped[$section] = $lines->where('section', $section)->values();
         }
 
         return $grouped;

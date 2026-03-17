@@ -11,16 +11,16 @@
 Phase 1: Foundation ──────────────────────────────────── COMPLETE
   └── 01-foundation.md (moved to completed/)
 
-Phase 2: Production Module + Portal ──────────────────── Phases 2a-2c COMPLETE
+Phase 2: Production Module + Portal ──────────────────── COMPLETE
   ├── 02-production-core.md (moved to completed/)
   ├── 03-lab-fermentation.md (moved to completed/)
   ├── 04-inventory.md (moved to completed/)
-  └── 05-cost-accounting.md  ← UP NEXT
+  └── 05-cost-accounting.md (moved to completed/)
 
-Phase 3: TTB Compliance ──────────────────────────────── (~2-3 weeks)
+Phase 3: TTB Compliance ──────────────────────────────── COMPLETE
   └── 06-ttb-compliance.md
 
-Phase 4: KMP Shared Core ─────────────────────────────── (~4-6 weeks)
+Phase 4: KMP Shared Core ─────────────────────────────── (~4-6 weeks) ← UP NEXT
   └── 07-kmp-shared-core.md
 
 Phase 5: Cellar App ──────────────────────────────────── (~3-4 weeks)
