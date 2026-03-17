@@ -27,6 +27,13 @@ class LotFactory extends Factory
             'Grenache', 'Mourvèdre', 'Viognier', 'Tempranillo',
         ];
 
+        $avas = [
+            'Paso Robles', 'Adelaida District', 'Willow Creek District',
+            'Templeton Gap District', 'El Pomar District', 'San Miguel District',
+            'Creston District', 'Estrella District', 'Geneseo District',
+            'Highlands District', 'San Juan Creek',
+        ];
+
         $variety = $this->faker->randomElement($varieties);
         $vintage = $this->faker->numberBetween(2020, 2025);
         $sourceType = $this->faker->randomElement(['estate', 'purchased']);
@@ -45,6 +52,7 @@ class LotFactory extends Factory
                     'grower' => $this->faker->company(),
                     'vineyard' => $this->faker->randomElement(['Bien Nacido', 'Paso Creek', 'Sierra Madre']),
                 ],
+            'source_ava' => $this->faker->randomElement($avas),
             'volume_gallons' => $this->faker->randomFloat(4, 50, 5000),
             'status' => $this->faker->randomElement(Lot::STATUSES),
         ];

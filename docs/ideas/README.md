@@ -23,7 +23,7 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 | File | Summary | Status |
 |------|---------|--------|
 | `research-gap-analysis.md` | Master gap analysis: research recommendations vs. pipeline coverage | 📋 **Reference only** — all items triaged |
-| `label-compliance-engine.md` | Real-time blend-to-label validation (75% varietal, 85% AVA, 95% vintage) | 🟡 Partially absorbed → Task 06. Validation engine not yet in spec. |
+| `label-compliance-engine.md` | Real-time blend-to-label validation (75% varietal, 85% AVA, 95% vintage) | 🟢 **Delivered** (Phase 6, Sub-Task 10). `LabelComplianceService`, `LabelProfile`, `LabelComplianceCheck`. 18 tests. |
 | `unified-tax-engine.md` | Single service for federal excise (CBMA), state excise, sales tax | 🟡 Triaged → Phase 6 (Task 09). Not yet in spec. |
 | `water-sgma-tracking.md` | Per-block water usage, well metering, SGMA compliance reporting | 🟡 Triaged → Phase 7 (Task 17). Not yet in spec. |
 | `hobbyist-pipeline.md` | Free tier for 250k+ home winemakers as a conversion engine | ⏳ Deferred → Phase 7 or standalone sprint |

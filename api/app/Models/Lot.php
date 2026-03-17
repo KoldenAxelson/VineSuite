@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $vintage Vintage year
  * @property string $source_type 'estate' or 'purchased'
  * @property array<string, mixed>|null $source_details JSON — vineyard, block, grower info
+ * @property string|null $source_ava AVA origin (e.g. "Adelaida District", "Paso Robles")
  * @property string $volume_gallons Current volume in gallons
  * @property string $status in_progress|aging|finished|bottled|sold|archived
  * @property string|null $parent_lot_id UUID of parent lot (for splits/blends)
@@ -75,6 +76,7 @@ class Lot extends Model
         'vintage',
         'source_type',
         'source_details',
+        'source_ava',
         'volume_gallons',
         'status',
         'parent_lot_id',

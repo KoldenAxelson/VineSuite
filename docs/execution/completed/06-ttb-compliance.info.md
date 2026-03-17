@@ -315,3 +315,47 @@ The initial implementation only covered 2 of 5 production methods and 3 of 12+ r
 - All existing 50 compliance tests updated and passing
 - 12 new expanded line item tests passing
 - ~841 total tests passing, PHPStan level 6 (zero errors), Pint (zero style issues)
+
+---
+
+## Sub-Task 10: Label Compliance Engine (Absorbed from Ideas)
+**Completed:** 2026-03-16
+**Status:** Done
+
+### Origin
+Absorbed from `docs/ideas/label-compliance-engine.md` per TRIAGE.md disposition ("Absorb into Phase 6"). The idea was triaged twice — once during initial triage and again during Phase 5→6 handoff — but was never added to the formal sub-task list. Implemented as the final Phase 6 sub-task.
+
+### Key Decisions
+- **Four TTB labeling rules implemented**: Varietal 75%, AVA 85%, Vintage 95%, and California Conjunctive Labeling. Each rule is evaluated independently and stored as a `LabelComplianceCheck` record.
+- **Blend-aware composition resolution**: The service resolves composition from `BlendTrial` components and their source lots. If no blend trial is linked, falls back to direct SKU→Lot linkage.
+- **source_ava on Lot model**: Added nullable `source_ava` field to the `lots` table via migration. This captures the AVA origin at grape receiving time, enabling the 85% AVA rule.
+- **LabelProfile as the anchor**: Stores label claims (varietal, AVA, sub-AVA, vintage, alcohol) and links to either a BlendTrial or CaseGoodsSku. Compliance status is `passing`, `failing`, or `unchecked`.
+- **Immutable lock at bottling**: `lock()` method snapshots the full compliance state into JSONB `compliance_snapshot` and sets `locked_at`. Once locked, `evaluate()` returns cached results. This serves as permanent audit documentation.
+- **Remediation suggestions**: When a percentage-based rule fails, the service calculates exactly how many additional gallons of the target variety/AVA/vintage are needed to reach the threshold and includes this in the check details.
+- **Conjunctive labeling hierarchy**: Maps Paso Robles' 11 sub-AVAs to the parent "Paso Robles" AVA. Sub-AVAs not in the known hierarchy pass by default with a manual review flag.
+- **Case-insensitive matching**: Varietal and AVA comparisons use `strcasecmp()` for robustness.
+
+### Files Created
+- `database/migrations/tenant/2026_03_17_400008_add_source_ava_to_lots_table.php`
+- `database/migrations/tenant/2026_03_17_400009_create_label_profiles_table.php`
+- `database/migrations/tenant/2026_03_17_400010_create_label_compliance_checks_table.php`
+- `app/Models/LabelProfile.php`
+- `app/Models/LabelComplianceCheck.php`
+- `app/Services/TTB/LabelComplianceService.php`
+- `database/factories/LabelProfileFactory.php`
+- `database/factories/LabelComplianceCheckFactory.php`
+- `tests/Feature/TTB/LabelComplianceTest.php`
+
+### Files Modified
+- `app/Models/Lot.php` — Added `source_ava` to fillable, docblock
+- `database/factories/LotFactory.php` — Added Paso Robles sub-AVAs to factory, `source_ava` field
+
+### Test Summary
+- `tests/Feature/TTB/LabelComplianceTest.php` — 18 tests covering:
+  - Varietal 75%: passes at 80%, fails at 70%, passes at exactly 75%, remediation includes gallons needed
+  - AVA 85%: passes at 90%, fails at 80%, parent AVA check without sub-AVA
+  - Vintage 95%: passes at 97%, fails at 90%, skipped for NV wine
+  - Conjunctive labeling: passes with correct parent, fails without parent, fails with wrong parent, skipped when no sub-AVA
+  - Full integration: all four rules passing, mixed (varietal fails/rest pass), GSM blend (no varietal claim, AVA fails)
+  - Locking: snapshot creation, cached result on re-evaluation
+  - Edge cases: no claims returns unchecked, re-evaluation replaces old checks

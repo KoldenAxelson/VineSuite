@@ -28,7 +28,6 @@ class TTBReportPdfGenerator
         $sectionASummary = $report->data['section_a']['summary'] ?? [];
         $sectionBSummary = $report->data['section_b']['summary'] ?? [];
 
-        /** @phpstan-ignore-next-line */
         $pdf = Pdf::loadView('pdf.ttb-5120-17', [
             'report' => $report,
             'winery' => $wineryProfile,

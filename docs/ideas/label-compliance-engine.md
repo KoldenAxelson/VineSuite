@@ -1,8 +1,9 @@
 # Automated Label Compliance / COLA Validation Engine
 
-> **🟡 PARTIALLY ABSORBED → Task 06 (TTB Compliance)**
-> Triaged for absorption into Phase 3 (Task 06) as a sub-task. COLA record tracking exists, but the real-time blend-to-label validation engine described here has **not yet been written into the task spec**. See Task 06's "Ideas to Evaluate" section.
+> **✅ FULLY ABSORBED → Task 06, Sub-Task 10 (TTB Compliance)**
+> Implemented as Sub-Task 10 of Phase 6. All four labeling rules (75% varietal, 85% AVA, 95% vintage, California conjunctive labeling) are implemented in `LabelComplianceService`. Models: `LabelProfile`, `LabelComplianceCheck`. Lot model extended with `source_ava`. 18 tests.
 > Created: 2026-03-15
+> Implemented: 2026-03-16
 > Source: Market research gap analysis
 > Priority: High — genuinely differentiated, only possible in an integrated suite
 
