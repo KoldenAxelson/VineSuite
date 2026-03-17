@@ -26,13 +26,14 @@ use Illuminate\Support\Facades\Log;
  * - `bottling_completed` event is written
  * - Lot status can be set to 'bottled'
  *
- * Packaging material inventory deduction is stubbed for 04-inventory.md.
+ * Phase 5 addition: On completion, calculates per-bottle COGS via CostAccumulationService.
  */
 class BottlingService implements BottlingServiceInterface
 {
     public function __construct(
         private readonly EventLogger $eventLogger,
         private readonly LotServiceInterface $lotService,
+        private readonly CostAccumulationService $costService,
     ) {}
 
     /**
@@ -178,8 +179,12 @@ class BottlingService implements BottlingServiceInterface
                 performedAt: now(),
             );
 
-            // TODO: Auto-deduct packaging materials from dry goods inventory (04-inventory.md)
-            // TODO: Create case goods inventory entry (04-inventory.md)
+            // Calculate per-bottle COGS
+            $this->costService->calculateBottlingCogs(
+                lot: $lot,
+                bottlingRun: $run,
+                performedBy: $performedBy,
+            );
 
             Log::info('Bottling run completed', LogContext::with([
                 'bottling_run_id' => $run->id,

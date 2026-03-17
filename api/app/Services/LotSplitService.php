@@ -24,6 +24,7 @@ class LotSplitService
 {
     public function __construct(
         private readonly EventLogger $eventLogger,
+        private readonly CostAccumulationService $costService,
     ) {}
 
     /**
@@ -122,6 +123,14 @@ class LotSplitService
                 performedAt: now(),
             );
 
+            // Split costs proportionally to child lots by volume ratio
+            $this->splitCostsToChildren(
+                $parentLot,
+                $createdChildren,
+                (string) $parentVolume,
+                $performedBy,
+            );
+
             Log::info('Lot split', LogContext::with([
                 'parent_lot_id' => $parentLot->id,
                 'child_count' => count($createdChildren),
@@ -134,5 +143,47 @@ class LotSplitService
                 'children' => $createdChildren,
             ];
         });
+    }
+
+    /**
+     * Split costs from parent lot to child lots proportionally by volume.
+     *
+     * Each child gets: (child volume / parent volume before split) × parent total cost.
+     * Cost per gallon should be identical across all children and the parent.
+     *
+     * @param  array<int, Lot>  $children
+     */
+    private function splitCostsToChildren(
+        Lot $parentLot,
+        array $children,
+        string $parentVolumeBeforeSplit,
+        string $performedBy,
+    ): void {
+        $parentTotalCost = $this->costService->getTotalCost($parentLot);
+
+        if (bccomp($parentTotalCost, '0', 4) <= 0 || bccomp($parentVolumeBeforeSplit, '0', 4) <= 0) {
+            return;
+        }
+
+        // Cost per gallon at time of split (same for all children)
+        $costPerGallon = bcdiv($parentTotalCost, $parentVolumeBeforeSplit, 8);
+
+        foreach ($children as $childLot) {
+            $childVolume = (string) $childLot->volume_gallons;
+            $proportionalCost = bcmul($costPerGallon, $childVolume, 4);
+
+            if (bccomp($proportionalCost, '0', 4) <= 0) {
+                continue;
+            }
+
+            $this->costService->recordTransferInCost(
+                lot: $childLot,
+                description: "Cost from parent {$parentLot->name} ({$childVolume} gal split)",
+                amount: $proportionalCost,
+                performedBy: $performedBy,
+                referenceType: 'split_allocation',
+                referenceId: $parentLot->id,
+            );
+        }
     }
 }

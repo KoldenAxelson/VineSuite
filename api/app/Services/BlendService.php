@@ -31,6 +31,7 @@ class BlendService implements BlendServiceInterface
     public function __construct(
         private readonly EventLogger $eventLogger,
         private readonly LotServiceInterface $lotService,
+        private readonly CostAccumulationService $costService,
     ) {}
 
     /**
@@ -235,6 +236,9 @@ class BlendService implements BlendServiceInterface
                 performedAt: now(),
             );
 
+            // Roll costs from source lots into blended lot proportionally by volume
+            $this->rollCostsToBlendedLot($trial, $blendedLot, $performedBy);
+
             Log::info('Blend trial finalized', LogContext::with([
                 'blend_trial_id' => $trial->id,
                 'resulting_lot_id' => $blendedLot->id,
@@ -244,5 +248,48 @@ class BlendService implements BlendServiceInterface
 
             return $trial->fresh(['components.sourceLot', 'creator', 'resultingLot']);
         });
+    }
+
+    /**
+     * Roll costs from source lots to the blended lot proportionally by volume.
+     *
+     * For each source lot, calculates: (component volume / source lot total volume) × source lot total cost
+     * Creates transfer_in cost entries on the blended lot.
+     *
+     * Example: Lot A ($10/gal, 100 gal contribution) + Lot B ($15/gal, 50 gal contribution)
+     * → Blended lot gets $1000 from A + $750 from B = $1750 total, $11.67/gal
+     */
+    private function rollCostsToBlendedLot(BlendTrial $trial, Lot $blendedLot, string $performedBy): void
+    {
+        foreach ($trial->components as $component) {
+            $sourceLot = $component->sourceLot;
+            $componentVolume = (string) $component->volume_gallons;
+            $sourceTotalVolume = bcadd((string) $sourceLot->volume_gallons, $componentVolume, 4);
+
+            // Get total cost of source lot at time of blend
+            $sourceTotalCost = $this->costService->getTotalCost($sourceLot);
+
+            if (bccomp($sourceTotalCost, '0', 4) <= 0 || bccomp($sourceTotalVolume, '0', 4) <= 0) {
+                continue;
+            }
+
+            // Proportional cost = (componentVolume / sourceTotalVolume before deduction) × sourceTotalCost
+            // Note: sourceLot volume was already deducted, so we add back componentVolume
+            $proportion = bcdiv($componentVolume, $sourceTotalVolume, 8);
+            $proportionalCost = bcmul($sourceTotalCost, $proportion, 4);
+
+            if (bccomp($proportionalCost, '0', 4) <= 0) {
+                continue;
+            }
+
+            $this->costService->recordTransferInCost(
+                lot: $blendedLot,
+                description: "Cost from {$sourceLot->name} ({$componentVolume} gal @ blend)",
+                amount: $proportionalCost,
+                performedBy: $performedBy,
+                referenceType: 'blend_allocation',
+                referenceId: $trial->id,
+            );
+        }
     }
 }

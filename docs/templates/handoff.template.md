@@ -23,6 +23,7 @@
 
 ## Rules
 
+- **One sub-task at a time.** Complete it, write the INFO entry, run `make testsuite`, then stop and check in with the human before starting the next sub-task. Do not batch multiple sub-tasks.
 - Follow sub-task order. They're sequenced for dependencies.
 - Write the INFO file after every sub-task: `docs/execution/completed/{NN}-{module}.info.md`
 - Don't break existing tests. Run `make testsuite`, not just new tests.
@@ -31,4 +32,4 @@
 
 ## Go
 
-Start with Sub-Task 1 of `docs/execution/tasks/{NN}-{module}.md`.
+Read the files listed above. Then start Sub-Task 1 of `docs/execution/tasks/{NN}-{module}.md`.

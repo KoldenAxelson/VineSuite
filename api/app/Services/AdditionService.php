@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\AdditionServiceInterface;
 use App\Models\Addition;
+use App\Models\Lot;
 use App\Models\RawMaterial;
 use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
@@ -20,11 +21,15 @@ use Illuminate\Support\Facades\Log;
  *
  * Inventory auto-deduct: when an addition has an inventory_item_id, the
  * corresponding RawMaterial's on_hand is decremented by the total_amount.
+ *
+ * Cost tracking: when an addition uses a raw material with cost_per_unit,
+ * a material cost entry is auto-created on the lot via CostAccumulationService.
  */
 class AdditionService implements AdditionServiceInterface
 {
     public function __construct(
         private readonly EventLogger $eventLogger,
+        private readonly CostAccumulationService $costService,
     ) {}
 
     /**
@@ -64,6 +69,16 @@ class AdditionService implements AdditionServiceInterface
             // Auto-deduct from raw material inventory when linked
             if ($addition->inventory_item_id) {
                 $this->deductInventory($addition, $performedBy);
+            }
+
+            // Auto-create material cost entry on the lot
+            $lot = Lot::find($addition->lot_id);
+            if ($lot) {
+                $this->costService->recordMaterialCost(
+                    lot: $lot,
+                    addition: $addition,
+                    performedBy: $performedBy,
+                );
             }
 
             Log::info('Addition logged', LogContext::with([

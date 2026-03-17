@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\LabImportController;
 use App\Http\Controllers\Api\V1\LabThresholdController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LotController;
+use App\Http\Controllers\Api\V1\LotCostController;
 use App\Http\Controllers\Api\V1\LotSplitController;
 use App\Http\Controllers\Api\V1\MaintenanceLogController;
 use App\Http\Controllers\Api\V1\PhysicalCountController;
@@ -369,6 +370,14 @@ Route::middleware([
             Route::get('/by-location', [BulkWineInventoryController::class, 'byLocation'])->name('bulk-wine.by-location');
             Route::get('/reconciliation', [BulkWineInventoryController::class, 'reconciliation'])->name('bulk-wine.reconciliation');
             Route::get('/aging-schedule', [BulkWineInventoryController::class, 'agingSchedule'])->name('bulk-wine.aging-schedule');
+        });
+
+        // ─── Accounting: Lot Costs ──────────────────────────────────────
+        Route::get('/lots/{lot}/costs', [LotCostController::class, 'index'])->name('lot-costs.index');
+        Route::get('/lots/{lot}/cogs', [LotCostController::class, 'cogs'])->name('lot-costs.cogs');
+
+        Route::middleware('role:owner,admin,winemaker')->group(function () {
+            Route::post('/lots/{lot}/costs', [LotCostController::class, 'store'])->name('lot-costs.store');
         });
 
         // Team list — any authenticated user can view team members

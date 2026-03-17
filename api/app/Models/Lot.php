@@ -209,6 +209,26 @@ class Lot extends Model
         return $this->hasMany(CaseGoodsSku::class)->orderByDesc('created_at');
     }
 
+    /**
+     * Cost entries accumulated on this lot.
+     *
+     * @return HasMany<LotCostEntry, $this>
+     */
+    public function costEntries(): HasMany
+    {
+        return $this->hasMany(LotCostEntry::class)->orderBy('performed_at');
+    }
+
+    /**
+     * COGS summaries calculated at bottling.
+     *
+     * @return HasMany<LotCogsSummary, $this>
+     */
+    public function cogsSummaries(): HasMany
+    {
+        return $this->hasMany(LotCogsSummary::class)->orderByDesc('calculated_at');
+    }
+
     // ─── Scopes ──────────────────────────────────────────────────
 
     /**

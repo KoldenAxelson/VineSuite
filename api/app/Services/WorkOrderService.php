@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\LaborRate;
+use App\Models\Lot;
+use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderTemplate;
 use App\Support\LogContext;
@@ -17,11 +20,15 @@ use Illuminate\Support\Facades\Log;
  * Work order completion is the trigger for most event log writes —
  * when a cellar hand completes a "Pump Over" work order, the
  * appropriate event is written to the event log.
+ *
+ * Phase 5: On completion with hours logged, calculates labor cost
+ * (hours × labor rate) and creates a cost entry on the lot.
  */
 class WorkOrderService
 {
     public function __construct(
         private readonly EventLogger $eventLogger,
+        private readonly CostAccumulationService $costService,
     ) {}
 
     /**
@@ -109,11 +116,21 @@ class WorkOrderService
      */
     public function completeWorkOrder(WorkOrder $workOrder, array $completionData, string $completedBy): WorkOrder
     {
+        $hours = (string) ($completionData['hours'] ?? '0');
+        $laborCost = null;
+
+        // Calculate labor cost if hours provided
+        if (bccomp($hours, '0', 2) > 0) {
+            $laborCost = $this->calculateLaborCost($hours, $completedBy);
+        }
+
         $workOrder->update([
             'status' => 'completed',
             'completed_at' => now(),
             'completed_by' => $completedBy,
             'completion_notes' => $completionData['completion_notes'] ?? null,
+            'hours' => $hours,
+            'labor_cost' => $laborCost,
         ]);
 
         // Write a work_order_completed event
@@ -126,6 +143,8 @@ class WorkOrderService
                 'lot_id' => $workOrder->lot_id,
                 'vessel_id' => $workOrder->vessel_id,
                 'completion_notes' => $completionData['completion_notes'] ?? null,
+                'hours' => $hours,
+                'labor_cost' => $laborCost,
             ],
             performedBy: $completedBy,
             performedAt: now(),
@@ -142,18 +161,70 @@ class WorkOrderService
                     'work_order_id' => $workOrder->id,
                     'vessel_id' => $workOrder->vessel_id,
                     'completion_notes' => $completionData['completion_notes'] ?? null,
+                    'hours' => $hours,
+                    'labor_cost' => $laborCost,
                 ],
                 performedBy: $completedBy,
                 performedAt: now(),
             );
+
+            // Auto-create labor cost entry on the lot when hours > 0 and cost > 0
+            if ($laborCost !== null && bccomp($laborCost, '0', 4) > 0) {
+                $lot = Lot::find($workOrder->lot_id);
+                if ($lot) {
+                    $hourlyRate = $this->getLaborRate($completedBy);
+                    $this->costService->recordLaborCost(
+                        lot: $lot,
+                        workOrder: $workOrder,
+                        amount: $laborCost,
+                        hours: $hours,
+                        hourlyRate: $hourlyRate ?? '0.0000',
+                        performedBy: $completedBy,
+                    );
+                }
+            }
         }
 
         Log::info('Work order completed', LogContext::with([
             'work_order_id' => $workOrder->id,
             'operation_type' => $workOrder->operation_type,
+            'hours' => $hours,
+            'labor_cost' => $laborCost,
         ], $completedBy));
 
         return $workOrder->fresh();
+    }
+
+    /**
+     * Calculate labor cost: hours × hourly rate for the user's role.
+     *
+     * Looks up active LaborRate for the completing user's role.
+     * Returns null if no rate is configured.
+     */
+    private function calculateLaborCost(string $hours, string $userId): ?string
+    {
+        $hourlyRate = $this->getLaborRate($userId);
+        if ($hourlyRate === null) {
+            return null;
+        }
+
+        return bcmul($hours, $hourlyRate, 4);
+    }
+
+    /**
+     * Get the hourly rate for a user based on their role.
+     */
+    private function getLaborRate(string $userId): ?string
+    {
+        /** @var User|null $user */
+        $user = User::find($userId);
+        if (! $user) {
+            return null;
+        }
+
+        $laborRate = LaborRate::getActiveRate($user->role);
+
+        return $laborRate ? (string) $laborRate->hourly_rate : null;
     }
 
     /**

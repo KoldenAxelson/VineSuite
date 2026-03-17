@@ -72,6 +72,8 @@ class WorkOrder extends Model
         'completed_at',
         'completed_by',
         'completion_notes',
+        'hours',
+        'labor_cost',
         'template_id',
     ];
 
@@ -80,6 +82,8 @@ class WorkOrder extends Model
         return [
             'due_date' => 'date',
             'completed_at' => 'datetime',
+            'hours' => 'decimal:2',
+            'labor_cost' => 'decimal:4',
         ];
     }
 

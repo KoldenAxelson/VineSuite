@@ -32,7 +32,7 @@ LOAD → BUILD → TEST → VERIFY → RECORD → UPDATE
 
 **TEST:** Per TASK Testing Notes + `guides/testing-and-logging.md`. Tier 1 required (money, data integrity, compliance, events). Tier 2 expected (API, CRUD, business rules). Tier 3 optional. Must pass via `make test`.
 
-**VERIFY:** Human gate. Approve / request changes / flag for discussion.
+**VERIFY:** Human gate. **Stop after each sub-task** — run `make testsuite`, report results, and wait for human approval before starting the next sub-task. Do not batch multiple sub-tasks.
 
 **RECORD:** Append to `execution/completed/{NN-module}.info.md`. Use `templates/info-file.template.md`. Capture decisions — they're the highest-value artifact.
 

@@ -78,6 +78,9 @@ class DemoWinerySeeder extends Seeder
 
             // Seed default lab thresholds (industry-standard VA, pH, SO2, etc.)
             $this->call(DefaultLabThresholdsSeeder::class);
+
+            // Seed cost accounting data (fruit costs, labor, overhead, COGS)
+            $this->call(CostAccountingSeeder::class);
         });
 
         Log::info('DemoWinerySeeder: demo winery created', [
