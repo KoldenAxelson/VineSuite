@@ -91,3 +91,29 @@ Not given its own idea doc. The research highlights satellite imagery and digita
 | `smart-allocation.md` | **Defer → Phase 8** | Needs inventory + sales channels. |
 | `custom-crush-ap-portal.md` | **Defer → Phase 8+** | Phase 6 License model should accommodate multiple permit holders per facility for future AP portal. |
 | `research-gap-analysis.md` | **Reference only** | No change. |
+
+---
+
+### Phase 6 → Phase 7 Triage — TTB Compliance → KMP Shared Core
+
+Phase 7 (Task 07) is pure mobile infrastructure: Kotlin Multiplatform project scaffolding, SQLDelight local database, offline event outbox, Ktor API client, sync engine, and conflict resolution. No business features are being added — this is the shared foundation that the Cellar App (Task 08) and POS App (Task 09) will stand on.
+
+**Result: No ideas absorbed.** Every idea in the backlog is either a business feature, a sales channel, or an operational tool. None of them intersect with the KMP shared core layer.
+
+| Idea | Disposition | Rationale |
+|------|-------------|-----------|
+| `label-compliance-engine.md` | **✅ Delivered** | Completed in Phase 6, Sub-Task 10. No further action. |
+| `unified-tax-engine.md` | **Defer → Phase 9 (POS)** | Tax calculation is a sales-channel concern. KMP sync engine carries events — it doesn't compute tax. |
+| `data-portability.md` | **Defer → Phase 8+** | Export features need the apps to exist first. |
+| `pricing-and-plan-tiers.md` | **Defer** | Standing carry-forward. Mobile apps will respect plan gating via API responses, not client-side logic. |
+| `progressive-onboarding.md` | **Defer** | Standing carry-forward. Mobile onboarding UX is Task 08/09 concern, not the shared core. |
+| `gradual-migration-path.md` | **Defer** | No KMP overlap. Migration is server-side. |
+| `harvest-season-resilience.md` | **Absorb (as constraint)** | The sync engine's offline-first design and conflict resolution directly address harvest-season load. This isn't a new sub-task — it's the *purpose* of Task 07. Acceptance criteria already cover: 50-event offline queue test, retry with backoff, conflict surfacing. |
+| `customer-support-escalation.md` | **Defer → Post-launch** | No overlap. |
+| `grape-marketplace.md` | **Defer → Phase 8+** | Needs cross-tenant infra. |
+| `hobbyist-pipeline.md` | **Defer → Phase 8+** | Separate product surface. KMP core is tenant-agnostic so hobbyist app could reuse it. |
+| `water-sgma-tracking.md` | **Defer → Phase 7+ (Task 17)** | Vineyard module, not mobile core. |
+| `grower-tools.md` | **Defer → Phase 8+** | Cross-tenant architecture needed. |
+| `smart-allocation.md` | **Defer → Phase 8** | Needs sales channels. |
+| `custom-crush-ap-portal.md` | **Defer → Phase 8+** | No overlap. |
+| `research-gap-analysis.md` | **Reference only** | No change. |

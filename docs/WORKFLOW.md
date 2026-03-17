@@ -46,7 +46,7 @@ Four artifacts, in this order:
 
 1. **Phase recap** — Synthesize using `templates/phase-recap.template.md`. Condensed summary (not copy-paste of INFO files): deliverables, decisions, deviations, patterns, debt. Future sessions load recaps instead of individual INFO files.
 2. **Handoff for next phase** — Write using `templates/handoff.template.md`. Save to `execution/handoffs/{NN}-{module}-handoff.md`. Covers: what to read, relevant context from completed phases, carry-over debt, phase-specific notes. This is the first file the next agent reads.
-3. **Starter prompt** — Draft using `templates/starter-prompt.template.md`. A 3-sentence prompt the human pastes into the next AI session. Points agent to the handoff doc.
+3. **Starter prompt** — Draft using `templates/starter-prompt.template.md`. Save to `execution/handoffs/{NN}-{module}-starter-prompt.md`. A 3-sentence prompt the human pastes into the next AI session. Points agent to the handoff doc.
 4. **Root README update** — Update the project root `README.md` with current data: build progress table (phase status, test counts), total sub-task count, event type count, and demo data description. This is the public-facing project summary — keep it accurate after every phase.
 
 ## Ideas Triage
@@ -73,6 +73,7 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 | Completion | `execution/completed/{NN}-{module}.info.md` | `04-inventory.info.md` |
 | Phase recap | `execution/phase-recaps/phase-{N}-{name}.md` | `phase-4-inventory.md` |
 | Handoff | `execution/handoffs/{NN}-{module}-handoff.md` | `05-cost-accounting-handoff.md` |
+| Starter prompt | `execution/handoffs/{NN}-{module}-starter-prompt.md` | `07-kmp-shared-core-starter-prompt.md` |
 | Reference | `references/{topic}.md` | `event-log.md` |
 | Guide | `guides/{topic}.md` | `testing-and-logging.md` |
 

@@ -15,6 +15,7 @@
 - **DTC shipping compliance** — all 50 states + DC with current rules, annual per-customer shipment tracking, and eligibility checking with case/gallon limit enforcement
 - **Lot traceability** — one-step-back/one-step-forward trace from grape source through blending to bottling and sale, with full timeline view
 - **Certification compliance** — advisory flagging of prohibited inputs for USDA Organic, Demeter Biodynamic, SIP Certified, CCOF, and Salmon-Safe certifications
+- **Label compliance engine** — four TTB labeling rules (varietal 75%, AVA 85%, vintage 95%, California conjunctive labeling) with blend-aware composition resolution, `LabelProfile` model anchoring claims to blend trials or SKUs, immutable lock-at-bottling with compliance snapshot, and remediation suggestions calculating exact gallons needed to reach thresholds. Absorbed from `ideas/label-compliance-engine.md`.
 - **Demo data** — 3 seeded TTB reports (filed, reviewed, draft) with full line items, plus 5 licenses including TTB permit and state licenses
 
 ## Architecture Decisions
@@ -46,6 +47,7 @@
 - **Category-based line item routing:** TTBReportGenerator sums line items by category string (e.g., `wine_bottled`, `transferred_bonded`, `bottled_breakage`) to compute section totals. New categories can be added to calculators without changing the generator — just ensure the category string is included in the generator's sum conditions.
 - **Wine type badge partial:** `views/filament/pages/partials/wine-type-badge.blade.php` renders consistent color-coded badges for all 6 TTB columns. Reusable across compliance UI pages.
 - **ComplianceSeeder for demo data:** `database/seeders/ComplianceSeeder.php` creates realistic TTB reports and licenses. Uses `updateOrCreate` for idempotency. Called from DemoWinerySeeder.
+- **Label compliance as a lockable profile:** `LabelProfile` stores label claims and links to blend/SKU. `LabelComplianceService` evaluates all four rules independently. `lock()` snapshots compliance state into JSONB for permanent audit record. Lot `source_ava` field captures AVA origin at grape receiving time.
 
 ## Known Debt
 
