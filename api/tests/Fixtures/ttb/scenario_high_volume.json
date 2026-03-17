@@ -1,0 +1,125 @@
+{
+    "name": "High Volume Operations — March 2025",
+    "description": "A busy month with multiple lots, blending, bottling, and various loss types. Tests the full range of operations.",
+    "period": { "month": 3, "year": 2025 },
+    "opening_inventory": 10000.0,
+    "lots": [
+        {
+            "id": "lot-cab1-2024",
+            "name": "Cab Block A",
+            "variety": "Cabernet Sauvignon",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 2000,
+            "alcohol_pct": 13.5
+        },
+        {
+            "id": "lot-cab2-2024",
+            "name": "Cab Block B",
+            "variety": "Cabernet Sauvignon",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 1500,
+            "alcohol_pct": 14.0
+        },
+        {
+            "id": "lot-merlot-2024",
+            "name": "Merlot Estate",
+            "variety": "Merlot",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 1000,
+            "alcohol_pct": 13.2
+        },
+        {
+            "id": "lot-blend-2024",
+            "name": "Flagship Blend",
+            "variety": "Red Blend",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 3000,
+            "alcohol_pct": 13.6
+        }
+    ],
+    "events": [
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-cab1-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Cab Block A", "initial_volume": 2000.0 },
+            "performed_at": "2025-03-01"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-cab2-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Cab Block B", "initial_volume": 1500.0 },
+            "performed_at": "2025-03-02"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-merlot-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Merlot Estate", "initial_volume": 1000.0 },
+            "performed_at": "2025-03-03"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-blend-2024",
+            "operation_type": "blend_finalized",
+            "payload": {
+                "new_lot_id": "lot-blend-2024",
+                "total_volume_gallons": 3000.0,
+                "component_count": 3
+            },
+            "performed_at": "2025-03-10"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-blend-2024",
+            "operation_type": "bottling_completed",
+            "payload": {
+                "lot_id": "lot-blend-2024",
+                "volume_bottled_gallons": 2900.0,
+                "bottles": 14646,
+                "waste_pct": 2.0
+            },
+            "performed_at": "2025-03-20"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-cab1-2024",
+            "operation_type": "transfer_executed",
+            "payload": {
+                "lot_id": "lot-cab1-2024",
+                "from_vessel": "Tank A",
+                "to_vessel": "Tank B",
+                "volume": 2000,
+                "variance": -8.0
+            },
+            "performed_at": "2025-03-05"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-merlot-2024",
+            "operation_type": "transfer_executed",
+            "payload": {
+                "lot_id": "lot-merlot-2024",
+                "from_vessel": "Tank C",
+                "to_vessel": "Barrel Lot M",
+                "volume": 1000,
+                "variance": -2.0
+            },
+            "performed_at": "2025-03-08"
+        }
+    ],
+    "expected": {
+        "part_two_total": 7500.0,
+        "part_three_total": 0.0,
+        "part_four_total": 2900.0,
+        "part_five_total": 68.0,
+        "closing_inventory": 14532.0,
+        "balance_check": true,
+        "all_wine_types": ["table"]
+    }
+}

@@ -25,6 +25,7 @@ describe('Lab Analysis', function () {
 | `lab` | Lab analyses, fermentation, sensory, demo data | ~8 | ~124 | 3 |
 | `inventory` | SKUs, stock movements, dry goods, equipment, POs, counts, bulk wine | ~11 | ~200+ | 4 |
 | `accounting` | Cost entries, labor costs, overhead allocation, cost rollthrough, bottling COGS | 5 | ~30+ | 5 |
+| `compliance` | TTB report generation, wine type classification, event source mapping | 1 | ~17+ | 6 |
 
 ---
 

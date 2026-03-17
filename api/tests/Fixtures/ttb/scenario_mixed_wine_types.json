@@ -1,0 +1,79 @@
+{
+    "name": "Mixed Wine Types — February 2025",
+    "description": "A winery producing both table and dessert wine. Tests classification separation.",
+    "period": { "month": 2, "year": 2025 },
+    "opening_inventory": 3000.0,
+    "lots": [
+        {
+            "id": "lot-pinot-2024",
+            "name": "Pinot Noir 2024",
+            "variety": "Pinot Noir",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 500,
+            "alcohol_pct": 13.0
+        },
+        {
+            "id": "lot-port-2024",
+            "name": "Port-Style 2024",
+            "variety": "Touriga Nacional",
+            "vintage": 2024,
+            "source_type": "purchased",
+            "volume_gallons": 200,
+            "alcohol_pct": 19.5
+        },
+        {
+            "id": "lot-zin-2024",
+            "name": "Late Harvest Zin",
+            "variety": "Zinfandel",
+            "vintage": 2024,
+            "source_type": "estate",
+            "volume_gallons": 150,
+            "alcohol_pct": 16.2
+        }
+    ],
+    "events": [
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-pinot-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Pinot Noir 2024", "initial_volume": 500.0 },
+            "performed_at": "2025-02-03"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-port-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Port-Style 2024", "initial_volume": 200.0 },
+            "performed_at": "2025-02-05"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-zin-2024",
+            "operation_type": "lot_created",
+            "payload": { "name": "Late Harvest Zin", "initial_volume": 150.0 },
+            "performed_at": "2025-02-08"
+        },
+        {
+            "entity_type": "lot",
+            "entity_id": "lot-pinot-2024",
+            "operation_type": "bottling_completed",
+            "payload": {
+                "lot_id": "lot-pinot-2024",
+                "volume_bottled_gallons": 480.0,
+                "bottles": 2424,
+                "waste_pct": 1.5
+            },
+            "performed_at": "2025-02-25"
+        }
+    ],
+    "expected": {
+        "part_two_total": 850.0,
+        "part_three_total": 0.0,
+        "part_four_total": 480.0,
+        "part_five_total": 7.2,
+        "closing_inventory": 3362.8,
+        "balance_check": true,
+        "all_wine_types": ["dessert", "table"]
+    }
+}

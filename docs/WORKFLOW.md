@@ -78,6 +78,21 @@ Before each new phase: triage `ideas/TRIAGE.md`. Each idea → **Absorb** / **De
 
 ---
 
+## Agent Note: Test Running
+
+Docker is **not available** in the agent sandbox environment. Agents cannot run `make test` or `make testsuite` directly — the human must run these on their host machine.
+
+**Sub-task checks:** Use `make test G=<group>` to validate the specific module you just touched. This is fast and sufficient for mid-phase iteration.
+
+```bash
+make test G=compliance    # After a compliance sub-task
+make test G=production    # After touching production code
+```
+
+**`make testsuite` (full suite)** should only be used at **phase end** during cleanup — when writing the phase recap and confirming nothing was broken across modules. Running the full 700+ test suite after every sub-task is unnecessary overhead.
+
+---
+
 ## Rules
 
 1. Never skip the INFO file.

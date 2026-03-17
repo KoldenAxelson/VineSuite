@@ -1,0 +1,101 @@
+---
+title: "Phase 6 — TTB & Regulatory Compliance Layer Architecture"
+---
+graph TB
+    subgraph EventLog["Immutable Event Log (Source of Truth)"]
+        E1[lot_created]
+        E2[blend_finalized]
+        E3[stock_received]
+        E4[bottling_completed]
+        E5[stock_sold]
+        E6[transfer_executed]
+        E7[rack_completed]
+        E8[filtering_logged]
+        E9[addition_created]
+    end
+
+    subgraph WineClassification["Wine Type Classification"]
+        WTC[WineTypeClassifier]
+        LA[LabAnalysis Records]
+        LA -->|most recent alcohol %| WTC
+        WTC -->|"≤14% → table ⚠️"| TYPE_TABLE["table wine"]
+        WTC -->|">14% → dessert ⚠️"| TYPE_DESSERT["dessert wine"]
+        WTC -->|"payload wine_style"| TYPE_SPARKLING["sparkling"]
+        WTC -->|"payload wine_style"| TYPE_SPECIAL["special_natural"]
+        WTC -->|"no lab data"| TYPE_DEFAULT["table + needs_review"]
+    end
+
+    subgraph TTBEngine["TTB Report Generation Engine"]
+        direction TB
+        P2[PartTwoCalculator<br/>Wine Produced]
+        P3[PartThreeCalculator<br/>Wine Received]
+        P4[PartFourCalculator<br/>Wine Removed]
+        P5[PartFiveCalculator<br/>Losses]
+        P1[PartOneCalculator<br/>Balance Sheet]
+
+        P2 & P3 & P4 & P5 --> P1
+    end
+
+    subgraph TTBOrchestration["Report Orchestration"]
+        GEN[TTBReportGenerator]
+        JOB[GenerateMonthlyTTBReportJob]
+        JOB -->|"dispatches"| GEN
+        GEN -->|"coordinates"| P2 & P3 & P4 & P5
+        GEN -->|"computes balance"| P1
+    end
+
+    subgraph TTBStorage["Report Storage"]
+        RPT[TTBReport Model<br/>UUID PK, JSONB data]
+        RPT_LINES[TTBReportLine Model<br/>part, line_number, gallons]
+        RPT -->|hasMany| RPT_LINES
+    end
+
+    subgraph TTBOutput["Report Output"]
+        PDF[TTBReportPdfGenerator<br/>DomPDF → Form 5120.17 layout]
+        UI[ReviewTTBReport Page<br/>Drill-down, Approve]
+        RPT --> PDF
+        RPT --> UI
+    end
+
+    E1 & E2 -->|production events| P2
+    E3 -->|receipt events| P3
+    E4 & E5 -->|removal events| P4
+    E6 & E7 & E8 -->|loss events| P5
+    WTC -.->|classifies lots| P2 & P3 & P4 & P5
+    GEN -->|creates| RPT
+
+    subgraph LicenseTracking["Bond & Permit Tracking"]
+        LIC[License Model<br/>type, jurisdiction, expiry]
+        LIC_JOB[LicenseExpirationReminderJob<br/>daily check]
+        LIC_UI[LicenseResource<br/>Filament CRUD]
+        LIC_JOB -->|"scans"| LIC
+        LIC_UI -->|"manages"| LIC
+    end
+
+    subgraph DTCCompliance["DTC Shipping Compliance"]
+        DTC_RULES[DTCComplianceRule<br/>50 states + DC]
+        DTC_SHIP[CustomerDTCShipment<br/>shipment log]
+        DTC_SVC[DTCComplianceService]
+        DTC_SVC -->|"checks limits"| DTC_RULES
+        DTC_SVC -->|"queries annual totals"| DTC_SHIP
+        DTC_SVC -->|"records"| DTC_SHIP
+    end
+
+    subgraph LotTrace["Lot Traceability"]
+        TRACE[LotTraceabilityService]
+        TRACE_UI[LotTraceability Page]
+        TRACE -->|"backward: sources"| E1 & E2
+        TRACE -->|"forward: destinations"| E2 & E4 & E5
+        TRACE_UI -->|"invokes"| TRACE
+    end
+
+    subgraph CertCompliance["Certification Compliance (Advisory)"]
+        CERT[CertificationComplianceService]
+        WP[WineryProfile.certification_types]
+        CERT -->|"checks against"| WP
+        E9 -.->|"addition events"| CERT
+    end
+
+    style WTC fill:#ff9800,stroke:#e65100,color:#000
+    style TYPE_TABLE fill:#ff9800,stroke:#e65100,color:#000
+    style TYPE_DESSERT fill:#ff9800,stroke:#e65100,color:#000

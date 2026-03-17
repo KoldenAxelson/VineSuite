@@ -34,8 +34,13 @@ return [
         'cogs_',
     ],
 
+    'compliance' => [
+        'ttb_',
+        'license_',
+        'compliance_',
+    ],
+
     // Future modules — uncomment and extend as needed:
     // 'dtc' => ['order_', 'club_', 'shipment_'],
     // 'pos' => ['pos_', 'terminal_'],
-    // 'compliance' => ['ttb_', 'excise_'],
 ];

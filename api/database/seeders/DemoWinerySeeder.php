@@ -81,6 +81,9 @@ class DemoWinerySeeder extends Seeder
 
             // Seed cost accounting data (fruit costs, labor, overhead, COGS)
             $this->call(CostAccountingSeeder::class);
+
+            // Seed DTC compliance rules (all 50 states + DC)
+            $this->call(DTCComplianceRulesSeeder::class);
         });
 
         Log::info('DemoWinerySeeder: demo winery created', [

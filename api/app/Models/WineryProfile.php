@@ -77,6 +77,7 @@ class WineryProfile extends Model
         'fiscal_year_start_month',
         'date_format',
         'onboarding_complete',
+        'certification_types',
     ];
 
     protected function casts(): array
@@ -84,6 +85,7 @@ class WineryProfile extends Model
         return [
             'fiscal_year_start_month' => 'integer',
             'onboarding_complete' => 'boolean',
+            'certification_types' => 'array',
         ];
     }
 
