@@ -10,6 +10,7 @@ actual class DatabaseDriverFactory {
     actual fun createDriver(): SqlDriver {
         return JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { driver ->
             VineSuiteDatabase.Schema.create(driver)
+            driver.execute(null, "PRAGMA foreign_keys = ON", 0)
         }
     }
 }

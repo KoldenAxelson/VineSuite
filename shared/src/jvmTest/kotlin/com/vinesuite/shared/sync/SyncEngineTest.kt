@@ -10,6 +10,7 @@ import com.vinesuite.shared.models.SyncEvent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -24,6 +25,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -455,6 +457,127 @@ class SyncEngineTest {
         assertEquals(1, result.push?.skipped)
         // Skipped events are still marked as synced (they already exist on the server)
         assertEquals(0, eventQueue.pendingCount())
+    }
+
+    // ── Offline scenario: 50 events → online → sync ────────────
+
+    @Test
+    fun fiftyEventsOfflineThenSyncAll() = runTest {
+        // Simulate offline: enqueue 50 events
+        repeat(50) { i ->
+            eventQueue.enqueue(createEvent("lot", "lot-$i", "addition"))
+        }
+        assertEquals(50, eventQueue.pendingCount())
+
+        var pushCallCount = 0
+        val engine = createSyncEngine(MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("events/sync") -> {
+                    pushCallCount++
+                    // Read the request to determine batch size
+                    val bodyText = String(request.body.toByteArray())
+                    val eventCount = "idempotency_key".toRegex().findAll(bodyText).count()
+
+                    // Build per-event accepted results
+                    val results = (0 until eventCount).joinToString(",") { i ->
+                        """{"index": $i, "event_id": "srv-$pushCallCount-$i", "status": "accepted", "idempotency_key": "k-$i"}"""
+                    }
+
+                    respond(
+                        content = """{"data": [$results], "meta": {"accepted": $eventCount}, "errors": []}""",
+                        status = HttpStatusCode.OK,
+                        headers = jsonHeaders,
+                    )
+                }
+                request.url.encodedPath.contains("sync/pull") -> respond(
+                    content = """
+                    {
+                        "data": {"lots": [], "vessels": [], "work_orders": [], "barrels": [], "raw_materials": []},
+                        "meta": {"synced_at": "2024-10-15T15:00:00Z", "has_more": false},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> error("Unexpected: ${request.url}")
+            }
+        })
+
+        val result = engine.sync()
+
+        assertEquals(SyncResultStatus.SUCCESS, result.status)
+        assertEquals(50, result.push?.accepted)
+        assertEquals(0, eventQueue.pendingCount())
+        // Should push in one batch (50 = DEFAULT_BATCH_SIZE)
+        assertEquals(1, pushCallCount)
+    }
+
+    // ── Pull with all entity types ───────────────────────────────
+
+    @Test
+    fun pullUpdatesAllEntityTypes() = runTest {
+        val engine = createSyncEngine(MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("sync/pull") -> respond(
+                    content = """
+                    {
+                        "data": {
+                            "lots": [{"id": "lot-1", "name": "Cab Sauv", "variety": "Cabernet Sauvignon", "vintage": 2024, "source_type": "estate", "volume_gallons": 500.0, "status": "in_progress", "updated_at": "2024-10-15T14:00:00Z"}],
+                            "vessels": [{"id": "v-1", "name": "Tank 1", "type": "tank", "capacity_gallons": 1000.0, "status": "in_use", "current_volume": 500.0, "updated_at": "2024-10-15T14:00:00Z"}],
+                            "work_orders": [{"id": "wo-1", "operation_type": "racking", "status": "pending", "priority": "high", "due_date": "2024-10-20", "updated_at": "2024-10-15T14:00:00Z"}],
+                            "barrels": [{"id": "b-1", "vessel_id": "v-1", "cooperage": "Seguin Moreau", "toast_level": "medium", "oak_type": "french", "volume_gallons": 59.43, "years_used": 2, "updated_at": "2024-10-15T14:00:00Z"}],
+                            "raw_materials": [{"id": "rm-1", "name": "Potassium Metabisulfite", "category": "additive", "unit_of_measure": "g", "is_active": true, "updated_at": "2024-10-15T14:00:00Z"}]
+                        },
+                        "meta": {"synced_at": "2024-10-15T14:05:00Z", "has_more": false},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> error("Unexpected")
+            }
+        })
+
+        val result = engine.sync()
+
+        assertEquals(SyncResultStatus.SUCCESS, result.status)
+        assertEquals(5, result.pull?.entitiesUpdated)
+
+        // Verify each entity type was persisted
+        assertNotNull(database.localLotQueries.selectById("lot-1").executeAsOneOrNull())
+        assertNotNull(database.localVesselQueries.selectById("v-1").executeAsOneOrNull())
+        assertNotNull(database.localWorkOrderQueries.selectById("wo-1").executeAsOneOrNull())
+        assertNotNull(database.localBarrelQueries.selectById("b-1").executeAsOneOrNull())
+        assertNotNull(database.localAdditionProductQueries.selectById("rm-1").executeAsOneOrNull())
+
+        // Verify work order details
+        val wo = database.localWorkOrderQueries.selectById("wo-1").executeAsOne()
+        assertEquals("racking", wo.operation_type)
+        assertEquals("high", wo.priority)
+        assertEquals("2024-10-20", wo.due_date)
+    }
+
+    // ── 401 during push clears auth ──────────────────────────────
+
+    @Test
+    fun pushWith401ClearsAuthAndFails() = runTest {
+        eventQueue.enqueue(createEvent("lot", "lot-1", "addition"))
+
+        val engine = createSyncEngine(MockEngine {
+            respond(
+                content = """{"data": null, "meta": {}, "errors": [{"message": "Unauthenticated."}]}""",
+                status = HttpStatusCode.Unauthorized,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = engine.sync()
+
+        assertEquals(SyncResultStatus.PUSH_FAILED, result.status)
+        // Auth should be cleared
+        assertFalse(authManager.isAuthenticated())
     }
 
     // ── Helpers ──────────────────────────────────────────────────

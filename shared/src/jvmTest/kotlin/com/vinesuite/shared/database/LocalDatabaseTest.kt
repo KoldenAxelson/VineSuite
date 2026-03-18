@@ -22,6 +22,8 @@ class LocalDatabaseTest {
     fun setup() {
         driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         VineSuiteDatabase.Schema.create(driver)
+        // Enable FK enforcement — SQLite has it off by default
+        driver.execute(null, "PRAGMA foreign_keys = ON", 0)
         database = VineSuiteDatabase(driver)
     }
 
@@ -534,5 +536,157 @@ class LocalDatabaseTest {
         assertEquals(0, database.localAdditionProductQueries.selectAll().executeAsList().size)
         assertEquals(0, database.localUserProfileQueries.selectAll().executeAsList().size)
         assertEquals(0, database.syncStateQueries.selectAll().executeAsList().size)
+    }
+
+    // ── Edge cases: INSERT OR REPLACE ────────────────────────────
+
+    @Test
+    fun lotInsertOrReplaceOverwritesExisting() {
+        database.localLotQueries.insert(
+            id = "lot-1", name = "Original", variety = "Merlot", vintage = 2024,
+            source_type = "estate", volume_gallons = 100.0, status = "in_progress",
+            parent_lot_id = null, updated_at = "2024-10-01T10:00:00Z"
+        )
+        database.localLotQueries.insert(
+            id = "lot-1", name = "Updated", variety = "Merlot", vintage = 2024,
+            source_type = "estate", volume_gallons = 200.0, status = "aging",
+            parent_lot_id = null, updated_at = "2024-11-01T10:00:00Z"
+        )
+        val lots = database.localLotQueries.selectAll().executeAsList()
+        assertEquals(1, lots.size)
+        assertEquals("Updated", lots.first().name)
+        assertEquals(200.0, lots.first().volume_gallons)
+        assertEquals("aging", lots.first().status)
+    }
+
+    @Test
+    fun vesselInsertOrReplaceOverwritesExisting() {
+        database.localVesselQueries.insert(
+            id = "v-1", name = "Tank A", type = "tank", capacity_gallons = 1000.0,
+            material = null, location = "Cellar A", status = "empty",
+            current_lot_id = null, current_volume = 0.0, updated_at = "2024-10-01T10:00:00Z"
+        )
+        database.localVesselQueries.insert(
+            id = "v-1", name = "Tank A", type = "tank", capacity_gallons = 1000.0,
+            material = null, location = "Cellar B", status = "in_use",
+            current_lot_id = "lot-1", current_volume = 800.0, updated_at = "2024-11-01T10:00:00Z"
+        )
+        val vessel = database.localVesselQueries.selectById("v-1").executeAsOne()
+        assertEquals("Cellar B", vessel.location)
+        assertEquals("in_use", vessel.status)
+        assertEquals(800.0, vessel.current_volume)
+    }
+
+    // ── Edge cases: foreign key cascade ──────────────────────────
+
+    @Test
+    fun barrelDeletedWhenParentVesselDeleted() {
+        database.localVesselQueries.insert(
+            id = "v-b1", name = "Barrel 1", type = "barrel", capacity_gallons = 59.43,
+            material = null, location = null, status = "in_use",
+            current_lot_id = null, current_volume = 55.0, updated_at = "2024-10-01T10:00:00Z"
+        )
+        database.localBarrelQueries.insert(
+            id = "b-1", vessel_id = "v-b1", cooperage = "Seguin", toast_level = "medium",
+            oak_type = "french", forest_origin = null, volume_gallons = 59.43,
+            years_used = 1, qr_code = "QR-001", updated_at = "2024-10-01T10:00:00Z"
+        )
+        assertNotNull(database.localBarrelQueries.selectById("b-1").executeAsOneOrNull())
+
+        // Delete the parent vessel — barrel should cascade
+        database.localVesselQueries.deleteById("v-b1")
+        assertNull(database.localBarrelQueries.selectById("b-1").executeAsOneOrNull())
+    }
+
+    // ── Edge cases: null handling ────────────────────────────────
+
+    @Test
+    fun lotWithNullParentLotId() {
+        database.localLotQueries.insert(
+            id = "lot-1", name = "Lot", variety = "Merlot", vintage = 2024,
+            source_type = "estate", volume_gallons = 100.0, status = "in_progress",
+            parent_lot_id = null, updated_at = "2024-10-01T10:00:00Z"
+        )
+        val lot = database.localLotQueries.selectById("lot-1").executeAsOne()
+        assertNull(lot.parent_lot_id)
+    }
+
+    @Test
+    fun workOrderWithAllNullOptionalFields() {
+        database.localWorkOrderQueries.insert(
+            id = "wo-1", operation_type = "cleaning", lot_id = null,
+            vessel_id = null, assigned_to = null, due_date = null,
+            status = "pending", priority = "normal", notes = null,
+            completed_at = null, completed_by = null, updated_at = "2024-10-01T10:00:00Z"
+        )
+        val wo = database.localWorkOrderQueries.selectById("wo-1").executeAsOne()
+        assertNull(wo.lot_id)
+        assertNull(wo.vessel_id)
+        assertNull(wo.assigned_to)
+        assertNull(wo.due_date)
+        assertNull(wo.notes)
+        assertNull(wo.completed_at)
+        assertNull(wo.completed_by)
+    }
+
+    // ── Edge cases: outbox idempotency key uniqueness ────────────
+
+    @Test
+    fun outboxRejectsDuplicateIdempotencyKey() {
+        database.outboxEventQueries.insert(
+            id = "evt-1", entity_type = "lot", entity_id = "lot-1",
+            operation_type = "addition", payload = "{}",
+            performed_by = "user-1", performed_at = "2024-10-15T14:00:00Z",
+            device_id = null, idempotency_key = "unique-key-123",
+            created_at = "2024-10-15T14:00:00Z"
+        )
+        var threw = false
+        try {
+            database.outboxEventQueries.insert(
+                id = "evt-2", entity_type = "lot", entity_id = "lot-2",
+                operation_type = "transfer", payload = "{}",
+                performed_by = "user-1", performed_at = "2024-10-15T14:01:00Z",
+                device_id = null, idempotency_key = "unique-key-123",
+                created_at = "2024-10-15T14:01:00Z"
+            )
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue(threw, "Duplicate idempotency_key should throw")
+    }
+
+    // ── Conflict table ───────────────────────────────────────────
+
+    @Test
+    fun conflictInsertAndSelectUnresolved() {
+        database.localConflictQueries.insert(
+            id = "c-1", outbox_event_id = "evt-1", entity_type = "vessel",
+            entity_id = "vessel-1", operation_type = "transfer",
+            attempted_payload = """{"volume": 300}""",
+            server_state = """{"current_volume": 100}""",
+            error_message = "Insufficient volume",
+            created_at = "2024-10-15T14:00:00Z"
+        )
+        val conflicts = database.localConflictQueries.selectUnresolved().executeAsList()
+        assertEquals(1, conflicts.size)
+        assertEquals("vessel-1", conflicts.first().entity_id)
+        assertEquals("unresolved", conflicts.first().status)
+    }
+
+    @Test
+    fun conflictResolvedExcludedFromUnresolved() {
+        database.localConflictQueries.insert(
+            id = "c-1", outbox_event_id = "evt-1", entity_type = "vessel",
+            entity_id = "vessel-1", operation_type = "transfer",
+            attempted_payload = "{}", server_state = "{}",
+            error_message = "Error", created_at = "2024-10-15T14:00:00Z"
+        )
+        database.localConflictQueries.markResolved(
+            resolved_at = "2024-10-15T15:00:00Z", id = "c-1"
+        )
+        assertEquals(0, database.localConflictQueries.selectUnresolved().executeAsList().size)
+        val conflict = database.localConflictQueries.selectById("c-1").executeAsOne()
+        assertEquals("resolved", conflict.status)
+        assertEquals("2024-10-15T15:00:00Z", conflict.resolved_at)
     }
 }

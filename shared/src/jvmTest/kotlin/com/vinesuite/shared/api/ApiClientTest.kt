@@ -4,6 +4,7 @@ import com.vinesuite.shared.models.SyncEvent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -456,6 +457,121 @@ class ApiClientTest {
         assertNull(authManager.getUserId())
         assertNull(authManager.getTenantId())
         assertNull(authManager.getCachedUser())
+    }
+
+    // ── Edge cases ────────────────────────────────────────────────
+
+    @Test
+    fun malformedJsonResponseReturnsFailure() = runTest {
+        authManager.storeAuth(
+            token = "valid-token",
+            user = com.vinesuite.shared.api.models.UserInfo("u1", "Jane", "j@v.com", "winemaker"),
+            tenantId = "tenant-abc",
+        )
+
+        val client = createApiClient(MockEngine {
+            respond(
+                content = "not valid json at all",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = client.pullState()
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun emptyResponseBodyReturnsFailure() = runTest {
+        authManager.storeAuth(
+            token = "valid-token",
+            user = com.vinesuite.shared.api.models.UserInfo("u1", "Jane", "j@v.com", "winemaker"),
+            tenantId = "tenant-abc",
+        )
+
+        val client = createApiClient(MockEngine {
+            respond(
+                content = "",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = client.pullState()
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun pushEmptyEventsListSucceeds() = runTest {
+        authManager.storeAuth(
+            token = "valid-token",
+            user = com.vinesuite.shared.api.models.UserInfo("u1", "Jane", "j@v.com", "winemaker"),
+            tenantId = "tenant-abc",
+        )
+
+        val client = createApiClient(MockEngine {
+            respond(
+                content = """{"data": [], "meta": {"accepted": 0}, "errors": []}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = client.pushEvents(emptyList())
+        assertTrue(result.isSuccess)
+        assertEquals(0, result.getOrThrow().size)
+    }
+
+    @Test
+    fun serverReturns500ReturnsFailure() = runTest {
+        authManager.storeAuth(
+            token = "valid-token",
+            user = com.vinesuite.shared.api.models.UserInfo("u1", "Jane", "j@v.com", "winemaker"),
+            tenantId = "tenant-abc",
+        )
+
+        val client = createApiClient(MockEngine {
+            respond(
+                content = """{"data": null, "meta": {}, "errors": [{"message": "Internal server error"}]}""",
+                status = HttpStatusCode.InternalServerError,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = client.pushEvents(listOf(
+            SyncEvent("lot", "lot-1", "addition", JsonObject(emptyMap()), "u1", "2024-10-15T14:00:00Z", null, "k1")
+        ))
+        assertTrue(result.isFailure)
+        val error = result.exceptionOrNull() as ApiException
+        assertEquals(500, error.statusCode)
+    }
+
+    @Test
+    fun loginSendsCorrectClientType() = runTest {
+        val client = createApiClient(MockEngine { request ->
+            val body = String(request.body.toByteArray())
+            assertTrue(body.contains("cellar_app"))
+            assertTrue(body.contains("Test Device"))
+
+            respond(
+                content = """
+                {
+                    "data": {"token": "t", "user": {"id": "u1", "name": "J", "email": "j@v.com", "role": "w"}},
+                    "meta": {},
+                    "errors": []
+                }
+                """,
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        })
+
+        val result = client.login(
+            email = "j@v.com", password = "pass",
+            clientType = "cellar_app", deviceName = "Test Device",
+            tenantId = "t1",
+        )
+        assertTrue(result.isSuccess)
     }
 
     // ── Helpers ──────────────────────────────────────────────────
