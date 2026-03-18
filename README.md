@@ -9,7 +9,7 @@ For small-to-mid-size wineries (500–15,000 cases/year). Freemium with 4 tiers:
 ## Tech Stack
 
 **API:** Laravel 12, PHP 8.4, PostgreSQL 16, Redis 7, stancl/tenancy v3.9 (schema-per-tenant)
-**Portal:** Filament v3 on tenant subdomains
+**Portal:** Filament v4 on tenant subdomains
 **Auth:** Sanctum tokens, 7 winery roles, ~55 granular permissions
 **Testing:** Pest + PHPStan level 6 + Pint. ~841 tests. All against real PostgreSQL.
 **CI/CD:** GitHub Actions — Pint → PHPStan → Pest on every push.

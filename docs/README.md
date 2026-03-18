@@ -50,6 +50,12 @@ Load only what you need. 3-5 files per session max.
 - `ideas/` — Feature ideas backlog. See `ideas/TRIAGE.md`.
 - `refactors/` — Active refactor specs. Check before overlapping work.
 
+### Naming Conventions
+The project uses three numbering views of the same work — all valid, different lenses:
+- **Build Progress table** (project README): Groups modules into high-level phases (1, 2, 2b, 2c, 2d, 3–8). Best for the big picture.
+- **Task files** (`execution/tasks/{NN}-*.md`): Numbered 01–25 sequentially. The canonical spec for each module.
+- **Phase recaps** (`execution/phase-recaps/phase-{N}-*.md`): Numbered sequentially by completed module (1–6 so far). The chronological record.
+
 ---
 
 ## Makefile Commands

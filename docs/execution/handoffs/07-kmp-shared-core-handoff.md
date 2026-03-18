@@ -1,6 +1,6 @@
-# Phase 4 Handoff — KMP Shared Core
+# Task 7 Handoff — KMP Shared Core
 
-> Phases 1–3 complete. 841+ tests passing, PHPStan level 6 (zero errors), Pint (zero style issues).
+> Phases 1–6 complete (Foundation, Production Core, Lab & Fermentation, Inventory, Cost Accounting, TTB Compliance). Filament v4 migration done. 870+ tests passing, PHPStan level 6 (zero errors), Pint (zero style issues).
 
 ## Read Before Coding
 
@@ -28,7 +28,7 @@
 
 ## Phase-Specific Notes
 
-- This phase is Kotlin, not PHP. It creates a new `kmp/` directory at the project root for the Kotlin Multiplatform module. The Laravel API is untouched except potentially adding/modifying sync-related endpoints.
+- This phase is Kotlin, not PHP. It creates the `shared/` directory at the project root for the Kotlin Multiplatform module (the middleman between the Laravel API and the native apps). The Laravel API is untouched except potentially adding/modifying sync-related endpoints.
 - The existing `docs/diagrams/sync-architecture.mermaid` shows the planned sync flow. Read it before designing the outbox/sync engine.
 - Event payload shapes are documented implicitly in the test fixtures: `tests/Fixtures/ttb/scenario_*.json` files show real event payload structures.
 - 37+ event operation types exist across 4 source partitions. The KMP layer only needs to handle the subset relevant to cellar operations (production, lab). See `config/event-sources.php` for the full mapping.

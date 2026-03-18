@@ -86,20 +86,20 @@ composer test
 
 Manual smoke test checklist:
 
-- [ ] Login works
-- [ ] Dashboard loads
-- [ ] TTB Report Review — stats widgets render with colored backgrounds
-- [ ] TTB Report Review — wine type badges all render as consistent pills
-- [ ] TTB Report Review — drill-down panel opens on line item click
-- [ ] TTB Report Review — approve button works
-- [ ] Bulk Wine Inventory — KPI cards and table load
-- [ ] Cost Reports — vintage summary and margin tables render
-- [ ] Lot Traceability — trace execution and timeline work
-- [ ] Physical Count — status cards and count flow work
-- [ ] Dark mode renders correctly across all pages
-- [ ] SPA navigation (back/forward) works
-- [ ] Table filters work (now deferred globally — deferFilters(false) set in provider)
-- [ ] Tenant switching works (if applicable)
+- [x] Login works
+- [x] Dashboard loads
+- [x] TTB Report Review — stats widgets render with colored backgrounds
+- [x] TTB Report Review — wine type badges all render as consistent pills
+- [x] TTB Report Review — drill-down panel opens on line item click
+- [x] TTB Report Review — approve button works
+- [x] Bulk Wine Inventory — KPI cards and table load
+- [x] Cost Reports — vintage summary and margin tables render
+- [x] Lot Traceability — trace execution and timeline work
+- [x] Physical Count — status cards and count flow work
+- [x] Dark mode renders correctly across all pages
+- [x] SPA navigation (back/forward) works
+- [x] Table filters work (now deferred globally — deferFilters(false) set in provider)
+- [x] Tenant switching works (if applicable)
 
 ---
 

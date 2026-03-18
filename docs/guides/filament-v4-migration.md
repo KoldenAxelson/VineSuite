@@ -1,7 +1,7 @@
 # Filament v3 → v4 Migration Scope
 
 **Created:** 2026-03-17
-**Status:** Proposed — next up
+**Status:** ✅ Delivered — Migration complete (pre-Task 7)
 **Priority:** High — should precede Task 7 (KMP Shared Core)
 **Estimated Effort:** 2–3 days for core migration, +1–2 days to replace custom blade templates with native Filament components
 

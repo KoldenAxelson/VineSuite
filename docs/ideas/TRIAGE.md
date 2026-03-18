@@ -126,4 +126,4 @@ Phase 7 (Task 07) is pure mobile infrastructure: Kotlin Multiplatform project sc
 
 | Idea | Disposition | Rationale |
 |------|-------------|-----------|
-| `filament-v4-migration.md` | **Absorb → Execute before Task 7** | Filament v4 is stable (v4.5+). No third-party Filament plugins to block the upgrade. Laravel 12 and PHP 8.2 already meet requirements. Automated upgrade tooling handles most of the 24 resources. Key wins: unified Schema (halves form/infolist maintenance), auto tenancy scoping, PHP-based page layouts (reduces custom blade template debt), better theming support for planned theme picker. Estimated 2–3 day effort. Risk is low — custom blade templates use standard Tailwind classes and stable Filament component API. Doing this now prevents accumulating more v3-specific code before mobile apps (Task 7+) build against the admin API. |
+| `filament-v4-migration.md` | **✅ Delivered** | Migration complete. 17 PHP files updated, 2 new widget files, 1 blade rewrite. All smoke tests passed. Docs relocated to `docs/guides/`. |

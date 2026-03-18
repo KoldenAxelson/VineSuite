@@ -39,3 +39,11 @@ From Phase 6 known debt items. These are implementation gaps where the consuming
 |------|---------|--------|
 | `bulk-wine-receipt-events.md` | Bulk wine receipt events for TTB Part III (bonded premises, customs, other) | ⏳ Deferred → Phase 9+ (POS/sales channels) |
 | `ttb-production-event-workflows.md` | 18 TTB event types with calculator support but no production UI to emit them | ⏳ Deferred → Phase 9+ (Tier 1 events with POS, Tier 2-3 later) |
+
+### Completed Operational Docs (Relocated to `docs/guides/`)
+
+| File | Summary | Status |
+|------|---------|--------|
+| `../guides/filament-v4-migration.md` | Filament v3 → v4 migration scope and code changes | ✅ **Delivered** (pre-Task 7) |
+| `../guides/filament-v4-runbook.md` | CLI runbook and smoke test checklist for v4 migration | ✅ **Delivered** — all smoke tests passed |
+| `../guides/filament-v4-plugins-install.md` | Plugin installation commands for v4-compatible packages | ✅ **Delivered** |
