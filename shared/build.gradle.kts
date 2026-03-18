@@ -90,6 +90,16 @@ android {
     }
 }
 
+// ── Kover (coverage) ─────────────────────────────────────────────
+// Scope coverage to JVM only — Android target requires SDK to instrument.
+kover {
+    currentProject {
+        createVariant("jvmOnly") {
+            add("jvm")
+        }
+    }
+}
+
 // ── SQLDelight ───────────────────────────────────────────────────
 // Minimal config — .sq files added in Sub-Task 2.
 sqldelight {

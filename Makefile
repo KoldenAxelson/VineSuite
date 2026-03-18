@@ -2,7 +2,7 @@
 # Usage: make <target>
 
 .PHONY: up down restart build logs test testsuite quicktest migrate seed fresh shell horizon ps help \
-	shared-build shared-test shared-test-coverage shared-clean shared-schema shared-check shared-deps
+	shared-build shared-build-all shared-test shared-test-coverage shared-clean shared-schema shared-check shared-deps
 
 # ─── Docker ───────────────────────────────────────────────────────
 up:                          ## Start all services
@@ -96,7 +96,7 @@ quicktest:                   ## Filtered Pest only, no full suite (use: make qui
 	@echo "✅ All filtered tests passed."
 
 # ─── KMP Shared Core ─────────────────────────────────────────────
-GRADLEW := cd shared && ./gradlew
+GRADLEW := shared/gradlew -p shared
 
 shared-deps:                 ## Verify Java 17+ and Gradle wrapper are available
 	@echo "── Java ──"
@@ -115,15 +115,18 @@ shared-deps:                 ## Verify Java 17+ and Gradle wrapper are available
 		echo "ERROR: shared/gradlew not found — run Sub-Task 1 first"; exit 1; \
 	fi
 
-shared-build:                ## Compile all KMP targets (jvm, android, ios)
+shared-build:                ## Compile KMP JVM target (use shared-build-all for all targets)
+	$(GRADLEW) compileKotlinJvm
+
+shared-build-all:            ## Compile all KMP targets (requires ANDROID_HOME for Android)
 	$(GRADLEW) assemble
 
 shared-test:                 ## Run KMP shared core JVM tests (use: make shared-test F=SyncEngine)
 	$(GRADLEW) jvmTest $(if $(F),--tests="*$(F)*",)
 
 shared-test-coverage:        ## Run JVM tests with Kover coverage report
-	$(GRADLEW) koverHtmlReport
-	@echo "Coverage report: shared/build/reports/kover/html/index.html"
+	$(GRADLEW) koverHtmlReportJvmOnly
+	@echo "Coverage report: shared/build/reports/kover/htmlJvmOnly/index.html"
 
 shared-schema:               ## Generate SQLDelight Kotlin sources from .sq files
 	$(GRADLEW) generateCommonMainVineSuiteDatabaseInterface
@@ -134,13 +137,13 @@ shared-clean:                ## Clean KMP build artifacts
 shared-check:                ## Full KMP QA: build → test → coverage (mirrors testsuite for PHP)
 	@START=$$(date +%s); BUILD_OK=0; TEST_OK=0; COV_OK=0; \
 	echo "══════ KMP BUILD ══════"; \
-	$(GRADLEW) assemble && BUILD_OK=1; \
+	$(GRADLEW) compileKotlinJvm && BUILD_OK=1; \
 	echo ""; \
 	echo "══════ KMP TEST (JVM) ══════"; \
 	$(GRADLEW) jvmTest && TEST_OK=1; \
 	echo ""; \
 	echo "══════ KMP COVERAGE ══════"; \
-	$(GRADLEW) koverHtmlReport && COV_OK=1; \
+	$(GRADLEW) koverHtmlReportJvmOnly && COV_OK=1; \
 	echo ""; \
 	END=$$(date +%s); ELAPSED=$$((END - START)); \
 	echo "┌──────────────────────────────────────┐"; \

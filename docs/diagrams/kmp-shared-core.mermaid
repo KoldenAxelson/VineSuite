@@ -1,0 +1,124 @@
+%% KMP Shared Core — Internal Architecture
+%% Shows classes, data flow, and platform boundaries.
+%% Read with: docs/references/kmp-shared-core.md
+
+graph TB
+    subgraph Platform["Platform Layer (per-target)"]
+        direction LR
+        AndroidUI["Android UI<br/>(Jetpack Compose)"]
+        IosUI["iOS UI<br/>(SwiftUI)"]
+        AndroidDriver["AndroidSqliteDriver"]
+        IosDriver["NativeSqliteDriver"]
+        AndroidStorage["EncryptedSharedPreferences"]
+        IosStorage["Keychain (TODO)"]
+        AndroidConn["AndroidConnectivityMonitor"]
+        IosConn["IosConnectivityMonitor"]
+    end
+
+    subgraph Shared["KMP Shared Core (commonMain)"]
+        direction TB
+
+        subgraph API["api/"]
+            ApiClient["ApiClient<br/>login() · pushEvents() · pullState()"]
+            AuthManager["AuthManager<br/>storeAuth() · getBearerToken()"]
+            SecureStorage["SecureStorage<br/>(expect/actual)"]
+        end
+
+        subgraph Sync["sync/"]
+            SyncEngine["SyncEngine<br/>sync() → push → pull"]
+            SyncScheduler["SyncScheduler<br/>start() · syncNow()"]
+            EventQueue["EventQueue<br/>enqueue() · markSynced()"]
+            EventFactory["EventFactory<br/>create() → SyncEvent"]
+            ConflictResolver["ConflictResolver<br/>isAdditive() · isDestructive()"]
+            ConflictStore["ConflictStore<br/>recordConflict() · resolve()"]
+            ConnMonitor["ConnectivityMonitor<br/>(interface)"]
+        end
+
+        subgraph DB["database/"]
+            DBFactory["DatabaseFactory<br/>create(driverFactory)"]
+            DriverFactory["DatabaseDriverFactory<br/>(expect/actual)"]
+            VineSuiteDB["VineSuiteDatabase<br/>(SQLDelight generated)"]
+        end
+
+        subgraph Models["models/"]
+            SyncEvent["SyncEvent<br/>entityType · payload · idempotencyKey"]
+        end
+
+        subgraph Util["util/"]
+            ClockDrift["ClockDriftChecker<br/>check() → DriftResult"]
+            RefTime["ReferenceTimeSource<br/>(interface)"]
+        end
+    end
+
+    subgraph Tables["SQLite Tables (SQLDelight)"]
+        direction LR
+        LocalLot["LocalLot"]
+        LocalVessel["LocalVessel"]
+        LocalBarrel["LocalBarrel"]
+        LocalWorkOrder["LocalWorkOrder"]
+        LocalAdditionProduct["LocalAdditionProduct"]
+        LocalUserProfile["LocalUserProfile"]
+        OutboxEvent["OutboxEvent"]
+        SyncState["SyncState"]
+        LocalConflict["LocalConflict"]
+    end
+
+    subgraph Server["Laravel API"]
+        LoginEP["POST /auth/login"]
+        PushEP["POST /events/sync"]
+        PullEP["GET /sync/pull?since="]
+    end
+
+    %% Platform → Shared wiring
+    AndroidUI & IosUI -->|"user action"| EventFactory
+    AndroidDriver & IosDriver -.->|"actual impl"| DriverFactory
+    AndroidStorage & IosStorage -.->|"actual impl"| SecureStorage
+    AndroidConn & IosConn -.->|"implements"| ConnMonitor
+
+    %% Internal data flow
+    EventFactory -->|"creates"| SyncEvent
+    SyncEvent -->|"enqueue"| EventQueue
+    EventQueue -->|"write"| OutboxEvent
+
+    SyncScheduler -->|"triggers"| SyncEngine
+    ConnMonitor -->|"isConnected?"| SyncEngine
+
+    SyncEngine -->|"1. getPendingBatch()"| EventQueue
+    SyncEngine -->|"2. pushEvents()"| ApiClient
+    ApiClient -->|"POST batch"| PushEP
+    PushEP -->|"per-event results"| ApiClient
+    SyncEngine -->|"3. markSynced()"| EventQueue
+
+    SyncEngine -->|"4. pullState(since)"| ApiClient
+    ApiClient -->|"GET delta"| PullEP
+    PullEP -->|"lots, vessels, ..."| ApiClient
+    SyncEngine -->|"5. upsert"| VineSuiteDB
+
+    VineSuiteDB --> LocalLot & LocalVessel & LocalBarrel & LocalWorkOrder & LocalAdditionProduct
+    EventQueue --> OutboxEvent
+    SyncEngine -->|"store synced_at"| SyncState
+
+    ConflictResolver -->|"destructive failures"| ConflictStore
+    ConflictStore -->|"write"| LocalConflict
+
+    AuthManager -->|"store/read token"| SecureStorage
+    ApiClient -->|"Bearer + X-Tenant-ID"| AuthManager
+    ApiClient -->|"login"| LoginEP
+
+    DBFactory -->|"creates"| VineSuiteDB
+    DriverFactory -->|"provides driver"| DBFactory
+
+    ClockDrift -->|"fetch time"| RefTime
+
+    %% Styling
+    style OutboxEvent fill:#ff9,stroke:#333
+    style LocalConflict fill:#f99,stroke:#333
+    style SyncState fill:#9cf,stroke:#333
+    style SyncEngine fill:#9f9,stroke:#333
+    style ApiClient fill:#9f9,stroke:#333
+
+    %% State flow
+    SyncEngine -.->|"StateFlow<SyncState>"| AndroidUI
+    SyncEngine -.->|"StateFlow<SyncState>"| IosUI
+    ConflictStore -.->|"Flow<List<Conflict>>"| AndroidUI
+    ConflictStore -.->|"Flow<List<Conflict>>"| IosUI
