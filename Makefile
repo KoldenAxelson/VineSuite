@@ -1,7 +1,8 @@
 # VineSuite Development Commands
 # Usage: make <target>
 
-.PHONY: up down restart build logs test testsuite quicktest migrate seed fresh shell horizon ps help
+.PHONY: up down restart build logs test testsuite quicktest migrate seed fresh shell horizon ps help \
+	shared-build shared-test shared-test-coverage shared-clean shared-schema shared-check shared-deps
 
 # ─── Docker ───────────────────────────────────────────────────────
 up:                          ## Start all services
@@ -95,8 +96,63 @@ quicktest:                   ## Filtered Pest only, no full suite (use: make qui
 	@echo "✅ All filtered tests passed."
 
 # ─── KMP Shared Core ─────────────────────────────────────────────
-test-shared:                 ## Run KMP shared core JVM tests
-	cd shared && ./gradlew :shared:jvmTest
+GRADLEW := cd shared && ./gradlew
+
+shared-deps:                 ## Verify Java 17+ and Gradle wrapper are available
+	@echo "── Java ──"
+	@java --version 2>&1 | head -1
+	@JAVA_MAJOR=$$(java --version 2>&1 | head -1 | sed -E 's/.*"?([0-9]+)\..*/\1/' | head -1); \
+	if [ "$$JAVA_MAJOR" -lt 17 ] 2>/dev/null; then \
+		echo "ERROR: Java 17+ required (found Java $$JAVA_MAJOR)"; exit 1; \
+	else \
+		echo "OK: Java $$JAVA_MAJOR"; \
+	fi
+	@echo ""
+	@echo "── Gradle Wrapper ──"
+	@if [ -f shared/gradlew ]; then \
+		echo "OK: shared/gradlew found"; \
+	else \
+		echo "ERROR: shared/gradlew not found — run Sub-Task 1 first"; exit 1; \
+	fi
+
+shared-build:                ## Compile all KMP targets (jvm, android, ios)
+	$(GRADLEW) assemble
+
+shared-test:                 ## Run KMP shared core JVM tests (use: make shared-test F=SyncEngine)
+	$(GRADLEW) jvmTest $(if $(F),--tests="*$(F)*",)
+
+shared-test-coverage:        ## Run JVM tests with Kover coverage report
+	$(GRADLEW) koverHtmlReport
+	@echo "Coverage report: shared/build/reports/kover/html/index.html"
+
+shared-schema:               ## Generate SQLDelight Kotlin sources from .sq files
+	$(GRADLEW) generateCommonMainVineSuiteDatabaseInterface
+
+shared-clean:                ## Clean KMP build artifacts
+	$(GRADLEW) clean
+
+shared-check:                ## Full KMP QA: build → test → coverage (mirrors testsuite for PHP)
+	@START=$$(date +%s); BUILD_OK=0; TEST_OK=0; COV_OK=0; \
+	echo "══════ KMP BUILD ══════"; \
+	$(GRADLEW) assemble && BUILD_OK=1; \
+	echo ""; \
+	echo "══════ KMP TEST (JVM) ══════"; \
+	$(GRADLEW) jvmTest && TEST_OK=1; \
+	echo ""; \
+	echo "══════ KMP COVERAGE ══════"; \
+	$(GRADLEW) koverHtmlReport && COV_OK=1; \
+	echo ""; \
+	END=$$(date +%s); ELAPSED=$$((END - START)); \
+	echo "┌──────────────────────────────────────┐"; \
+	echo "│       SHARED-CHECK SUMMARY           │"; \
+	echo "├──────────────────────────────────────┤"; \
+	if [ $$BUILD_OK -eq 1 ]; then echo "│  Build ······················· PASS  │"; else echo "│  Build ······················· FAIL  │"; fi; \
+	if [ $$TEST_OK -eq 1 ]; then echo "│  Tests ······················· PASS  │"; else echo "│  Tests ······················· FAIL  │"; fi; \
+	if [ $$COV_OK -eq 1 ]; then echo "│  Coverage ···················· PASS  │"; else echo "│  Coverage ···················· FAIL  │"; fi; \
+	echo "├──────────────────────────────────────┤"; \
+	printf "│  Duration: %-26s│\n" "$${ELAPSED}s"; \
+	echo "└──────────────────────────────────────┘"; \
+	if [ $$BUILD_OK -eq 0 ] || [ $$TEST_OK -eq 0 ] || [ $$COV_OK -eq 0 ]; then exit 1; fi
 
 # ─── Widgets ──────────────────────────────────────────────────────
 widgets-dev:                 ## Start widget dev server
