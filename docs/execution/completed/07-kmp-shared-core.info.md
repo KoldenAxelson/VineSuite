@@ -129,3 +129,42 @@
 - Known gaps: Individual entity GET endpoints (lots, vessels, etc.) not implemented — sync pull covers the mobile use case. Can add if needed for targeted queries.
 
 ---
+
+## Sub-Task 5: Sync Engine
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **`ConnectivityMonitor` is an interface, not expect/actual**: Switched from `expect class` to a plain `interface` so tests can provide fake offline implementations via anonymous objects. Platform-specific classes (`JvmConnectivityMonitor`, `AndroidConnectivityMonitor`, `IosConnectivityMonitor`) implement it. More testable than expect/actual for this use case.
+- **State machine uses `StateFlow`**: `SyncState` enum (IDLE → PUSHING → PULLING → ERROR) exposed as `StateFlow<SyncState>` for reactive UI observation. Compose/SwiftUI can collect this directly.
+- **Push and pull are atomic per phase**: If push succeeds but pull fails, the push confirmations are preserved (events marked synced in SQLite). The next sync resumes pull only for the events that didn't fail. This prevents duplicate pushes on retry.
+- **Paginated pull with `has_more` loop**: Pull continues requesting pages until `has_more` is false. Each page's `synced_at` timestamp becomes the `since` parameter for the next page. Final `synced_at` is stored in SyncState for the next sync cycle.
+- **Pull upserts in a single transaction per page**: All entity upserts for one pull page happen in one SQLite transaction. Either the whole page applies or none of it does. Prevents partial state if the app crashes mid-pull.
+- **Push drains outbox in batches**: Instead of pushing all pending events in one API call (which could exceed the 100-event server limit), pushes in `DEFAULT_BATCH_SIZE` (50) batches until the outbox is empty. Each batch is a separate API call.
+- **`SyncResult` captures both phases**: Callers get a single result with push stats, pull stats, and overall status. Enables the UI to show "2 events synced, 15 entities updated" or "Push failed: connection refused".
+- **`SyncScheduler` is a thin coroutine wrapper**: Periodic background sync via `delay()` loop. `syncNow()` for immediate triggers. No platform-specific scheduling (BGAppRefreshTask on iOS, WorkManager on Android) — those are wired in the app layer.
+
+### Deviations from Spec
+- **No `ConnectivityMonitor` expect/actual**: Replaced with interface + platform implementations. Same external API, better testability.
+- **State machine has ERROR state, not COMPLETE**: Spec listed IDLE → PUSHING → PULLING → COMPLETE/ERROR. Simplified to: success returns to IDLE, failure stays in ERROR. No transient COMPLETE state — callers check the `SyncResult` for success details.
+- **`SyncScheduler` doesn't own the CoroutineScope**: Scope is passed to `start()` and `syncNow()` by the caller (typically the app-level scope). This avoids lifecycle management complexity in the shared core.
+
+### Patterns Established
+- **Interface over expect/actual for testable abstractions**: When the primary consumer is test code that needs fakes, use an interface. Reserve expect/actual for platform APIs that have fundamentally different implementations (like `DatabaseDriverFactory`, `SecureStorage`).
+- **`SyncResult` as a sealed-ish data class**: Instead of throwing exceptions, the sync engine returns a result object with status + details. Callers pattern-match on `SyncResultStatus` and inspect push/pull details.
+
+### Test Summary
+- `src/jvmTest/.../sync/SyncEngineTest.kt` — 9 tests covering:
+  - Full cycle: push 2 events + pull lots/vessels → local DB updated, sync timestamp stored
+  - No pending: skips push, only pulls
+  - Partial push failure: per-event failure tracking, failed events stay in outbox
+  - Network failure: push error captured, events remain pending, state = ERROR
+  - Pull failure after push success: push results preserved, pull error reported
+  - Offline: returns OFFLINE status immediately, no API calls
+  - Paginated pull: two pages, both applied, final synced_at stored
+  - Delta pull: sends stored `since` timestamp from SyncState
+  - State transitions: returns to IDLE after success
+  - Idempotent push: skipped duplicates marked as synced
+- Known gaps: Background sync scheduling not tested (platform-specific coroutine lifecycle). `SyncScheduler` is thin enough to test manually in the app layer.
+
+---
