@@ -31,6 +31,12 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 | `grower-tools.md` | Standalone tools for grape growers with cross-tenant data flow | ⏳ Deferred → Phase 8+. See Task 17 "Ideas to Evaluate". |
 | `custom-crush-ap-portal.md` | Full AP holder support with cross-tenant facility management | ⏳ Deferred → Phase 8+. See Task 21 "Ideas to Evaluate". |
 
+### Strategic Ideas (2026-03-17)
+
+| File | Summary | Status |
+|------|---------|--------|
+| `multi-vertical-cellar-suite.md` | Single codebase serving wine, beer, spirits, cider via `business_type` tenant field. CellarSuite rebrand. TAM: ~24,500 US craft beverage producers. | ⏳ Deferred → Phase 9+ (architecture already supports it) |
+
 ### Infrastructure Ideas (2026-03-17)
 
 | File | Summary | Status |
