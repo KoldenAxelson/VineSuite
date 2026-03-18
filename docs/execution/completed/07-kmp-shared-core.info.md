@@ -168,3 +168,34 @@
 - Known gaps: Background sync scheduling not tested (platform-specific coroutine lifecycle). `SyncScheduler` is thin enough to test manually in the app layer.
 
 ---
+
+## Sub-Task 6: Conflict Resolution Logic
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **`LocalConflict` SQLDelight table**: New table for persistent conflict storage. Stores: what was attempted (payload), what the server says (server state at rejection), why it failed (error message), and a link back to the outbox event. Status can be `unresolved`, `resolved`, or `dismissed`.
+- **Additive vs destructive classification via sets**: `ConflictResolver.ADDITIVE_OPERATIONS` and `DESTRUCTIVE_OPERATIONS` are explicit sets of operation type strings. Unknown operation types are neither — they fall through to the default retry behavior. This is safer than pattern-matching on prefixes.
+- **Additive failures do NOT create conflicts**: If an addition event fails server-side, it's a data issue (bad entity_id, validation error), not a conflict. The existing EventQueue retry mechanism handles these. Only destructive operation failures create user-visible conflicts.
+- **ConflictStore exposes a reactive `Flow`**: `observeUnresolved()` returns `Flow<List<LocalConflict>>` via SQLDelight's `asFlow().mapToList()`. Compose/SwiftUI can collect this to reactively update a conflict badge or list.
+- **Dismiss vs resolve**: Two paths for conflict resolution. "Resolve" means the user retried successfully or the issue was fixed. "Dismiss" means the user acknowledged and chose to drop it. Both set `resolved_at` and remove the conflict from the unresolved list.
+- **Server state captured at conflict time**: The `server_state` field records what the server said when it rejected the event (e.g., current vessel volume). This gives the user context to decide: retry, modify, or dismiss.
+
+### Deviations from Spec
+- None. This sub-task matches the spec closely.
+
+### Patterns Established
+- **Conflict lifecycle**: Failed destructive push → `ConflictStore.recordConflict()` → UI displays → user resolves/dismisses → `purgeResolved()` on cleanup.
+- **Operation type classification**: Centralized in `ConflictResolver.ADDITIVE_OPERATIONS` / `DESTRUCTIVE_OPERATIONS`. When new operation types are added in future phases, they need to be added to the appropriate set.
+
+### Test Summary
+- `src/jvmTest/.../sync/ConflictResolverTest.kt` — 14 tests covering:
+  - Classification: additive ops identified, destructive ops identified, unknown ops classified correctly
+  - Additive: failures don't create conflicts, accepted events don't create conflicts
+  - Destructive: failures create conflicts with full context, accepted events don't
+  - Batch: mixed results correctly route to conflicts
+  - ConflictStore: resolve, dismiss, entity lookup, purge keeps unresolved, stores full payload + server state + error
+  - Multiple conflicts: same entity can have multiple unresolved conflicts
+- Known gaps: Integration with SyncEngine push loop (ConflictResolver is not yet wired into SyncEngine — will integrate in Sub-Task 8 or as a follow-up).
+
+---

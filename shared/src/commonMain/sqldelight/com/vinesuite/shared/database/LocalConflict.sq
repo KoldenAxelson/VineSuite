@@ -1,0 +1,56 @@
+-- LocalConflict: stores unresolved sync conflicts for user review.
+-- Created when a destructive operation fails server-side validation
+-- (e.g., transferring more gallons than a vessel currently holds).
+
+CREATE TABLE LocalConflict (
+    id                TEXT NOT NULL PRIMARY KEY,
+    outbox_event_id   TEXT NOT NULL,
+    entity_type       TEXT NOT NULL,
+    entity_id         TEXT NOT NULL,
+    operation_type    TEXT NOT NULL,
+    attempted_payload TEXT NOT NULL,
+    server_state      TEXT NOT NULL,
+    error_message     TEXT NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'unresolved',
+    created_at        TEXT NOT NULL,
+    resolved_at       TEXT
+);
+
+CREATE INDEX idx_local_conflict_status ON LocalConflict(status);
+CREATE INDEX idx_local_conflict_entity ON LocalConflict(entity_type, entity_id);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalConflict ORDER BY created_at DESC;
+
+selectById:
+SELECT * FROM LocalConflict WHERE id = ?;
+
+selectUnresolved:
+SELECT * FROM LocalConflict WHERE status = 'unresolved' ORDER BY created_at DESC;
+
+countUnresolved:
+SELECT COUNT(*) FROM LocalConflict WHERE status = 'unresolved';
+
+selectByEntity:
+SELECT * FROM LocalConflict WHERE entity_type = ? AND entity_id = ? ORDER BY created_at DESC;
+
+insert:
+INSERT OR REPLACE INTO LocalConflict(id, outbox_event_id, entity_type, entity_id, operation_type, attempted_payload, server_state, error_message, status, created_at, resolved_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unresolved', ?, NULL);
+
+markResolved:
+UPDATE LocalConflict SET status = 'resolved', resolved_at = ? WHERE id = ?;
+
+markDismissed:
+UPDATE LocalConflict SET status = 'dismissed', resolved_at = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM LocalConflict WHERE id = ?;
+
+deleteResolved:
+DELETE FROM LocalConflict WHERE status IN ('resolved', 'dismissed');
+
+deleteAll:
+DELETE FROM LocalConflict;
