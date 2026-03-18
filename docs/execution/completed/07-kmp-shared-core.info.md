@@ -199,3 +199,34 @@
 - Known gaps: Integration with SyncEngine push loop (ConflictResolver is not yet wired into SyncEngine — will integrate in Sub-Task 8 or as a follow-up).
 
 ---
+
+## Sub-Task 7: NTP Clock Drift Check
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **Server time instead of raw NTP**: Spec says "query an NTP server." Raw NTP requires platform-specific UDP sockets which are painful in KMP. Instead, `ServerTimeSource` uses the VineSuite API server's time (which is NTP-synced) as the reference. Same accuracy, zero platform-specific networking code.
+- **`ReferenceTimeSource` interface for testability**: Tests inject `FakeTimeSource`, `FailingTimeSource`, `SlowTimeSource`. Production injects `ServerTimeSource` backed by an API call (e.g., parsing the `Date` header from any authenticated API response).
+- **`withTimeoutOrNull` for non-blocking timeout**: If the time source takes longer than 5 seconds (configurable), the check returns `Unavailable` instead of blocking. Uses coroutines — no threads, no platform timers.
+- **Sealed class `DriftResult`**: Three states: `Ok` (within threshold), `Drifted` (warn user), `Unavailable` (offline/timeout/error — just skip). Clean pattern matching for callers.
+- **Threshold at 30 seconds per spec**: `DRIFT_THRESHOLD_SECONDS = 30`. Exact threshold returns Ok (<=), above returns Drifted (>). Drift is absolute (works for both ahead and behind).
+
+### Deviations from Spec
+- **No raw NTP implementation**: As noted above, uses server time. The spec's intent (detect drift) is fully met. Raw NTP can be added later if needed.
+- **No logging**: Spec says "log the drift amount for debugging." Logging infrastructure isn't set up in the KMP layer yet. The `DriftResult` carries the drift amount — the app layer can log it when it handles the result.
+
+### Patterns Established
+- **`withTimeoutOrNull` for non-blocking external calls**: Reusable pattern for any KMP code that calls an external service and shouldn't block the app.
+
+### Test Summary
+- `src/jvmTest/.../util/ClockDriftCheckerTest.kt` — 7 tests covering:
+  - No drift: returns Ok with 0 seconds
+  - Small drift within threshold: returns Ok with drift amount
+  - Exact threshold (30s): returns Ok (not Drifted)
+  - Above threshold: returns Drifted with drift amount, device time, reference time
+  - Device clock behind: detects negative drift correctly (absolute value)
+  - Network error: returns Unavailable
+  - Timeout: returns Unavailable (slow source exceeds timeout)
+- Known gaps: None. This is a self-contained utility with full coverage.
+
+---
