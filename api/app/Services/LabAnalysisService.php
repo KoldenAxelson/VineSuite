@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LabAnalysis;
 use App\Support\LogContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -95,9 +96,9 @@ class LabAnalysisService
     /**
      * Get analysis history for a lot and test type (for charting).
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, LabAnalysis>
+     * @return Collection<int, LabAnalysis>
      */
-    public function getHistory(string $lotId, string $testType): \Illuminate\Database\Eloquent\Collection
+    public function getHistory(string $lotId, string $testType): Collection
     {
         return LabAnalysis::where('lot_id', $lotId)
             ->where('test_type', $testType)

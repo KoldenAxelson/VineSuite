@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Lot;
 use Illuminate\Http\Request;
 
 /**
@@ -11,7 +12,7 @@ use Illuminate\Http\Request;
  *
  * Wraps lot data in the standard API envelope via BaseResource.
  *
- * @mixin \App\Models\Lot
+ * @mixin Lot
  */
 class LotResource extends BaseResource
 {

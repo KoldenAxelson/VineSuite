@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Addition;
 use Illuminate\Http\Request;
 
 /**
  * API resource for Addition model.
  *
- * @mixin \App\Models\Addition
+ * @mixin Addition
  */
 class AdditionResource extends BaseResource
 {

@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Services\PhysicalCountService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -33,7 +35,7 @@ function createCountTestTenant(string $slug = 'count-winery', string $role = 'wi
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -206,7 +208,7 @@ describe('physical count tenant isolation', function () {
             PhysicalCount::create([
                 'location_id' => $location->id,
                 'status' => 'in_progress',
-                'started_by' => (string) \Illuminate\Support\Str::uuid(),
+                'started_by' => (string) Str::uuid(),
                 'started_at' => now(),
             ]);
         });

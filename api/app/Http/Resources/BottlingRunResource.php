@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\BottlingRun;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
- * @mixin \App\Models\BottlingRun
+ * @mixin BottlingRun
  *
- * @property \Illuminate\Support\Carbon|null $bottled_at
- * @property \Illuminate\Support\Carbon|null $completed_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon|null $bottled_at
+ * @property Carbon|null $completed_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class BottlingRunResource extends BaseResource
 {

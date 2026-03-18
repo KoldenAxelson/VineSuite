@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\LabThreshold;
 use Illuminate\Http\Request;
 
 /**
  * API resource for LabThreshold model.
  *
- * @mixin \App\Models\LabThreshold
+ * @mixin LabThreshold
  */
 class LabThresholdResource extends BaseResource
 {

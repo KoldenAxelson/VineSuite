@@ -7,11 +7,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\LotResource\Pages;
 use App\Models\Lot;
 use App\Services\LotService;
+use Filament\Actions\BulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -25,9 +28,9 @@ class LotResource extends Resource
 {
     protected static ?string $model = Lot::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-beaker';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?string $navigationLabel = 'Lots';
 
@@ -39,11 +42,11 @@ class LotResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Lot Details')
+                Section::make('Lot Details')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -76,7 +79,7 @@ class LotResource extends Resource
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('Source Details')
+                Section::make('Source Details')
                     ->schema([
                         Forms\Components\KeyValue::make('source_details')
                             ->label('Source metadata')
@@ -101,7 +104,8 @@ class LotResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('vintage')
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('status')
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
                     ->color(fn (string $state, Lot $record): string => $record->statusColor())
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->sortable(),
@@ -109,11 +113,11 @@ class LotResource extends Resource
                     ->label('Volume (gal)')
                     ->numeric(4)
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('source_type')
-                    ->colors([
-                        'success' => 'estate',
-                        'info' => 'purchased',
-                    ])
+                Tables\Columns\TextColumn::make('source_type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'estate' => 'success', 'purchased' => 'info', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -135,11 +139,11 @@ class LotResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkAction::make('archive')
+                BulkAction::make('archive')
                     ->label('Archive Selected')
                     ->icon('heroicon-o-archive-box')
                     ->color('warning')
@@ -157,11 +161,11 @@ class LotResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
-    public static function infolist(Infolist $infolist): Infolist
+    public static function infolist(Schema $schema): Schema
     {
-        return $infolist
+        return $schema
             ->schema([
-                Infolists\Components\Section::make('Lot Details')
+                Section::make('Lot Details')
                     ->schema([
                         Infolists\Components\TextEntry::make('name')->weight('bold'),
                         Infolists\Components\TextEntry::make('variety'),
@@ -177,7 +181,7 @@ class LotResource extends Resource
                     ])
                     ->columns(3),
 
-                Infolists\Components\Section::make('Event Timeline')
+                Section::make('Event Timeline')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('events')
                             ->schema([

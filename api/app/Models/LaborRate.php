@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * LaborRate — configurable hourly rates by role for labor cost tracking.
@@ -19,8 +20,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $role Role name (e.g., cellar_hand, winemaker)
  * @property string $hourly_rate Decimal hourly rate
  * @property bool $is_active Whether this rate is currently active
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class LaborRate extends Model
 {

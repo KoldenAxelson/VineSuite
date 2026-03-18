@@ -9,3 +9,821 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* ═══════════════════════════════════════════════════════════
+   VineSuite Design Tokens
+   See docs/guides/design-guide.md for full specification.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Primitive palette (constant across all themes) ────── */
+:root {
+    /* Gray (warm-shifted) */
+    --vs-gray-50:   #f8f9fa;
+    --vs-gray-100:  #f1f3f5;
+    --vs-gray-200:  #e9ecef;
+    --vs-gray-300:  #dee2e6;
+    --vs-gray-400:  #adb5bd;
+    --vs-gray-500:  #868e96;
+    --vs-gray-600:  #6c757d;
+    --vs-gray-700:  #495057;
+    --vs-gray-800:  #343a40;
+    --vs-gray-900:  #212529;
+
+    /* Purple (brand) */
+    --vs-purple-50:  #faf5ff;
+    --vs-purple-100: #f3e8ff;
+    --vs-purple-500: #8b5cf6;
+    --vs-purple-600: #7c3aed;
+    --vs-purple-700: #6d28d9;
+
+    /* Spacing */
+    --vs-space-1: 0.25rem;  /* 4px */
+    --vs-space-2: 0.5rem;   /* 8px */
+    --vs-space-3: 0.75rem;  /* 12px */
+    --vs-space-4: 1rem;     /* 16px */
+    --vs-space-5: 1.25rem;  /* 20px */
+    --vs-space-6: 1.5rem;   /* 24px */
+    --vs-space-8: 2rem;     /* 32px */
+
+    /* Radii */
+    --vs-radius-sm: 0.375rem;
+    --vs-radius-md: 0.5rem;
+    --vs-radius-lg: 0.75rem;
+    --vs-radius-xl: 1rem;
+    --vs-radius-full: 9999px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: Vineyard (default)
+   Warm neutrals, purple accent. Clean, professional.
+   ═══════════════════════════════════════════════════════════ */
+.theme-vineyard,
+:root:not([class*="theme-"]) {
+    /* Surface & background */
+    --vs-bg-page:           var(--vs-gray-50);
+    --vs-bg-surface:        #ffffff;
+    --vs-bg-surface-alt:    var(--vs-gray-100);
+    --vs-bg-surface-hover:  var(--vs-gray-50);
+    --vs-bg-inset:          var(--vs-gray-100);
+
+    /* Text */
+    --vs-text-primary:      var(--vs-gray-900);
+    --vs-text-secondary:    var(--vs-gray-600);
+    --vs-text-tertiary:     var(--vs-gray-400);
+    --vs-text-on-accent:    #ffffff;
+
+    /* Borders */
+    --vs-border:            var(--vs-gray-200);
+    --vs-border-subtle:     var(--vs-gray-100);
+    --vs-ring-focus:        var(--vs-purple-500);
+
+    /* Accent */
+    --vs-accent:            var(--vs-purple-600);
+    --vs-accent-hover:      var(--vs-purple-700);
+    --vs-accent-subtle:     var(--vs-purple-50);
+
+    /* Semantic */
+    --vs-success:           #059669;
+    --vs-success-subtle:    #ecfdf5;
+    --vs-warning:           #d97706;
+    --vs-warning-subtle:    #fffbeb;
+    --vs-danger:            #dc2626;
+    --vs-danger-subtle:     #fef2f2;
+    --vs-info:              #2563eb;
+    --vs-info-subtle:       #eff6ff;
+
+    /* Sidebar */
+    --vs-sidebar-bg:        var(--vs-gray-800);
+    --vs-sidebar-text:      var(--vs-gray-400);
+    --vs-sidebar-text-active: #ffffff;
+    --vs-sidebar-accent:    var(--vs-purple-500);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: Matrix
+   Black background, phosphor green text.
+   ═══════════════════════════════════════════════════════════ */
+.theme-matrix {
+    --vs-bg-page:           #0a0a0a;
+    --vs-bg-surface:        #111111;
+    --vs-bg-surface-alt:    #1a1a1a;
+    --vs-bg-surface-hover:  #1f1f1f;
+    --vs-bg-inset:          #0d0d0d;
+
+    --vs-text-primary:      #00ff41;
+    --vs-text-secondary:    #00cc33;
+    --vs-text-tertiary:     #008f11;
+    --vs-text-on-accent:    #000000;
+
+    --vs-border:            #1a3a1a;
+    --vs-border-subtle:     #112211;
+    --vs-ring-focus:        #00ff41;
+
+    --vs-accent:            #00ff41;
+    --vs-accent-hover:      #33ff66;
+    --vs-accent-subtle:     #002200;
+
+    --vs-success:           #00ff41;
+    --vs-success-subtle:    #002200;
+    --vs-warning:           #ffcc00;
+    --vs-warning-subtle:    #221a00;
+    --vs-danger:            #ff0040;
+    --vs-danger-subtle:     #220008;
+    --vs-info:              #00ccff;
+    --vs-info-subtle:       #001a22;
+
+    --vs-sidebar-bg:        #050505;
+    --vs-sidebar-text:      #008f11;
+    --vs-sidebar-text-active: #00ff41;
+    --vs-sidebar-accent:    #00ff41;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: Island Fresh
+   Bright teals, coral accents, airy white space.
+   ═══════════════════════════════════════════════════════════ */
+.theme-island {
+    --vs-bg-page:           #f0fdfa;
+    --vs-bg-surface:        #ffffff;
+    --vs-bg-surface-alt:    #f0fdfa;
+    --vs-bg-surface-hover:  #ccfbf1;
+    --vs-bg-inset:          #e6fffa;
+
+    --vs-text-primary:      #134e4a;
+    --vs-text-secondary:    #2d6a6a;
+    --vs-text-tertiary:     #5f9ea0;
+    --vs-text-on-accent:    #ffffff;
+
+    --vs-border:            #99f6e4;
+    --vs-border-subtle:     #ccfbf1;
+    --vs-ring-focus:        #0d9488;
+
+    --vs-accent:            #0d9488;
+    --vs-accent-hover:      #0f766e;
+    --vs-accent-subtle:     #ccfbf1;
+
+    --vs-success:           #059669;
+    --vs-success-subtle:    #ecfdf5;
+    --vs-warning:           #ea580c;
+    --vs-warning-subtle:    #fff7ed;
+    --vs-danger:            #e11d48;
+    --vs-danger-subtle:     #fff1f2;
+    --vs-info:              #0284c7;
+    --vs-info-subtle:       #f0f9ff;
+
+    --vs-sidebar-bg:        #0f766e;
+    --vs-sidebar-text:      #99f6e4;
+    --vs-sidebar-text-active: #ffffff;
+    --vs-sidebar-accent:    #f0abfc;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: Cellar Dark
+   Deep charcoal, amber/gold accents. Dim-light friendly.
+   ═══════════════════════════════════════════════════════════ */
+.theme-cellar {
+    --vs-bg-page:           #18181b;
+    --vs-bg-surface:        #27272a;
+    --vs-bg-surface-alt:    #303036;
+    --vs-bg-surface-hover:  #3f3f46;
+    --vs-bg-inset:          #1e1e22;
+
+    --vs-text-primary:      #fafaf9;
+    --vs-text-secondary:    #a8a29e;
+    --vs-text-tertiary:     #78716c;
+    --vs-text-on-accent:    #1c1917;
+
+    --vs-border:            #3f3f46;
+    --vs-border-subtle:     #2e2e33;
+    --vs-ring-focus:        #f59e0b;
+
+    --vs-accent:            #f59e0b;
+    --vs-accent-hover:      #d97706;
+    --vs-accent-subtle:     #422006;
+
+    --vs-success:           #34d399;
+    --vs-success-subtle:    #022c22;
+    --vs-warning:           #fbbf24;
+    --vs-warning-subtle:    #422006;
+    --vs-danger:            #f87171;
+    --vs-danger-subtle:     #450a0a;
+    --vs-info:              #60a5fa;
+    --vs-info-subtle:       #172554;
+
+    --vs-sidebar-bg:        #0f0f11;
+    --vs-sidebar-text:      #78716c;
+    --vs-sidebar-text-active: #f59e0b;
+    --vs-sidebar-accent:    #f59e0b;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: Harvest Gold
+   Cream backgrounds, rich burgundy and gold. Classic winery.
+   ═══════════════════════════════════════════════════════════ */
+.theme-harvest {
+    --vs-bg-page:           #fefcf3;
+    --vs-bg-surface:        #ffffff;
+    --vs-bg-surface-alt:    #fef9ee;
+    --vs-bg-surface-hover:  #fef3cd;
+    --vs-bg-inset:          #fdf6e3;
+
+    --vs-text-primary:      #3c1518;
+    --vs-text-secondary:    #6b3a3e;
+    --vs-text-tertiary:     #a07070;
+    --vs-text-on-accent:    #ffffff;
+
+    --vs-border:            #e8d5b7;
+    --vs-border-subtle:     #f0e6d2;
+    --vs-ring-focus:        #7f1d1d;
+
+    --vs-accent:            #7f1d1d;
+    --vs-accent-hover:      #991b1b;
+    --vs-accent-subtle:     #fef2f2;
+
+    --vs-success:           #166534;
+    --vs-success-subtle:    #f0fdf4;
+    --vs-warning:           #b45309;
+    --vs-warning-subtle:    #fffbeb;
+    --vs-danger:            #b91c1c;
+    --vs-danger-subtle:     #fef2f2;
+    --vs-info:              #1e40af;
+    --vs-info-subtle:       #eff6ff;
+
+    --vs-sidebar-bg:        #3c1518;
+    --vs-sidebar-text:      #d4a574;
+    --vs-sidebar-text-active: #fef3cd;
+    --vs-sidebar-accent:    #c09553;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   VineSuite Component Classes
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── KPI Bar ───────────────────────────────────────────── */
+.vs-kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--vs-space-4);
+    max-width: 1200px;
+}
+
+@media (max-width: 640px) {
+    .vs-kpi-bar {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ── KPI Card ──────────────────────────────────────────── */
+.vs-kpi-card {
+    background: var(--vs-bg-surface);
+    border: 1px solid var(--vs-border);
+    border-radius: var(--vs-radius-lg);
+    padding: var(--vs-space-4) var(--vs-space-5);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--vs-space-1);
+}
+
+.vs-kpi-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--vs-text-secondary);
+}
+
+.vs-kpi-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.vs-kpi-value--accent {
+    color: var(--vs-accent);
+}
+
+.vs-kpi-trend {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.vs-kpi-trend--up {
+    color: var(--vs-success);
+}
+
+.vs-kpi-trend--down {
+    color: var(--vs-danger);
+}
+
+.vs-kpi-trend--flat {
+    color: var(--vs-text-tertiary);
+}
+
+/* ── Section Card ──────────────────────────────────────── */
+.vs-section {
+    background: var(--vs-bg-surface);
+    border: 1px solid var(--vs-border);
+    border-radius: var(--vs-radius-xl);
+    overflow: hidden;
+}
+
+.vs-section-header {
+    padding: var(--vs-space-5) var(--vs-space-6);
+    border-bottom: 1px solid var(--vs-border-subtle);
+}
+
+.vs-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+    margin: 0;
+}
+
+.vs-section-description {
+    font-size: 0.875rem;
+    color: var(--vs-text-secondary);
+    margin-top: var(--vs-space-1);
+}
+
+.vs-section-body {
+    padding: var(--vs-space-5) var(--vs-space-6);
+}
+
+/* ── Data Table ────────────────────────────────────────── */
+.vs-table {
+    width: 100%;
+    font-size: 0.875rem;
+    border-collapse: collapse;
+}
+
+.vs-th {
+    padding: var(--vs-space-3) var(--vs-space-4);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--vs-text-secondary);
+    border-bottom: 2px solid var(--vs-border);
+}
+
+.vs-th--left  { text-align: left; }
+.vs-th--right { text-align: right; }
+
+.vs-tr {
+    border-bottom: 1px solid var(--vs-border-subtle);
+    transition: background-color 0.1s ease;
+}
+
+.vs-tr:hover {
+    background-color: var(--vs-bg-surface-hover);
+}
+
+.vs-tr--clickable {
+    cursor: pointer;
+}
+
+.vs-td {
+    padding: var(--vs-space-3) var(--vs-space-4);
+    color: var(--vs-text-primary);
+    vertical-align: middle;
+}
+
+.vs-td--secondary {
+    color: var(--vs-text-secondary);
+}
+
+.vs-td--mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+.vs-td--right {
+    text-align: right;
+}
+
+.vs-td--bold {
+    font-weight: 600;
+}
+
+/* ── Status Badge ──────────────────────────────────────── */
+.vs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--vs-space-1);
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--vs-radius-full);
+    line-height: 1.5;
+}
+
+.vs-badge--success {
+    background: var(--vs-success-subtle);
+    color: var(--vs-success);
+}
+
+.vs-badge--warning {
+    background: var(--vs-warning-subtle);
+    color: var(--vs-warning);
+}
+
+.vs-badge--danger {
+    background: var(--vs-danger-subtle);
+    color: var(--vs-danger);
+}
+
+.vs-badge--info {
+    background: var(--vs-info-subtle);
+    color: var(--vs-info);
+}
+
+.vs-badge--neutral {
+    background: var(--vs-bg-surface-alt);
+    color: var(--vs-text-secondary);
+}
+
+/* ── Alert Banner ──────────────────────────────────────── */
+.vs-alert {
+    display: flex;
+    gap: var(--vs-space-3);
+    padding: var(--vs-space-4);
+    border-radius: var(--vs-radius-lg);
+    border-left: 4px solid;
+}
+
+.vs-alert--warning {
+    background: var(--vs-warning-subtle);
+    border-left-color: var(--vs-warning);
+}
+
+.vs-alert--danger {
+    background: var(--vs-danger-subtle);
+    border-left-color: var(--vs-danger);
+}
+
+.vs-alert--info {
+    background: var(--vs-info-subtle);
+    border-left-color: var(--vs-info);
+}
+
+.vs-alert--success {
+    background: var(--vs-success-subtle);
+    border-left-color: var(--vs-success);
+}
+
+.vs-alert-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+    margin-bottom: var(--vs-space-2);
+}
+
+.vs-alert-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--vs-space-1);
+    font-size: 0.875rem;
+    color: var(--vs-text-secondary);
+}
+
+/* ── Timeline ──────────────────────────────────────────── */
+.vs-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.vs-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--vs-border);
+}
+
+.vs-timeline-item {
+    position: relative;
+    padding-bottom: var(--vs-space-4);
+}
+
+.vs-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.vs-timeline-dot {
+    position: absolute;
+    left: calc(-2rem + 0.25rem);
+    top: 0.375rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--vs-border);
+    border: 2px solid var(--vs-bg-surface);
+    z-index: 1;
+}
+
+.vs-timeline-item:first-child .vs-timeline-dot {
+    background: var(--vs-accent);
+}
+
+.vs-timeline-content {
+    background: var(--vs-bg-surface-alt);
+    border-radius: var(--vs-radius-md);
+    padding: var(--vs-space-3);
+}
+
+.vs-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--vs-space-2);
+    flex-wrap: wrap;
+}
+
+.vs-timeline-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+}
+
+.vs-timeline-date {
+    font-size: 0.75rem;
+    color: var(--vs-text-tertiary);
+    white-space: nowrap;
+}
+
+.vs-timeline-meta {
+    font-size: 0.75rem;
+    color: var(--vs-text-tertiary);
+    font-family: ui-monospace, monospace;
+    margin-top: var(--vs-space-1);
+}
+
+@media (max-width: 640px) {
+    .vs-timeline {
+        padding-left: 0;
+    }
+    .vs-timeline::before {
+        display: none;
+    }
+    .vs-timeline-dot {
+        display: none;
+    }
+    .vs-timeline-content {
+        border-left: 3px solid var(--vs-accent);
+    }
+}
+
+/* ── Page Header Bar ───────────────────────────────────── */
+.vs-page-header {
+    background: var(--vs-bg-surface);
+    border: 1px solid var(--vs-border);
+    border-radius: var(--vs-radius-xl);
+    padding: var(--vs-space-5) var(--vs-space-6);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--vs-space-4);
+    flex-wrap: wrap;
+}
+
+.vs-page-header-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+    margin: 0;
+}
+
+.vs-page-header-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--vs-space-3);
+    font-size: 0.875rem;
+    color: var(--vs-text-secondary);
+    margin-top: var(--vs-space-1);
+    flex-wrap: wrap;
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.vs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--vs-space-2);
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--vs-radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.vs-btn--primary {
+    background: var(--vs-accent);
+    color: var(--vs-text-on-accent);
+}
+
+.vs-btn--primary:hover {
+    background: var(--vs-accent-hover);
+}
+
+.vs-btn--success {
+    background: var(--vs-success);
+    color: #ffffff;
+}
+
+.vs-btn--success:hover {
+    filter: brightness(1.1);
+}
+
+.vs-btn--ghost {
+    background: transparent;
+    color: var(--vs-text-secondary);
+}
+
+.vs-btn--ghost:hover {
+    background: var(--vs-bg-surface-hover);
+    color: var(--vs-text-primary);
+}
+
+.vs-btn--sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+/* ── Empty State ───────────────────────────────────────── */
+.vs-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--vs-space-8) var(--vs-space-4);
+    text-align: center;
+}
+
+.vs-empty-state-icon {
+    width: 3rem;
+    height: 3rem;
+    color: var(--vs-text-tertiary);
+    margin-bottom: var(--vs-space-3);
+}
+
+.vs-empty-state-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+    margin: 0 0 var(--vs-space-1) 0;
+}
+
+.vs-empty-state-description {
+    font-size: 0.875rem;
+    color: var(--vs-text-secondary);
+    margin: 0 0 var(--vs-space-4) 0;
+    max-width: 28rem;
+}
+
+/* ── Summary Stat Grid (TTB sections) ──────────────────── */
+.vs-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--vs-space-4);
+    max-width: 960px;
+}
+
+@media (min-width: 640px) {
+    .vs-stat-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .vs-stat-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.vs-stat-cell {
+    background: var(--vs-bg-surface-alt);
+    border-radius: var(--vs-radius-md);
+    padding: var(--vs-space-3);
+    text-align: center;
+}
+
+.vs-stat-cell--tinted {
+    /* Override bg per-cell using inline style for the tinted variants */
+}
+
+.vs-stat-cell-label {
+    font-size: 0.75rem;
+    color: var(--vs-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vs-stat-cell-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--vs-text-primary);
+    font-variant-numeric: tabular-nums;
+    margin-top: var(--vs-space-1);
+}
+
+.vs-stat-cell-unit {
+    font-size: 0.75rem;
+    color: var(--vs-text-tertiary);
+}
+
+/* ── Drill-Down Panel ──────────────────────────────────── */
+.vs-drilldown {
+    background: var(--vs-bg-surface);
+    border: 2px solid var(--vs-accent-subtle);
+    border-radius: var(--vs-radius-xl);
+    padding: var(--vs-space-5) var(--vs-space-6);
+}
+
+.vs-drilldown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--vs-space-4);
+}
+
+.vs-drilldown-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--vs-text-primary);
+}
+
+.vs-drilldown-close {
+    color: var(--vs-text-tertiary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: var(--vs-space-1);
+    border-radius: var(--vs-radius-sm);
+    transition: color 0.15s ease;
+}
+
+.vs-drilldown-close:hover {
+    color: var(--vs-text-primary);
+}
+
+/* ── Trace Panels (forward/backward) ──────────────────── */
+.vs-trace-card {
+    background: var(--vs-bg-surface);
+    border: 1px solid var(--vs-border);
+    border-radius: var(--vs-radius-xl);
+    padding: var(--vs-space-5) var(--vs-space-6);
+}
+
+.vs-trace-step {
+    border-radius: var(--vs-radius-md);
+    padding: var(--vs-space-3);
+}
+
+.vs-trace-step--backward {
+    background: var(--vs-info-subtle);
+}
+
+.vs-trace-step--forward {
+    background: var(--vs-success-subtle);
+}
+
+/* ── Theme transition (smooth swap) ────────────────────── */
+[class*="theme-"] *,
+[class*="theme-"] *::before,
+[class*="theme-"] *::after {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ── Filament overrides (token-backed) ─────────────────── */
+
+/* Override Filament's section component backgrounds */
+.fi-section {
+    --c-bg: var(--vs-bg-surface) !important;
+}
+
+/* Override Filament sidebar if theme changes it */
+.fi-sidebar {
+    background-color: var(--vs-sidebar-bg) !important;
+}
+
+/* Make sure the page body follows theme */
+.fi-body {
+    background-color: var(--vs-bg-page) !important;
+}

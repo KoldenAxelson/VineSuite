@@ -6,17 +6,19 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TTBReportResource\Pages;
 use App\Models\TTBReport;
+use Filament\Actions\ViewAction;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Schema;
 
 class TTBReportResource extends Resource
 {
     protected static ?string $model = TTBReport::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static ?string $navigationGroup = 'Compliance';
+    protected static \UnitEnum|string|null $navigationGroup = 'Compliance';
 
     protected static ?int $navigationSort = 1;
 
@@ -35,13 +37,11 @@ class TTBReportResource extends Resource
                     ->label('Month')
                     ->formatStateUsing(fn (int $state): string => date('F', mktime(0, 0, 0, $state, 1)))
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'draft',
-                        'info' => 'reviewed',
-                        'success' => 'filed',
-                        'danger' => 'amended',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'warning', 'reviewed' => 'info', 'filed' => 'success', 'amended' => 'danger', default => 'gray'
+                    }),
                 Tables\Columns\TextColumn::make('generated_at')
                     ->label('Generated')
                     ->dateTime('M j, Y g:i A')
@@ -71,7 +71,7 @@ class TTBReportResource extends Resource
                 Tables\Filters\SelectFilter::make('report_period_year')
                     ->label('Year')
                     ->options(function () {
-                        if (! \Illuminate\Support\Facades\Schema::hasTable('ttb_reports')) {
+                        if (! Schema::hasTable('ttb_reports')) {
                             return [];
                         }
 
@@ -82,7 +82,7 @@ class TTBReportResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([]);
     }

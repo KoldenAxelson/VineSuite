@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Label profile — intended label claims for a blend or bottled SKU.
@@ -30,9 +31,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<string, mixed>|null $other_claims Additional label claims
  * @property string $compliance_status passing|failing|unchecked
  * @property array<string, mixed>|null $compliance_snapshot Full breakdown at lock time
- * @property \Illuminate\Support\Carbon|null $locked_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon|null $locked_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class LabelProfile extends Model
 {

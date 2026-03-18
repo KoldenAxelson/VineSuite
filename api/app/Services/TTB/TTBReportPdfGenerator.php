@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\TTB;
 
 use App\Models\TTBReport;
+use App\Models\TTBReportLine;
 use App\Models\WineryProfile;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * TTBReportPdfGenerator — generates a PDF version of the TTB Form 5120.17.
@@ -65,7 +67,7 @@ class TTBReportPdfGenerator
     /**
      * Get line items grouped by section (A/B) for rendering.
      *
-     * @return array<string, \Illuminate\Database\Eloquent\Collection<int, \App\Models\TTBReportLine>>
+     * @return array<string, Collection<int, TTBReportLine>>
      */
     private function getLinesBySection(TTBReport $report): array
     {

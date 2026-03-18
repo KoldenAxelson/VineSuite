@@ -17,6 +17,8 @@ use App\Services\TTB\WineTypeClassifier;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -37,7 +39,7 @@ function seedAndGetComplianceTenant(string $slug = 'ttb-winery', string $role = 
 
     $userId = null;
     $tenant->run(function () use ($role, &$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -925,7 +927,7 @@ describe('event source registration', function () {
 
             $event = $logger->log(
                 entityType: 'ttb_report',
-                entityId: (string) \Illuminate\Support\Str::uuid(),
+                entityId: (string) Str::uuid(),
                 operationType: 'ttb_report_generated',
                 payload: ['period_month' => 1, 'period_year' => 2025],
                 performedBy: $userId,
@@ -944,7 +946,7 @@ describe('event source registration', function () {
 
             $event = $logger->log(
                 entityType: 'license',
-                entityId: (string) \Illuminate\Support\Str::uuid(),
+                entityId: (string) Str::uuid(),
                 operationType: 'license_renewed',
                 payload: ['license_type' => 'ttb_permit'],
                 performedBy: $userId,

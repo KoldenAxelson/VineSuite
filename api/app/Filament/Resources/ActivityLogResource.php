@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ActivityLogResource\Pages;
 use App\Models\ActivityLog;
+use Filament\Actions\ViewAction;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -21,9 +22,9 @@ class ActivityLogResource extends Resource
 {
     protected static ?string $model = ActivityLog::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static \UnitEnum|string|null $navigationGroup = 'Settings';
 
     protected static ?string $navigationLabel = 'Activity Log';
 
@@ -50,12 +51,11 @@ class ActivityLogResource extends Resource
                     ->label('Who')
                     ->placeholder('System')
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('action')
-                    ->colors([
-                        'success' => 'created',
-                        'warning' => 'updated',
-                        'danger' => 'deleted',
-                    ]),
+                Tables\Columns\TextColumn::make('action')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'created' => 'success', 'updated' => 'warning', 'deleted' => 'danger', default => 'gray'
+                    }),
                 Tables\Columns\TextColumn::make('model_type')
                     ->label('What')
                     ->formatStateUsing(fn (string $state): string => class_basename($state))
@@ -92,7 +92,7 @@ class ActivityLogResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([]) // No bulk actions — immutable
             ->defaultSort('created_at', 'desc')

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Lab analysis — a single analytical measurement for a lot.
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property string $id UUID
  * @property string $lot_id FK to lots
- * @property \Illuminate\Support\Carbon $test_date Date the analysis was performed
+ * @property Carbon $test_date Date the analysis was performed
  * @property string $test_type Type of analysis (pH, TA, VA, free_SO2, etc.)
  * @property string $value Measured value
  * @property string $unit Unit of measurement
@@ -29,8 +30,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $notes Free-text notes
  * @property string $source How the data was entered (manual, ets_labs, oenofoss, wine_scan, csv_import)
  * @property string|null $performed_by FK to users (who entered the record)
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class LabAnalysis extends Model
 {

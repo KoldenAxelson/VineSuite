@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PlanTier;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Laravel\Cashier\Billable;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
@@ -24,9 +25,9 @@ use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
  * @property PlanTier $plan Plan tier (cast from string via PlanTier enum)
  * @property string|null $stripe_customer_id
  * @property string|null $stripe_subscription_id
- * @property \Carbon\Carbon|null $launched_at When the tenant completed onboarding
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon|null $launched_at When the tenant completed onboarding
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Tenant extends BaseTenant implements TenantWithDatabase
 {

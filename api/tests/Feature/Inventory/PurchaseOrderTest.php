@@ -11,6 +11,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -30,7 +32,7 @@ function createPurchaseOrderTestTenant(string $slug = 'po-winery', string $role 
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -672,7 +674,7 @@ describe('purchase order validation', function () {
             'lines' => [
                 [
                     'item_type' => 'dry_goods',
-                    'item_id' => \Illuminate\Support\Str::uuid()->toString(),
+                    'item_id' => Str::uuid()->toString(),
                     'item_name' => 'Test',
                     'quantity_ordered' => 10,
                 ],
@@ -721,7 +723,7 @@ describe('purchase order RBAC', function () {
             'lines' => [
                 [
                     'item_type' => 'dry_goods',
-                    'item_id' => \Illuminate\Support\Str::uuid()->toString(),
+                    'item_id' => Str::uuid()->toString(),
                     'item_name' => 'Test',
                     'quantity_ordered' => 10,
                 ],

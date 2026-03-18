@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Models\CaseGoodsSku;
 
 return [
 
@@ -113,7 +114,7 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            \App\Models\CaseGoodsSku::class => [
+            CaseGoodsSku::class => [
                 'filterableAttributes' => ['is_active', 'vintage', 'varietal', 'format'],
                 'sortableAttributes' => ['vintage', 'wine_name', 'created_at'],
                 'searchableAttributes' => ['wine_name', 'varietal', 'upc_barcode'],

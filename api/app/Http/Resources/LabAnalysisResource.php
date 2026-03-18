@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\LabAnalysis;
 use Illuminate\Http\Request;
 
 /**
  * API resource for LabAnalysis model.
  *
- * @mixin \App\Models\LabAnalysis
+ * @mixin LabAnalysis
  */
 class LabAnalysisResource extends BaseResource
 {

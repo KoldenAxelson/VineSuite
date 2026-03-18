@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\Exceptions\Domain\InsufficientVolumeException;
 use App\Models\Lot;
 
 /**
@@ -41,7 +42,7 @@ interface LotServiceInterface
      * @param  array<string, mixed>  $context  Additional event payload context
      * @return Lot The updated lot
      *
-     * @throws \App\Exceptions\Domain\InsufficientVolumeException If deduction would go below zero
+     * @throws InsufficientVolumeException If deduction would go below zero
      */
     public function adjustVolume(Lot $lot, float $deltaGallons, string $reason, string $performedBy, array $context = []): Lot;
 }

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Work order — the daily cellar workflow unit.
@@ -24,16 +25,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $lot_id FK to lots
  * @property string|null $vessel_id FK to vessels
  * @property string|null $assigned_to FK to users
- * @property \Illuminate\Support\Carbon|null $due_date
+ * @property Carbon|null $due_date
  * @property string $status pending|in_progress|completed|skipped
  * @property string $priority low|normal|high
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $completed_at
  * @property string|null $completed_by FK to users
  * @property string|null $completion_notes
  * @property string|null $template_id FK to work_order_templates
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class WorkOrder extends Model
 {

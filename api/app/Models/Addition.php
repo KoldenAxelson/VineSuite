@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Addition — records when a product (SO2, nutrients, fining agent, etc.) is added to a lot.
@@ -29,10 +30,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $total_unit Unit for total (g, kg, lb, oz, mL, L)
  * @property string|null $reason Why the addition was made
  * @property string $performed_by FK to users
- * @property \Illuminate\Support\Carbon $performed_at When the addition was physically made
+ * @property Carbon $performed_at When the addition was physically made
  * @property string|null $inventory_item_id Optional link to inventory for auto-deduct
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Addition extends Model
 {

@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Filament\Resources\TTBReportResource\Pages;
 
 use App\Filament\Resources\TTBReportResource;
+use App\Filament\Widgets\TTBSectionALinesWidget;
+use App\Filament\Widgets\TTBSectionAStatsWidget;
+use App\Filament\Widgets\TTBSectionBLinesWidget;
+use App\Filament\Widgets\TTBSectionBStatsWidget;
 use App\Models\Event;
 use App\Models\TTBReport;
 use App\Models\TTBReportLine;
 use App\Services\EventLogger;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * TTB Report Review page — the winemaker reviews auto-generated report
@@ -20,7 +25,7 @@ class ReviewTTBReport extends Page
 {
     protected static string $resource = TTBReportResource::class;
 
-    protected static string $view = 'filament.pages.ttb-report-review';
+    protected string $view = 'filament.pages.ttb-report-review';
 
     protected static ?string $title = 'Review TTB Report';
 
@@ -40,10 +45,36 @@ class ReviewTTBReport extends Page
         $this->reportData = $record->data ?? [];
     }
 
+    protected function getHeaderWidgets(): array
+    {
+        $sectionA = $this->reportData['section_a']['summary'] ?? [];
+        $sectionB = $this->reportData['section_b']['summary'] ?? [];
+
+        $widgets = [];
+
+        if (! empty($sectionA)) {
+            $widgets[] = TTBSectionAStatsWidget::make(['sectionData' => $sectionA]);
+        }
+
+        if (! empty($sectionB)) {
+            $widgets[] = TTBSectionBStatsWidget::make(['sectionData' => $sectionB]);
+        }
+
+        return $widgets;
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            TTBSectionALinesWidget::make(['reportId' => $this->record->id]),
+            TTBSectionBLinesWidget::make(['reportId' => $this->record->id]),
+        ];
+    }
+
     /**
      * Get all line items grouped by section.
      *
-     * @return array<string, \Illuminate\Database\Eloquent\Collection<int, TTBReportLine>>
+     * @return array<string, Collection<int, TTBReportLine>>
      */
     public function getLinesBySection(): array
     {

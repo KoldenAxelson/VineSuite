@@ -12,6 +12,7 @@ use App\Models\StockMovement;
 use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * InventoryService — the single entry point for all stock level mutations.
@@ -134,7 +135,7 @@ class InventoryService implements InventoryServiceInterface
         }
 
         return DB::transaction(function () use ($skuId, $fromLocationId, $toLocationId, $quantity, $performedBy, $notes) {
-            $transferId = (string) \Illuminate\Support\Str::uuid();
+            $transferId = (string) Str::uuid();
 
             // Outflow from source
             $fromMovement = $this->recordMovementInTransaction(

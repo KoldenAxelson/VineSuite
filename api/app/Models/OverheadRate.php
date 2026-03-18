@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * OverheadRate — configurable overhead allocation rates.
@@ -20,8 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $allocation_method per_gallon|per_case|per_labor_hour
  * @property string $rate Decimal rate
  * @property bool $is_active Whether this rate is currently active
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class OverheadRate extends Model
 {

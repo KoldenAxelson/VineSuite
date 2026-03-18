@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\SensoryNote;
 use Illuminate\Http\Request;
 
 /**
- * @mixin \App\Models\SensoryNote
+ * @mixin SensoryNote
  */
 class SensoryNoteResource extends BaseResource
 {

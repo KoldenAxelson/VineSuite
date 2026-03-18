@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Services\InventoryService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -32,7 +34,7 @@ function createMovementTestTenant(string $slug = 'mvmt-winery'): array
 
     $userId = null;
     $tenant->run(function () use (&$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test Winemaker',
@@ -195,7 +197,7 @@ describe('stock movement event logging', function () {
                 locationId: $location->id,
                 quantity: 3,
                 performedBy: $userId,
-                options: ['reference_type' => 'order', 'reference_id' => (string) \Illuminate\Support\Str::uuid()],
+                options: ['reference_type' => 'order', 'reference_id' => (string) Str::uuid()],
             );
 
             $event = Event::where('entity_id', $movement->id)
@@ -436,7 +438,7 @@ describe('movement ledger', function () {
 
         $tenant->run(function () use ($userId) {
             ['sku' => $sku, 'location' => $location] = createSkuAndLocation();
-            $orderId = (string) \Illuminate\Support\Str::uuid();
+            $orderId = (string) Str::uuid();
 
             $service = app(InventoryService::class);
             $movement = $service->sell(
@@ -502,10 +504,10 @@ describe('inventory service validation', function () {
             $service = app(InventoryService::class);
 
             expect(fn () => $service->receive($sku->id, $location->id, 0, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Receive quantity must be positive.');
+                ->toThrow(InvalidArgumentException::class, 'Receive quantity must be positive.');
 
             expect(fn () => $service->receive($sku->id, $location->id, -5, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Receive quantity must be positive.');
+                ->toThrow(InvalidArgumentException::class, 'Receive quantity must be positive.');
         });
     });
 
@@ -517,10 +519,10 @@ describe('inventory service validation', function () {
             $service = app(InventoryService::class);
 
             expect(fn () => $service->sell($sku->id, $location->id, 0, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Sell quantity must be positive');
+                ->toThrow(InvalidArgumentException::class, 'Sell quantity must be positive');
 
             expect(fn () => $service->sell($sku->id, $location->id, -3, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Sell quantity must be positive');
+                ->toThrow(InvalidArgumentException::class, 'Sell quantity must be positive');
         });
     });
 
@@ -538,7 +540,7 @@ describe('inventory service validation', function () {
             $service = app(InventoryService::class);
 
             expect(fn () => $service->transfer($sku->id, $from->id, $to->id, 0, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Transfer quantity must be positive.');
+                ->toThrow(InvalidArgumentException::class, 'Transfer quantity must be positive.');
         });
     });
 
@@ -550,7 +552,7 @@ describe('inventory service validation', function () {
             $service = app(InventoryService::class);
 
             expect(fn () => $service->transfer($sku->id, $location->id, $location->id, 10, $userId))
-                ->toThrow(\InvalidArgumentException::class, 'Cannot transfer to the same location.');
+                ->toThrow(InvalidArgumentException::class, 'Cannot transfer to the same location.');
         });
     });
 })->group('inventory');

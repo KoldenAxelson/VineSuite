@@ -66,7 +66,7 @@ it('creates activity_logs table with immutability trigger', function () {
         try {
             DB::table('activity_logs')->where('id', $log->id)->update(['action' => 'deleted']);
             $this->fail('Expected exception for UPDATE on immutable activity_logs');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             expect($e->getMessage())->toContain('immutable');
         }
 
@@ -74,7 +74,7 @@ it('creates activity_logs table with immutability trigger', function () {
         try {
             DB::table('activity_logs')->where('id', $log->id)->delete();
             $this->fail('Expected exception for DELETE on immutable activity_logs');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             expect($e->getMessage())->toContain('immutable');
         }
     });

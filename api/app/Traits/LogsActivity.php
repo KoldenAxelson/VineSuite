@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Traits;
 
 use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Trait for models that should auto-log create/update/delete to the activity log.
@@ -84,7 +85,7 @@ trait LogsActivity
             ]);
         } catch (\Throwable $e) {
             // Don't let activity logging failures break the application
-            \Illuminate\Support\Facades\Log::warning('Activity logging failed', [
+            Log::warning('Activity logging failed', [
                 'action' => $action,
                 'model_type' => static::class,
                 'model_id' => $this->getKey(),

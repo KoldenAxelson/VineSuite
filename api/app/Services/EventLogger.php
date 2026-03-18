@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Support\LogContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -130,9 +131,9 @@ class EventLogger
      *
      * @param  string  $entityType  Entity type
      * @param  string  $entityId  Entity UUID
-     * @return \Illuminate\Database\Eloquent\Collection<int, Event>
+     * @return Collection<int, Event>
      */
-    public function getEntityStream(string $entityType, string $entityId): \Illuminate\Database\Eloquent\Collection
+    public function getEntityStream(string $entityType, string $entityId): Collection
     {
         return Event::forEntity($entityType, $entityId)
             ->orderBy('performed_at')
@@ -146,9 +147,9 @@ class EventLogger
      * @param  string  $operationType  Operation type to filter
      * @param  \DateTimeInterface|string  $from  Start of range
      * @param  \DateTimeInterface|string  $to  End of range
-     * @return \Illuminate\Database\Eloquent\Collection<int, Event>
+     * @return Collection<int, Event>
      */
-    public function getByOperationType(string $operationType, \DateTimeInterface|string $from, \DateTimeInterface|string $to): \Illuminate\Database\Eloquent\Collection
+    public function getByOperationType(string $operationType, \DateTimeInterface|string $from, \DateTimeInterface|string $to): Collection
     {
         return Event::ofType($operationType)
             ->performedBetween($from, $to)

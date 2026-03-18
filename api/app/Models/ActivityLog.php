@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array<int, string>|null $changed_fields List of field names that changed
  * @property string|null $ip_address Request IP
  * @property string|null $user_agent Browser/device info
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $created_at
  */
 class ActivityLog extends Model
 {

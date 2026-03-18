@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Responses;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Standardized API response envelope.
@@ -105,10 +106,10 @@ class ApiResponse
     /**
      * Paginated response — extracts pagination meta from a LengthAwarePaginator.
      *
-     * @param  \Illuminate\Pagination\LengthAwarePaginator<int, mixed>  $paginator
+     * @param  LengthAwarePaginator<int, mixed>  $paginator
      * @param  array<string, mixed>  $extraMeta
      */
-    public static function paginated(\Illuminate\Pagination\LengthAwarePaginator $paginator, array $extraMeta = []): JsonResponse
+    public static function paginated(LengthAwarePaginator $paginator, array $extraMeta = []): JsonResponse
     {
         return response()->json([
             'data' => $paginator->items(),

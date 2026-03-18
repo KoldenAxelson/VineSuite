@@ -7,20 +7,23 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\RawMaterialResource\Pages;
 use App\Filament\Resources\RawMaterialResource\RelationManagers;
 use App\Models\RawMaterial;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 
 class RawMaterialResource extends Resource
 {
     protected static ?string $model = RawMaterial::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-beaker';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 5;
 
@@ -30,11 +33,11 @@ class RawMaterialResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Raw Materials';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Material Details')
+                Section::make('Material Details')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -60,7 +63,7 @@ class RawMaterialResource extends Resource
                             ->default(true),
                     ]),
 
-                Forms\Components\Section::make('Stock & Cost')
+                Section::make('Stock & Cost')
                     ->schema([
                         Forms\Components\TextInput::make('on_hand')
                             ->numeric()
@@ -77,7 +80,7 @@ class RawMaterialResource extends Resource
                             ->prefix('$'),
                     ]),
 
-                Forms\Components\Section::make('Vendor & Notes')
+                Section::make('Vendor & Notes')
                     ->schema([
                         Forms\Components\TextInput::make('vendor_name')
                             ->maxLength(200),
@@ -140,7 +143,7 @@ class RawMaterialResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('category')
                     ->label('Category')
-                    ->options(fn () => Schema::hasTable('raw_materials')
+                    ->options(fn () => DatabaseSchema::hasTable('raw_materials')
                         ? array_combine(
                             RawMaterial::CATEGORIES,
                             array_map(fn ($c) => str_replace('_', ' ', ucfirst($c)), RawMaterial::CATEGORIES),
@@ -160,8 +163,8 @@ class RawMaterialResource extends Resource
                     ->query(fn ($query) => $query->expired()),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

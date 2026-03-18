@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Transfer;
 use Illuminate\Http\Request;
 
 /**
  * API resource for Transfer model.
  *
- * @mixin \App\Models\Transfer
+ * @mixin Transfer
  */
 class TransferResource extends BaseResource
 {

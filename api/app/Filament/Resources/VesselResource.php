@@ -6,11 +6,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\VesselResource\Pages;
 use App\Models\Vessel;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -24,9 +26,9 @@ class VesselResource extends Resource
 {
     protected static ?string $model = Vessel::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-cube';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-cube';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?string $navigationLabel = 'Vessels';
 
@@ -38,11 +40,11 @@ class VesselResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Vessel Details')
+                Section::make('Vessel Details')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -82,7 +84,8 @@ class VesselResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                Tables\Columns\BadgeColumn::make('type')
+                Tables\Columns\TextColumn::make('type')
+                    ->badge()
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->color('info')
                     ->sortable(),
@@ -104,13 +107,11 @@ class VesselResource extends Resource
                         default => 'secondary',
                     })
                     ->sortable(false),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'success' => 'in_use',
-                        'secondary' => 'empty',
-                        'warning' => 'cleaning',
-                        'danger' => 'out_of_service',
-                    ])
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'in_use' => 'success', 'empty' => 'secondary', 'cleaning' => 'warning', 'out_of_service' => 'danger', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('location')
@@ -129,18 +130,18 @@ class VesselResource extends Resource
                     ->searchable(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([])
             ->defaultSort('name');
     }
 
-    public static function infolist(Infolist $infolist): Infolist
+    public static function infolist(Schema $schema): Schema
     {
-        return $infolist
+        return $schema
             ->schema([
-                Infolists\Components\Section::make('Vessel Details')
+                Section::make('Vessel Details')
                     ->schema([
                         Infolists\Components\TextEntry::make('name')->weight('bold'),
                         Infolists\Components\TextEntry::make('type')
@@ -165,7 +166,7 @@ class VesselResource extends Resource
                     ])
                     ->columns(3),
 
-                Infolists\Components\Section::make('Current Contents')
+                Section::make('Current Contents')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('lots')
                             ->schema([

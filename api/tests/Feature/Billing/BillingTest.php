@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlanTier;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -117,7 +118,7 @@ it('new tenants default to free plan', function () {
         'slug' => 'free-plan-test',
     ]);
 
-    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Free);
+    expect($tenant->plan)->toBe(PlanTier::Free);
     expect($tenant->isFreePlan())->toBeTrue();
     expect($tenant->hasActiveAccess())->toBeTrue();
 });

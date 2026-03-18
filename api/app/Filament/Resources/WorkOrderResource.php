@@ -4,20 +4,24 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\WorkOrderResource\Pages\CalendarWorkOrders;
+use App\Filament\Resources\WorkOrderResource\Pages\CreateWorkOrder;
+use App\Filament\Resources\WorkOrderResource\Pages\EditWorkOrder;
+use App\Filament\Resources\WorkOrderResource\Pages\ListWorkOrders;
 use App\Models\WorkOrder;
 use App\Services\WorkOrderService;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Resources\Pages\EditRecord;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Actions\ViewAction;
-use Filament\Tables\Columns\BadgeColumn;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -28,9 +32,9 @@ class WorkOrderResource extends Resource
 {
     protected static ?string $model = WorkOrder::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?int $navigationSort = 4;
 
@@ -41,9 +45,9 @@ class WorkOrderResource extends Resource
         return auth()->check();
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Work Order Details')
                     ->schema([
@@ -85,7 +89,7 @@ class WorkOrderResource extends Resource
                         Textarea::make('completion_notes')
                             ->columnSpanFull(),
                     ])
-                    ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
+                    ->visible(fn ($livewire) => $livewire instanceof EditRecord),
             ]);
     }
 
@@ -104,21 +108,18 @@ class WorkOrderResource extends Resource
                 TextColumn::make('due_date')
                     ->date()
                     ->sortable(),
-                BadgeColumn::make('status')
+                TextColumn::make('status')
                     ->formatStateUsing(fn (string $state) => ucfirst(str_replace('_', ' ', $state)))
-                    ->colors([
-                        'warning' => 'pending',
-                        'info' => 'in_progress',
-                        'success' => 'completed',
-                        'secondary' => 'skipped',
-                    ]),
-                BadgeColumn::make('priority')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'pending' => 'warning', 'in_progress' => 'info', 'completed' => 'success', 'skipped' => 'secondary', default => 'gray'
+                    }),
+                TextColumn::make('priority')
                     ->formatStateUsing(fn (string $state) => ucfirst($state))
-                    ->colors([
-                        'danger' => 'high',
-                        'info' => 'normal',
-                        'secondary' => 'low',
-                    ]),
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'high' => 'danger', 'normal' => 'info', 'low' => 'secondary', default => 'gray'
+                    }),
                 TextColumn::make('completed_at')
                     ->dateTime()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -173,10 +174,10 @@ class WorkOrderResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => \App\Filament\Resources\WorkOrderResource\Pages\ListWorkOrders::route('/'),
-            'create' => \App\Filament\Resources\WorkOrderResource\Pages\CreateWorkOrder::route('/create'),
-            'edit' => \App\Filament\Resources\WorkOrderResource\Pages\EditWorkOrder::route('/{record}/edit'),
-            'calendar' => \App\Filament\Resources\WorkOrderResource\Pages\CalendarWorkOrders::route('/calendar'),
+            'index' => ListWorkOrders::route('/'),
+            'create' => CreateWorkOrder::route('/create'),
+            'edit' => EditWorkOrder::route('/{record}/edit'),
+            'calendar' => CalendarWorkOrders::route('/calendar'),
         ];
     }
 }

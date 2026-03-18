@@ -7,9 +7,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\LabThresholdResource\Pages;
 use App\Models\LabAnalysis;
 use App\Models\LabThreshold;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -17,19 +22,19 @@ class LabThresholdResource extends Resource
 {
     protected static ?string $model = LabThreshold::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-bell-alert';
 
-    protected static ?string $navigationGroup = 'Lab';
+    protected static \UnitEnum|string|null $navigationGroup = 'Lab';
 
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationLabel = 'Threshold Alerts';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Threshold Configuration')
+                Section::make('Threshold Configuration')
                     ->schema([
                         Forms\Components\Select::make('test_type')
                             ->options(array_combine(
@@ -87,11 +92,11 @@ class LabThresholdResource extends Resource
                     ->label('Max')
                     ->default('—'),
 
-                Tables\Columns\BadgeColumn::make('alert_level')
-                    ->colors([
-                        'warning' => 'warning',
-                        'danger' => 'critical',
-                    ])
+                Tables\Columns\TextColumn::make('alert_level')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'warning' => 'warning', 'critical' => 'danger', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
             ])
             ->defaultSort('test_type')
@@ -109,12 +114,12 @@ class LabThresholdResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                EditAction::make(),
+                DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

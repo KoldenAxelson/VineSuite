@@ -11,6 +11,7 @@ use App\Models\Vessel;
 use App\Support\LogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * TransferService — business logic for wine transfers between vessels.
@@ -186,7 +187,7 @@ class TransferService implements TransferServiceInterface
         } else {
             // Create new pivot record
             DB::table('lot_vessel')->insert([
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'lot_id' => $lotId,
                 'vessel_id' => $vessel->id,
                 'volume_gallons' => $amount,

@@ -17,6 +17,8 @@ use App\Models\RawMaterial;
 use App\Models\Vessel;
 use App\Models\WorkOrder;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -96,16 +98,16 @@ class SyncPullController extends Controller
      *
      * @template TModel of \Illuminate\Database\Eloquent\Model
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<TModel>  $query
-     * @return \Illuminate\Database\Eloquent\Collection<int, TModel>
+     * @param  Builder<TModel>  $query
+     * @return Collection<int, TModel>
      */
-    private function pullEntity(\Illuminate\Database\Eloquent\Builder $query, ?CarbonImmutable $since)
+    private function pullEntity(Builder $query, ?CarbonImmutable $since)
     {
         if ($since !== null) {
             $query->where('updated_at', '>', $since);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, TModel> */
+        /** @var Collection<int, TModel> */
         return $query->limit(self::MAX_PER_ENTITY)->get();
     }
 }

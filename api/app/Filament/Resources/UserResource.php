@@ -6,9 +6,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -22,9 +25,9 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static \UnitEnum|string|null $navigationGroup = 'Settings';
 
     protected static ?string $navigationLabel = 'Team Members';
 
@@ -34,11 +37,11 @@ class UserResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Team Members';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('User Information')
+                Section::make('User Information')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -78,14 +81,11 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('role')
-                    ->colors([
-                        'primary' => 'owner',
-                        'success' => 'admin',
-                        'info' => 'winemaker',
-                        'warning' => 'cellar_hand',
-                        'secondary' => fn (string $state): bool => in_array($state, ['tasting_room_staff', 'accountant', 'read_only']),
-                    ])
+                Tables\Columns\TextColumn::make('role')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'owner' => 'primary', 'admin' => 'success', 'winemaker' => 'info', 'cellar_hand' => 'warning', 'tasting_room_staff' => 'secondary', 'accountant' => 'secondary', 'read_only' => 'secondary', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => str_replace('_', ' ', ucfirst($state)))
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
@@ -116,7 +116,7 @@ class UserResource extends Resource
                     ->label('Active Status'),
             ])
             ->actions([
-                Tables\Actions\Action::make('deactivate')
+                Action::make('deactivate')
                     ->label('Deactivate')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
@@ -125,14 +125,14 @@ class UserResource extends Resource
                     ->modalDescription('This will prevent the user from logging in. Their data will be preserved.')
                     ->visible(fn (User $record): bool => $record->is_active && $record->role !== 'owner')
                     ->action(fn (User $record) => $record->update(['is_active' => false])),
-                Tables\Actions\Action::make('activate')
+                Action::make('activate')
                     ->label('Activate')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
                     ->visible(fn (User $record): bool => ! $record->is_active)
                     ->action(fn (User $record) => $record->update(['is_active' => true])),
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([])
             ->defaultSort('name');

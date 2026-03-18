@@ -7,11 +7,13 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Database\Factories\CaseGoodsSkuFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
 
 /**
@@ -36,12 +38,12 @@ use Laravel\Scout\Searchable;
  * @property string|null $tech_sheet_path Tech sheet PDF path
  * @property string|null $lot_id FK to origin lot
  * @property string|null $bottling_run_id FK to bottling run that created this SKU
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property-read Lot|null $lot
  * @property-read BottlingRun|null $bottlingRun
- * @property-read \Illuminate\Database\Eloquent\Collection<int, StockLevel> $stockLevels
- * @property-read \Illuminate\Database\Eloquent\Collection<int, StockMovement> $stockMovements
+ * @property-read Collection<int, StockLevel> $stockLevels
+ * @property-read Collection<int, StockMovement> $stockMovements
  */
 class CaseGoodsSku extends Model
 {

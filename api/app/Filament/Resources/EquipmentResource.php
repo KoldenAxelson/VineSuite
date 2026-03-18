@@ -7,20 +7,23 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\EquipmentResource\Pages;
 use App\Filament\Resources\EquipmentResource\RelationManagers;
 use App\Models\Equipment;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 
 class EquipmentResource extends Resource
 {
     protected static ?string $model = Equipment::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-wrench-screwdriver';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 6;
 
@@ -30,11 +33,11 @@ class EquipmentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Equipment';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Equipment Details')
+                Section::make('Equipment Details')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -70,7 +73,7 @@ class EquipmentResource extends Resource
                             ->default(true),
                     ]),
 
-                Forms\Components\Section::make('Purchase & Maintenance')
+                Section::make('Purchase & Maintenance')
                     ->schema([
                         Forms\Components\DatePicker::make('purchase_date'),
 
@@ -82,7 +85,7 @@ class EquipmentResource extends Resource
                         Forms\Components\DatePicker::make('next_maintenance_due'),
                     ]),
 
-                Forms\Components\Section::make('Notes')
+                Section::make('Notes')
                     ->schema([
                         Forms\Components\Textarea::make('notes')
                             ->rows(3)
@@ -140,7 +143,7 @@ class EquipmentResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('equipment_type')
                     ->label('Type')
-                    ->options(fn () => Schema::hasTable('equipment')
+                    ->options(fn () => DatabaseSchema::hasTable('equipment')
                         ? array_combine(
                             Equipment::EQUIPMENT_TYPES,
                             array_map(fn ($t) => str_replace('_', ' ', ucfirst($t)), Equipment::EQUIPMENT_TYPES),
@@ -162,8 +165,8 @@ class EquipmentResource extends Resource
                     ->query(fn ($query) => $query->maintenanceDue()),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

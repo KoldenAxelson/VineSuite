@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\FermentationEntry;
 use Illuminate\Http\Request;
 
 /**
- * @mixin \App\Models\FermentationEntry
+ * @mixin FermentationEntry
  */
 class FermentationEntryResource extends BaseResource
 {

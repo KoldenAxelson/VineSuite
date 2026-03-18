@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,9 +20,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $license_required
  * @property string|null $license_type_required
  * @property string|null $notes
- * @property \Carbon\Carbon|null $last_verified_at
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon|null $last_verified_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class DTCComplianceRule extends Model
 {

@@ -6,9 +6,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AdditionResource\Pages;
 use App\Models\Addition;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,17 +18,17 @@ class AdditionResource extends Resource
 {
     protected static ?string $model = Addition::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-plus-circle';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?int $navigationSort = 5;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Addition Details')
+                Section::make('Addition Details')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->relationship('lot', 'name')
@@ -108,16 +110,11 @@ class AdditionResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\BadgeColumn::make('addition_type')
-                    ->colors([
-                        'danger' => 'sulfite',
-                        'info' => 'nutrient',
-                        'warning' => 'fining',
-                        'secondary' => 'acid',
-                        'success' => 'enzyme',
-                        'primary' => 'tannin',
-                        'gray' => 'other',
-                    ])
+                Tables\Columns\TextColumn::make('addition_type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'sulfite' => 'danger', 'nutrient' => 'info', 'fining' => 'warning', 'acid' => 'secondary', 'enzyme' => 'success', 'tannin' => 'primary', 'other' => 'gray', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
                 Tables\Columns\TextColumn::make('product_name')
@@ -175,7 +172,7 @@ class AdditionResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([
                 // No bulk delete due to immutability

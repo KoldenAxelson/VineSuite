@@ -6,9 +6,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SensoryNoteResource\Pages;
 use App\Models\SensoryNote;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,19 +19,19 @@ class SensoryNoteResource extends Resource
 {
     protected static ?string $model = SensoryNote::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-beaker';
 
-    protected static ?string $navigationGroup = 'Lab';
+    protected static \UnitEnum|string|null $navigationGroup = 'Lab';
 
     protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationLabel = 'Tasting Notes';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Tasting Details')
+                Section::make('Tasting Details')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->relationship('lot', 'name')
@@ -46,20 +49,20 @@ class SensoryNoteResource extends Resource
                                 'hundred_point' => '100-Point Scale',
                             ])
                             ->default('five_point')
-                            ->reactive(),
+                            ->live(),
 
                         Forms\Components\TextInput::make('rating')
                             ->numeric()
                             ->step(0.1)
                             ->minValue(0)
-                            ->maxValue(fn (Forms\Get $get): float => $get('rating_scale') === 'hundred_point' ? 100.0 : 5.0)
-                            ->helperText(fn (Forms\Get $get): string => $get('rating_scale') === 'hundred_point'
+                            ->maxValue(fn (Get $get): float => $get('rating_scale') === 'hundred_point' ? 100.0 : 5.0)
+                            ->helperText(fn (Get $get): string => $get('rating_scale') === 'hundred_point'
                                 ? 'Rate 0–100'
                                 : 'Rate 0–5'),
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('Tasting Notes')
+                Section::make('Tasting Notes')
                     ->schema([
                         Forms\Components\Textarea::make('nose_notes')
                             ->label('Nose / Aroma')
@@ -143,7 +146,7 @@ class SensoryNoteResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([]);
     }

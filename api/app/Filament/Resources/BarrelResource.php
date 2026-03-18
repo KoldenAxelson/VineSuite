@@ -6,9 +6,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BarrelResource\Pages;
 use App\Models\Barrel;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -22,9 +25,9 @@ class BarrelResource extends Resource
 {
     protected static ?string $model = Barrel::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-archive-box';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-archive-box';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?string $navigationLabel = 'Barrels';
 
@@ -36,11 +39,11 @@ class BarrelResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'id';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Barrel Details')
+                Section::make('Barrel Details')
                     ->schema([
                         Forms\Components\Select::make('vessel_id')
                             ->relationship('vessel', 'name')
@@ -83,11 +86,13 @@ class BarrelResource extends Resource
                 Tables\Columns\TextColumn::make('cooperage')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('toast_level')
+                Tables\Columns\TextColumn::make('toast_level')
+                    ->badge()
                     ->formatStateUsing(fn (?string $state): string => $state ? ucfirst(str_replace('_', ' ', $state)) : '')
                     ->color('info')
                     ->sortable(),
-                Tables\Columns\BadgeColumn::make('oak_type')
+                Tables\Columns\TextColumn::make('oak_type')
+                    ->badge()
                     ->formatStateUsing(fn (?string $state): string => $state ? ucfirst(str_replace('_', ' ', $state)) : '')
                     ->color('success')
                     ->sortable(),
@@ -125,8 +130,8 @@ class BarrelResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([])
             ->defaultSort('id');

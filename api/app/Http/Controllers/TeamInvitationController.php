@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Responses\ApiResponse;
 use App\Mail\TeamInvitationMail;
 use App\Models\TeamInvitation;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -49,7 +50,7 @@ class TeamInvitationController extends Controller
         }
 
         // Block if a user with this email already exists in this tenant
-        if (\App\Models\User::where('email', $validated['email'])->exists()) {
+        if (User::where('email', $validated['email'])->exists()) {
             return ApiResponse::error('A user with this email already exists in this winery.', 422);
         }
 

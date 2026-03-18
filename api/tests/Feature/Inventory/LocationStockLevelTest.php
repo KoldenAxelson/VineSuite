@@ -8,8 +8,10 @@ use App\Models\Location;
 use App\Models\StockLevel;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -29,7 +31,7 @@ function createLocationTestTenant(string $slug = 'loc-winery', string $role = 'w
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -249,7 +251,7 @@ describe('stock level data integrity', function () {
                 'sku_id' => $sku->id,
                 'location_id' => $location->id,
                 'on_hand' => 25,
-            ]))->toThrow(\Illuminate\Database\QueryException::class);
+            ]))->toThrow(QueryException::class);
         });
     });
 })->group('inventory');

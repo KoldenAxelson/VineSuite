@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\FilterLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
- * @mixin \App\Models\FilterLog
+ * @mixin FilterLog
  *
- * @property \Illuminate\Support\Carbon $performed_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $performed_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class FilterLogResource extends BaseResource
 {

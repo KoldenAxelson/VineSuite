@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Fermentation round — a single fermentation pass for a lot.
@@ -24,18 +25,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $lot_id FK to lots
  * @property int $round_number 1 for primary, 2 for ML, 3+ for re-inoculation
  * @property string $fermentation_type primary or malolactic
- * @property \Illuminate\Support\Carbon $inoculation_date When yeast/bacteria was added
+ * @property Carbon $inoculation_date When yeast/bacteria was added
  * @property string|null $yeast_strain Yeast strain used (primary fermentation)
  * @property string|null $ml_bacteria ML bacteria strain (malolactic only)
  * @property string|null $target_temp Target fermentation temperature (°F)
  * @property array<string, mixed>|null $nutrients_schedule JSON nutrient additions plan
  * @property string $status active, completed, or stuck
- * @property \Illuminate\Support\Carbon|null $completion_date When fermentation finished
- * @property \Illuminate\Support\Carbon|null $confirmation_date ML dryness confirmation date
+ * @property Carbon|null $completion_date When fermentation finished
+ * @property Carbon|null $confirmation_date ML dryness confirmation date
  * @property string|null $notes Free-text notes
  * @property string|null $created_by UUID of the user who created the round
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class FermentationRound extends Model
 {

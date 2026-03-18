@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Label compliance check — a single rule evaluation against a label profile.
@@ -24,9 +25,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $actual_percentage Computed actual percentage
  * @property bool $passes Whether the rule is satisfied
  * @property array<string, mixed>|null $details Breakdown and remediation
- * @property \Illuminate\Support\Carbon $checked_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $checked_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class LabelComplianceCheck extends Model
 {

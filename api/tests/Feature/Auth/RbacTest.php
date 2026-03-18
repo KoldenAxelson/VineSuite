@@ -6,8 +6,10 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
 uses(DatabaseMigrations::class);
 
@@ -133,8 +135,8 @@ it('role middleware blocks unauthorized access', function () {
         $token = $user->createToken('test', User::TOKEN_ABILITIES['portal'])->plainTextToken;
 
         // Register a test route that requires owner role
-        \Illuminate\Support\Facades\Route::middleware([
-            \Stancl\Tenancy\Middleware\InitializeTenancyByRequestData::class,
+        Route::middleware([
+            InitializeTenancyByRequestData::class,
             'auth:sanctum',
             'role:owner,admin',
         ])->get('/api/v1/test-admin-only', function () {

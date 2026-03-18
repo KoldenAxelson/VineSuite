@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Vessel;
 use Illuminate\Http\Request;
 
 /**
@@ -12,7 +13,7 @@ use Illuminate\Http\Request;
  * Wraps vessel data in the standard API envelope via BaseResource.
  * Includes current contents (lot + volume + fill %) when loaded.
  *
- * @mixin \App\Models\Vessel
+ * @mixin Vessel
  */
 class VesselResource extends BaseResource
 {

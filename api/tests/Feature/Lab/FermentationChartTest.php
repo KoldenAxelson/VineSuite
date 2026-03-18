@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -28,7 +29,7 @@ function createChartTestTenant(string $slug = 'chart-winery', string $role = 'wi
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -421,7 +422,7 @@ it('prevents cross-tenant chart data access', function () {
 
     // Tenant B user tries to access Tenant A's round chart
     $tenantB->run(function () {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         $user = User::create([
             'name' => 'Beta User', 'email' => 'b@example.com',
             'password' => 'SecurePass123!', 'role' => 'winemaker', 'is_active' => true,

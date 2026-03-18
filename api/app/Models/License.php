@@ -18,13 +18,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $license_type ttb_permit, state_license, cola
  * @property string $jurisdiction federal, or state name
  * @property string $license_number
- * @property \Carbon\Carbon|null $issued_date
- * @property \Carbon\Carbon|null $expiration_date
+ * @property Carbon|null $issued_date
+ * @property Carbon|null $expiration_date
  * @property int $renewal_lead_days
  * @property string|null $document_path
  * @property string|null $notes
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class License extends Model
 {

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Production lot — a batch of wine tracked from grape reception through bottling.
@@ -30,8 +31,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $volume_gallons Current volume in gallons
  * @property string $status in_progress|aging|finished|bottled|sold|archived
  * @property string|null $parent_lot_id UUID of parent lot (for splits/blends)
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Lot extends Model
 {

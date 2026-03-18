@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Barrel;
 use Illuminate\Http\Request;
 
 /**
@@ -13,7 +14,7 @@ use Illuminate\Http\Request;
  * Returns a flat structure with both barrel and vessel fields for ease
  * of use by the client.
  *
- * @mixin \App\Models\Barrel
+ * @mixin Barrel
  */
 class BarrelResource extends BaseResource
 {

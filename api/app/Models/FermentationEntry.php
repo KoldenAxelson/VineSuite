@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Fermentation entry — a single daily measurement during a fermentation round.
@@ -20,15 +21,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property string $id UUID
  * @property string $fermentation_round_id FK to fermentation_rounds
- * @property \Illuminate\Support\Carbon $entry_date Date of the reading
+ * @property Carbon $entry_date Date of the reading
  * @property string|null $temperature Temperature reading (°F)
  * @property string|null $brix_or_density Brix or specific gravity value
  * @property string|null $measurement_type 'brix' or 'specific_gravity'
  * @property string|null $free_so2 Free SO2 reading (mg/L)
  * @property string|null $notes Free-text notes
  * @property string|null $performed_by UUID of the user who recorded the entry
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon $created_at
+ * @property Carbon|null $updated_at
  */
 class FermentationEntry extends Model
 {

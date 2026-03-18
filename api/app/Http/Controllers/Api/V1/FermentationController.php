@@ -10,6 +10,7 @@ use App\Http\Requests\StoreFermentationRoundRequest;
 use App\Http\Resources\FermentationEntryResource;
 use App\Http\Resources\FermentationRoundResource;
 use App\Http\Responses\ApiResponse;
+use App\Models\FermentationEntry;
 use App\Models\FermentationRound;
 use App\Services\FermentationService;
 use Illuminate\Http\JsonResponse;
@@ -100,7 +101,7 @@ class FermentationController extends Controller
      */
     public function entries(Request $request, string $roundId): JsonResponse
     {
-        $query = \App\Models\FermentationEntry::query()
+        $query = FermentationEntry::query()
             ->with('performer')
             ->where('fermentation_round_id', $roundId);
 
@@ -114,7 +115,7 @@ class FermentationController extends Controller
         $query->orderBy('entry_date')->orderBy('created_at');
 
         $paginator = $query->paginate($request->integer('per_page', 50));
-        $paginator->through(fn (\App\Models\FermentationEntry $entry) => new FermentationEntryResource($entry));
+        $paginator->through(fn (FermentationEntry $entry) => new FermentationEntryResource($entry));
 
         return ApiResponse::paginated($paginator);
     }

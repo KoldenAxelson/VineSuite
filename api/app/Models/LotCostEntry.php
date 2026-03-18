@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * LotCostEntry — immutable cost ledger entry for a production lot.
@@ -25,8 +26,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $unit_cost Cost per unit (nullable)
  * @property string|null $reference_type Source record type: addition|work_order|purchase|manual|blend_allocation|split_allocation|bottling
  * @property string|null $reference_id UUID of the source record
- * @property \Illuminate\Support\Carbon $performed_at When the cost was incurred
- * @property \Illuminate\Support\Carbon $created_at
+ * @property Carbon $performed_at When the cost was incurred
+ * @property Carbon $created_at
  */
 class LotCostEntry extends Model
 {

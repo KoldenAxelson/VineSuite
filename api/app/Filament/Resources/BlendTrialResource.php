@@ -7,19 +7,19 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BlendTrialResource\Pages;
 use App\Models\BlendTrial;
 use App\Services\BlendService;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Actions\ViewAction;
-use Filament\Tables\Columns\BadgeColumn;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\TextSize;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\TextColumn\TextColumnSize;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -28,9 +28,9 @@ class BlendTrialResource extends Resource
 {
     protected static ?string $model = BlendTrial::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-variable';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-variable';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?int $navigationSort = 8;
 
@@ -41,9 +41,9 @@ class BlendTrialResource extends Resource
         return Auth::check();
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Blend Trial Details')
                     ->columns(2)
@@ -89,13 +89,12 @@ class BlendTrialResource extends Resource
                 TextColumn::make('name')
                     ->searchable()
                     ->weight('bold')
-                    ->size(TextColumnSize::Medium),
-                BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'draft',
-                        'success' => 'finalized',
-                        'secondary' => 'archived',
-                    ]),
+                    ->size(TextSize::Medium),
+                TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'warning', 'finalized' => 'success', 'archived' => 'secondary', default => 'gray'
+                    }),
                 TextColumn::make('version')
                     ->numeric(),
                 TextColumn::make('ttb_label_variety')
@@ -126,7 +125,7 @@ class BlendTrialResource extends Resource
                         ->visible(function (BlendTrial $record): bool {
                             return $record->status !== 'finalized';
                         }),
-                    \Filament\Tables\Actions\Action::make('finalize')
+                    Action::make('finalize')
                         ->label('Finalize')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')

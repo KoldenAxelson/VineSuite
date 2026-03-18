@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\DTCComplianceService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -26,7 +27,7 @@ function seedAndGetDTCTenant(string $slug = 'dtc-test'): array
 
     $userId = null;
     $tenant->run(function () use (&$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test Admin',

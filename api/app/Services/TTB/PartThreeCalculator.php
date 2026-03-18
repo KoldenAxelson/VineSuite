@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\TTB;
 
 use App\Models\Event;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Part III Calculator — Wine Received in Bond.
@@ -121,10 +122,10 @@ class PartThreeCalculator
     /**
      * Aggregate received events by wine type.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Event>  $events
+     * @param  Collection<int, Event>  $events
      * @return array<string, array{gallons: float, event_ids: array<int, string>, needs_review: bool}>
      */
-    private function aggregateByWineType(\Illuminate\Database\Eloquent\Collection $events): array
+    private function aggregateByWineType(Collection $events): array
     {
         $grouped = [];
 

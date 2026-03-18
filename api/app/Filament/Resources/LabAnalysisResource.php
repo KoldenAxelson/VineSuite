@@ -6,9 +6,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LabAnalysisResource\Pages;
 use App\Models\LabAnalysis;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,19 +19,19 @@ class LabAnalysisResource extends Resource
 {
     protected static ?string $model = LabAnalysis::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-beaker';
 
-    protected static ?string $navigationGroup = 'Lab';
+    protected static \UnitEnum|string|null $navigationGroup = 'Lab';
 
     protected static ?int $navigationSort = 1;
 
     protected static ?string $navigationLabel = 'Lab Analyses';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Analysis Details')
+                Section::make('Analysis Details')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->relationship('lot', 'name')
@@ -58,8 +61,8 @@ class LabAnalysisResource extends Resource
                                 }, LabAnalysis::TEST_TYPES),
                             ))
                             ->required()
-                            ->reactive()
-                            ->afterStateUpdated(function (Forms\Set $set, ?string $state) {
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, ?string $state) {
                                 if ($state && isset(LabAnalysis::DEFAULT_UNITS[$state])) {
                                     $set('unit', LabAnalysis::DEFAULT_UNITS[$state]);
                                 }
@@ -112,16 +115,11 @@ class LabAnalysisResource extends Resource
                     ->date()
                     ->sortable(),
 
-                Tables\Columns\BadgeColumn::make('test_type')
-                    ->colors([
-                        'info' => 'pH',
-                        'warning' => 'TA',
-                        'danger' => 'VA',
-                        'success' => fn (string $state): bool => in_array($state, ['free_SO2', 'total_SO2']),
-                        'primary' => 'alcohol',
-                        'secondary' => 'residual_sugar',
-                        'gray' => fn (string $state): bool => ! in_array($state, ['pH', 'TA', 'VA', 'free_SO2', 'total_SO2', 'alcohol', 'residual_sugar']),
-                    ])
+                Tables\Columns\TextColumn::make('test_type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'pH' => 'info', 'TA' => 'warning', 'VA' => 'danger', 'alcohol' => 'primary', 'residual_sugar' => 'secondary', 'free_SO2' => 'success', 'total_SO2' => 'success', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'pH' => 'pH',
                         'TA' => 'TA',
@@ -147,11 +145,11 @@ class LabAnalysisResource extends Resource
                 Tables\Columns\TextColumn::make('analyst')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\BadgeColumn::make('source')
-                    ->colors([
-                        'gray' => 'manual',
-                        'info' => fn (string $state): bool => $state !== 'manual',
-                    ])
+                Tables\Columns\TextColumn::make('source')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'manual' => 'gray', default => 'info'
+                    })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'manual' => 'Manual',
                         'ets_labs' => 'ETS Labs',
@@ -200,7 +198,7 @@ class LabAnalysisResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([]);
     }

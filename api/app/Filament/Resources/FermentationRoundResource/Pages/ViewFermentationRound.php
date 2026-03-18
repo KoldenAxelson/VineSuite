@@ -21,7 +21,7 @@ class ViewFermentationRound extends ViewRecord
         ];
     }
 
-    public function getFooterWidgetsColumns(): int|string|array
+    public function getFooterWidgetsColumns(): int|array
     {
         return 1;
     }

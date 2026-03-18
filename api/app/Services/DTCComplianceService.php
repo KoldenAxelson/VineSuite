@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\CustomerDTCShipment;
 use App\Models\DTCComplianceRule;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * DTCComplianceService — checks DTC shipping eligibility and tracks shipments.
@@ -143,7 +144,7 @@ class DTCComplianceService
     {
         $yearStart = Carbon::now()->startOfYear();
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, CustomerDTCShipment&object{total_cases: numeric-string, total_gallons: numeric-string}> $shipments */
+        /** @var Collection<int, CustomerDTCShipment&object{total_cases: numeric-string, total_gallons: numeric-string}> $shipments */
         $shipments = CustomerDTCShipment::where('customer_id', $customerId)
             ->where('shipped_at', '>=', $yearStart)
             ->selectRaw('state_code, SUM(cases_shipped) as total_cases, SUM(gallons_shipped) as total_gallons')

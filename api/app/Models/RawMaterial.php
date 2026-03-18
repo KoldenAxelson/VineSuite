@@ -7,10 +7,12 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Database\Factories\RawMaterialFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Raw material / cellar supply inventory item.
@@ -25,14 +27,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $on_hand Current stock in native units
  * @property float|null $reorder_point Alert threshold
  * @property float|null $cost_per_unit Cost per native unit (feeds COGS)
- * @property \Illuminate\Support\Carbon|null $expiration_date
+ * @property Carbon|null $expiration_date
  * @property string|null $vendor_name Human-readable vendor name
  * @property string|null $vendor_id FK to vendors (when built)
  * @property bool $is_active
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseOrderLine> $purchaseOrderLines
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property-read Collection<int, PurchaseOrderLine> $purchaseOrderLines
  */
 class RawMaterial extends Model
 {

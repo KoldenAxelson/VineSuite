@@ -7,6 +7,7 @@ use App\Models\Lot;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -26,7 +27,7 @@ function createSplitTestTenant(string $slug = 'split-winery', string $role = 'wi
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),

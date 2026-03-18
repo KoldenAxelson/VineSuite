@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Stock movement — an immutable ledger entry recording a change to stock levels.
@@ -26,9 +27,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $reference_type Source type (order, bottling_run, transfer, adjustment)
  * @property string|null $reference_id Source UUID
  * @property string|null $performed_by FK to users
- * @property \Illuminate\Support\Carbon $performed_at When the movement occurred
+ * @property Carbon $performed_at When the movement occurred
  * @property string|null $notes Free-text notes
- * @property \Illuminate\Support\Carbon|null $created_at
+ * @property Carbon|null $created_at
  * @property-read CaseGoodsSku $sku
  * @property-read Location $location
  * @property-read User|null $performer

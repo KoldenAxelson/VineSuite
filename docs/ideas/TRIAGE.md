@@ -119,3 +119,11 @@ Phase 7 (Task 07) is pure mobile infrastructure: Kotlin Multiplatform project sc
 | `bulk-wine-receipt-events.md` | **Defer → Phase 9+** | Technical debt from Phase 6. Bulk wine receipt events for TTB Part III. No overlap with KMP core — this is a server-side API/service concern. Natural fit when building POS or wholesale channels that handle bonded wine transfers. |
 | `ttb-production-event-workflows.md` | **Defer → Phase 9+** | Technical debt from Phase 6. 18 TTB event types with calculator support but no emission path. Tier 1 events (sweetening, fortification, evaporation) should land with the first production-heavy sales channel. No KMP overlap. |
 | `research-gap-analysis.md` | **Reference only** | No change. |
+
+---
+
+### Pre-Task 7 Triage — Filament v4 Migration (2026-03-17)
+
+| Idea | Disposition | Rationale |
+|------|-------------|-----------|
+| `filament-v4-migration.md` | **Absorb → Execute before Task 7** | Filament v4 is stable (v4.5+). No third-party Filament plugins to block the upgrade. Laravel 12 and PHP 8.2 already meet requirements. Automated upgrade tooling handles most of the 24 resources. Key wins: unified Schema (halves form/infolist maintenance), auto tenancy scoping, PHP-based page layouts (reduces custom blade template debt), better theming support for planned theme picker. Estimated 2–3 day effort. Risk is low — custom blade templates use standard Tailwind classes and stable Filament component API. Doing this now prevents accumulating more v3-specific code before mobile apps (Task 7+) build against the admin API. |

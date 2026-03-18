@@ -1,9 +1,15 @@
 <?php
 
 declare(strict_types=1);
+use App\Models\Tenant;
+use Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper;
+use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
+use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
+use Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper;
+use Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLSchemaManager;
 
 return [
-    'tenant_model' => \App\Models\Tenant::class,
+    'tenant_model' => Tenant::class,
 
     /**
      * Features enabled for tenancy.
@@ -61,7 +67,7 @@ return [
          * tenant databases. We use the PostgreSQL schema manager.
          */
         'managers' => [
-            'pgsql' => Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLSchemaManager::class,
+            'pgsql' => PostgreSQLSchemaManager::class,
         ],
     ],
 
@@ -110,10 +116,10 @@ return [
      * They switch the app context to the tenant's scope.
      */
     'bootstrappers' => [
-        Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper::class,
-        Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper::class,
-        Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper::class,
-        Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper::class,
+        DatabaseTenancyBootstrapper::class,
+        CacheTenancyBootstrapper::class,
+        FilesystemTenancyBootstrapper::class,
+        QueueTenancyBootstrapper::class,
         // Stancl\Tenancy\Bootstrappers\RedisTenancyBootstrapper::class, // Enable when using Redis prefixing
     ],
 

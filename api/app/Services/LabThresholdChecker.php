@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\LabAnalysis;
 use App\Models\LabThreshold;
 use App\Support\LogContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -77,7 +78,7 @@ class LabThresholdChecker
     /**
      * Resolve effective thresholds: variety-specific overrides global for same alert level.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, LabThreshold>  $thresholds
+     * @param  Collection<int, LabThreshold>  $thresholds
      * @return array<int, LabThreshold>
      */
     private function resolveEffectiveThresholds($thresholds, ?string $variety): array

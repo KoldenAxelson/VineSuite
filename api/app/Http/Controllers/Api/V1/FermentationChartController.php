@@ -10,6 +10,7 @@ use App\Models\FermentationEntry;
 use App\Models\FermentationRound;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class FermentationChartController extends Controller
 {
@@ -107,7 +108,7 @@ class FermentationChartController extends Controller
     /**
      * Determine the left Y axis label based on measurement types present.
      *
-     * @param  \Illuminate\Support\Collection<int, FermentationEntry>  $entries
+     * @param  Collection<int, FermentationEntry>  $entries
      */
     private function resolveLeftAxisLabel($entries): string
     {

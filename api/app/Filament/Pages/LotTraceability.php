@@ -16,9 +16,9 @@ use Filament\Pages\Page;
  */
 class LotTraceability extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-magnifying-glass-circle';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-magnifying-glass-circle';
 
-    protected static ?string $navigationGroup = 'Compliance';
+    protected static \UnitEnum|string|null $navigationGroup = 'Compliance';
 
     protected static ?int $navigationSort = 4;
 
@@ -26,7 +26,7 @@ class LotTraceability extends Page
 
     protected static ?string $title = 'Lot Traceability';
 
-    protected static string $view = 'filament.pages.lot-traceability';
+    protected string $view = 'filament.pages.lot-traceability';
 
     public ?string $selectedLotId = null;
 

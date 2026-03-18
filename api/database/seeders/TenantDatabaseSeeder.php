@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\WineryProfile;
 use Illuminate\Database\Seeder;
 
 /**
@@ -17,7 +18,7 @@ class TenantDatabaseSeeder extends Seeder
         $this->call(RolesAndPermissionsSeeder::class);
 
         // Create a default winery profile using the tenant's name
-        \App\Models\WineryProfile::create([
+        WineryProfile::create([
             'name' => tenant('name') ?? 'My Winery',
         ]);
     }

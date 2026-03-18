@@ -6,11 +6,13 @@ namespace App\Models;
 
 use Database\Factories\PhysicalCountFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Physical inventory count session for a single location.
@@ -23,16 +25,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $location_id FK to locations
  * @property string $status in_progress | completed | cancelled
  * @property string $started_by FK to users
- * @property \Illuminate\Support\Carbon $started_at
+ * @property Carbon $started_at
  * @property string|null $completed_by FK to users
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $completed_at
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property-read Location $location
  * @property-read User $starter
  * @property-read User|null $completer
- * @property-read \Illuminate\Database\Eloquent\Collection<int, PhysicalCountLine> $lines
+ * @property-read Collection<int, PhysicalCountLine> $lines
  */
 class PhysicalCount extends Model
 {

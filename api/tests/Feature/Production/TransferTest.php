@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\Vessel;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -29,7 +31,7 @@ function createTransferTestTenant(string $slug = 'xfer-winery', string $role = '
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -88,7 +90,7 @@ function createTransferFixtures(Tenant $tenant, float $sourceVolume = 500.0): ar
 
         // Put the lot in the source vessel
         DB::table('lot_vessel')->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'lot_id' => $lot->id,
             'vessel_id' => $fromVessel->id,
             'volume_gallons' => $sourceVolume,
@@ -391,7 +393,7 @@ it('filters transfers by lot_id', function () {
         ]);
 
         DB::table('lot_vessel')->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'lot_id' => $lot2->id,
             'vessel_id' => $v3->id,
             'volume_gallons' => 300,

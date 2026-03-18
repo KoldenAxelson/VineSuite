@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\Vessel;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -33,7 +35,7 @@ function createVesselTestTenant(string $slug = 'vessel-winery', string $role = '
 
     $tenant->run(function () use ($role) {
         // Flush Spatie's permission cache so it reads from this tenant's schema.
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -443,7 +445,7 @@ it('shows current lot and fill percentage when vessel has contents', function ()
     // Manually insert a lot_vessel pivot record (simulating a fill operation)
     $tenant->run(function () use ($vesselId, $lotId) {
         DB::table('lot_vessel')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'lot_id' => $lotId,
             'vessel_id' => $vesselId,
             'volume_gallons' => 1500,

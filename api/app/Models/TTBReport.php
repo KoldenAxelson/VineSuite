@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,15 +20,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $report_period_month 1-12
  * @property int $report_period_year
  * @property string $status draft|reviewed|filed|amended
- * @property \Carbon\Carbon|null $generated_at
+ * @property Carbon|null $generated_at
  * @property string|null $reviewed_by UUID of reviewing user
- * @property \Carbon\Carbon|null $reviewed_at
- * @property \Carbon\Carbon|null $filed_at
+ * @property Carbon|null $reviewed_at
+ * @property Carbon|null $filed_at
  * @property string|null $pdf_path Path to generated PDF
  * @property array<string, mixed>|null $data Full report payload (JSONB snapshot)
  * @property string|null $notes
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class TTBReport extends Model
 {

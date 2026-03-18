@@ -11,6 +11,7 @@ use App\Services\EventLogger;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -28,7 +29,7 @@ function seedAndGetCertTenant(string $slug = 'cert-test'): array
 
     $userId = null;
     $tenant->run(function () use (&$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test Admin',

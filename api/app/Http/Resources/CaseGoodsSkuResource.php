@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\CaseGoodsSku;
 use Illuminate\Http\Request;
 
 /**
  * API resource for CaseGoodsSku model.
  *
- * @mixin \App\Models\CaseGoodsSku
+ * @mixin CaseGoodsSku
  */
 class CaseGoodsSkuResource extends BaseResource
 {

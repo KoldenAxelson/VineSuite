@@ -6,9 +6,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\OverheadRateResource\Pages;
 use App\Models\OverheadRate;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,9 +18,9 @@ class OverheadRateResource extends Resource
 {
     protected static ?string $model = OverheadRate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calculator';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-calculator';
 
-    protected static ?string $navigationGroup = 'Accounting';
+    protected static \UnitEnum|string|null $navigationGroup = 'Accounting';
 
     protected static ?int $navigationSort = 1;
 
@@ -28,11 +30,11 @@ class OverheadRateResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Overhead Rates';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Rate Configuration')
+                Section::make('Rate Configuration')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -113,7 +115,7 @@ class OverheadRateResource extends Resource
                     ->falseLabel('Inactive Only'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

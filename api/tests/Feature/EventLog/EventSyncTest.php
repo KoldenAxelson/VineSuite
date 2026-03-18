@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Event;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EventProcessor;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -350,7 +351,7 @@ it('handles partial batch failure gracefully via EventProcessor', function () {
     [$tenant, $token] = createSyncTestTenant('partial-fail');
 
     $tenant->run(function () {
-        $processor = app(\App\Services\EventProcessor::class);
+        $processor = app(EventProcessor::class);
         $userId = User::first()->id;
 
         $events = [

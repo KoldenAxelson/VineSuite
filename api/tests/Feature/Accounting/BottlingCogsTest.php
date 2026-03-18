@@ -6,6 +6,7 @@ use App\Models\BottlingComponent;
 use App\Models\BottlingRun;
 use App\Models\CaseGoodsSku;
 use App\Models\DryGoodsItem;
+use App\Models\Event;
 use App\Models\Lot;
 use App\Models\LotCogsSummary;
 use App\Models\Tenant;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Services\CostAccumulationService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -33,7 +35,7 @@ function seedAndGetCogsTenant(string $slug = 'cogs-winery'): array
 
     $userId = null;
     $tenant->run(function () use (&$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test Winemaker',
@@ -375,7 +377,7 @@ describe('COGS event logging', function () {
             $costService->calculateBottlingCogs($lot, $bottlingRun, $userId);
 
             // Verify cogs_calculated event was written
-            $event = \App\Models\Event::where('entity_type', 'lot')
+            $event = Event::where('entity_type', 'lot')
                 ->where('entity_id', $lot->id)
                 ->where('operation_type', 'cogs_calculated')
                 ->first();

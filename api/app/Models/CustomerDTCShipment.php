@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,8 +17,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $order_id
  * @property float $cases_shipped
  * @property float $gallons_shipped
- * @property \Carbon\Carbon $shipped_at
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $shipped_at
+ * @property Carbon $created_at
  */
 class CustomerDTCShipment extends Model
 {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\LogsActivity;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -22,10 +23,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $role Role to assign when accepted
  * @property string $token Cryptographically random 64-char token
  * @property string $invited_by UUID of the inviting user
- * @property \Carbon\Carbon|null $accepted_at When the invitation was accepted
- * @property \Carbon\Carbon $expires_at When the invitation expires (72h from creation)
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property Carbon|null $accepted_at When the invitation was accepted
+ * @property Carbon $expires_at When the invitation expires (72h from creation)
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class TeamInvitation extends Model
 {

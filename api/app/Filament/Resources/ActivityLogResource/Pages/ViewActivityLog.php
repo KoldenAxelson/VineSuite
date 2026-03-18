@@ -6,18 +6,19 @@ namespace App\Filament\Resources\ActivityLogResource\Pages;
 
 use App\Filament\Resources\ActivityLogResource;
 use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 
 class ViewActivityLog extends ViewRecord
 {
     protected static string $resource = ActivityLogResource::class;
 
-    public function infolist(Infolist $infolist): Infolist
+    public function infolist(Schema $schema): Schema
     {
-        return $infolist
+        return $schema
             ->schema([
-                Infolists\Components\Section::make('Activity Details')
+                Section::make('Activity Details')
                     ->schema([
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('When')
@@ -46,7 +47,7 @@ class ViewActivityLog extends ViewRecord
                     ])
                     ->columns(2),
 
-                Infolists\Components\Section::make('Changed Fields')
+                Section::make('Changed Fields')
                     ->schema([
                         Infolists\Components\TextEntry::make('changed_fields')
                             ->label('Fields')
@@ -60,7 +61,7 @@ class ViewActivityLog extends ViewRecord
                     ])
                     ->visible(fn ($record) => ! empty($record->changed_fields)),
 
-                Infolists\Components\Section::make('Old Values')
+                Section::make('Old Values')
                     ->schema([
                         Infolists\Components\TextEntry::make('old_values')
                             ->label('')
@@ -72,7 +73,7 @@ class ViewActivityLog extends ViewRecord
                     ->visible(fn ($record) => ! empty($record->old_values))
                     ->collapsed(),
 
-                Infolists\Components\Section::make('New Values')
+                Section::make('New Values')
                     ->schema([
                         Infolists\Components\TextEntry::make('new_values')
                             ->label('')

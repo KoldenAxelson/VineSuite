@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Maintenance log entry for a piece of equipment.
@@ -21,16 +22,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id UUID
  * @property string $equipment_id FK to equipment
  * @property string $maintenance_type cleaning, cip, calibration, repair, inspection, preventive
- * @property \Illuminate\Support\Carbon $performed_date
+ * @property Carbon $performed_date
  * @property string|null $performed_by UUID of the user
  * @property string|null $description What was done
  * @property string|null $findings Results or observations
  * @property float|null $cost Cost of the maintenance
- * @property \Illuminate\Support\Carbon|null $next_due_date When this type of maintenance is next due
+ * @property Carbon|null $next_due_date When this type of maintenance is next due
  * @property bool|null $passed For calibration/inspection: true = passed, false = failed, null = N/A
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class MaintenanceLog extends Model
 {

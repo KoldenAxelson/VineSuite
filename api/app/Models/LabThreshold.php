@@ -9,6 +9,7 @@ use Database\Factories\LabThresholdFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Lab threshold — configurable alert boundaries for lab analysis values.
@@ -23,8 +24,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $min_value Minimum acceptable value (null = no lower bound)
  * @property string|null $max_value Maximum acceptable value (null = no upper bound)
  * @property string $alert_level 'warning' or 'critical'
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class LabThreshold extends Model
 {

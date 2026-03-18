@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\CostAccumulationService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -31,7 +32,7 @@ function seedAndGetAccountingTenant(string $slug = 'cost-winery', string $role =
 
     $userId = null;
     $tenant->run(function () use ($role, &$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),

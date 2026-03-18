@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\EventLogger;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -271,7 +272,7 @@ it('prevents UPDATE on events table via database trigger', function () {
         expect(fn () => DB::table('events')
             ->where('id', $event->id)
             ->update(['operation_type' => 'tampered']))
-            ->toThrow(\Illuminate\Database\QueryException::class);
+            ->toThrow(QueryException::class);
 
         // Verify the event is unchanged
         $fresh = Event::find($event->id);
@@ -297,7 +298,7 @@ it('prevents DELETE on events table via database trigger', function () {
         expect(fn () => DB::table('events')
             ->where('id', $event->id)
             ->delete())
-            ->toThrow(\Illuminate\Database\QueryException::class);
+            ->toThrow(QueryException::class);
 
         // Verify the event still exists
         expect(Event::count())->toBe(1);

@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\BlendTrial;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
- * @mixin \App\Models\BlendTrial
+ * @mixin BlendTrial
  *
- * @property \Illuminate\Support\Carbon|null $finalized_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon|null $finalized_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class BlendTrialResource extends BaseResource
 {

@@ -7,9 +7,12 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PurchaseOrderResource\Pages;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
 use App\Models\PurchaseOrder;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -17,9 +20,9 @@ class PurchaseOrderResource extends Resource
 {
     protected static ?string $model = PurchaseOrder::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 8;
 
@@ -29,11 +32,11 @@ class PurchaseOrderResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Purchase Orders';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Order Details')
+                Section::make('Order Details')
                     ->schema([
                         Forms\Components\TextInput::make('vendor_name')
                             ->required()
@@ -54,7 +57,7 @@ class PurchaseOrderResource extends Resource
                             ->required(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Cost & Notes')
+                Section::make('Cost & Notes')
                     ->schema([
                         Forms\Components\TextInput::make('total_cost')
                             ->numeric()
@@ -87,13 +90,11 @@ class PurchaseOrderResource extends Resource
                     ->sortable()
                     ->placeholder('—'),
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'primary' => 'ordered',
-                        'warning' => 'partial',
-                        'success' => 'received',
-                        'gray' => 'cancelled',
-                    ])
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'ordered' => 'primary', 'partial' => 'warning', 'received' => 'success', 'cancelled' => 'gray', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->sortable(),
 
@@ -123,8 +124,8 @@ class PurchaseOrderResource extends Resource
                     ->query(fn ($query) => $query->overdue()),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

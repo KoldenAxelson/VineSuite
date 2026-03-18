@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Sensory/tasting note — internal winemaker evaluation of a lot.
@@ -21,14 +22,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id UUID
  * @property string $lot_id FK to lots
  * @property string $taster_id FK to users
- * @property \Illuminate\Support\Carbon $date Tasting date
+ * @property Carbon $date Tasting date
  * @property string|null $rating Decimal rating value
  * @property string $rating_scale five_point or hundred_point
  * @property string|null $nose_notes Aroma descriptors
  * @property string|null $palate_notes Taste and mouthfeel descriptors
  * @property string|null $overall_notes General assessment
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property-read Lot $lot
  * @property-read User $taster
  */

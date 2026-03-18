@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\WorkOrderResource\Pages;
 
+use App\Filament\Resources\WorkOrderResource;
 use App\Models\WorkOrder;
 use Filament\Resources\Pages\Page;
 
 class CalendarWorkOrders extends Page
 {
-    protected static string $resource = \App\Filament\Resources\WorkOrderResource::class;
+    protected static string $resource = WorkOrderResource::class;
 
-    protected static string $view = 'filament.resources.work-order-resource.pages.calendar-work-orders';
+    protected string $view = 'filament.resources.work-order-resource.pages.calendar-work-orders';
 
     protected static ?string $navigationLabel = 'Calendar';
 

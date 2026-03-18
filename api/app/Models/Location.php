@@ -7,10 +7,12 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Database\Factories\LocationFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Physical storage location for case goods inventory.
@@ -23,10 +25,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name Location name (e.g. "Tasting Room Floor")
  * @property string|null $address Physical address
  * @property bool $is_active Whether location is currently in use
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, StockLevel> $stockLevels
- * @property-read \Illuminate\Database\Eloquent\Collection<int, StockMovement> $stockMovements
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property-read Collection<int, StockLevel> $stockLevels
+ * @property-read Collection<int, StockMovement> $stockMovements
  */
 class Location extends Model
 {

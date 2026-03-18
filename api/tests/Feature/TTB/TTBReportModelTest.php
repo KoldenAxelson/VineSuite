@@ -12,8 +12,10 @@ use App\Models\TTBReportLine;
 use App\Models\User;
 use App\Services\EventLogger;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -34,7 +36,7 @@ function seedAndGetTTBModelTenant(string $slug = 'ttb-model', string $role = 'ad
 
     $userId = null;
     $tenant->run(function () use ($role, &$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -112,7 +114,7 @@ describe('TTB report model', function () {
                 'report_period_year' => 2025,
                 'status' => 'draft',
                 'generated_at' => now(),
-            ]))->toThrow(\Illuminate\Database\QueryException::class);
+            ]))->toThrow(QueryException::class);
         });
     });
 

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Transfer — records wine movement between vessels.
@@ -27,10 +28,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $transfer_type gravity|pump|filter|press
  * @property string $variance_gallons Loss/variance in gallons
  * @property string $performed_by FK to users
- * @property \Illuminate\Support\Carbon $performed_at When the transfer was physically done
+ * @property Carbon $performed_at When the transfer was physically done
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Transfer extends Model
 {

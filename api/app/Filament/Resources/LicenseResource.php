@@ -6,9 +6,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LicenseResource\Pages;
 use App\Models\License;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,19 +19,19 @@ class LicenseResource extends Resource
 {
     protected static ?string $model = License::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-identification';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-identification';
 
-    protected static ?string $navigationGroup = 'Compliance';
+    protected static \UnitEnum|string|null $navigationGroup = 'Compliance';
 
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationLabel = 'Licenses & Permits';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('License Details')
+                Section::make('License Details')
                     ->schema([
                         Forms\Components\Select::make('license_type')
                             ->options([
@@ -104,8 +107,8 @@ class LicenseResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

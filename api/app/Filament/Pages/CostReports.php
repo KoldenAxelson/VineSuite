@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\CostByVintageTableWidget;
+use App\Filament\Widgets\CostReportsStatsWidget;
+use App\Filament\Widgets\MarginReportTableWidget;
 use App\Models\CaseGoodsSku;
 use App\Models\Lot;
 use App\Models\LotCogsSummary;
 use App\Models\LotCostEntry;
+use Filament\Actions\Action;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
@@ -15,16 +19,18 @@ use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CostReports extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-currency-dollar';
 
-    protected static ?string $navigationGroup = 'Accounting';
+    protected static \UnitEnum|string|null $navigationGroup = 'Accounting';
 
     protected static ?int $navigationSort = 3;
 
@@ -32,7 +38,22 @@ class CostReports extends Page implements HasForms, HasTable
 
     protected static ?string $title = 'COGS & Cost Reports';
 
-    protected static string $view = 'filament.pages.cost-reports';
+    protected string $view = 'filament.pages.cost-reports';
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            CostReportsStatsWidget::class,
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            CostByVintageTableWidget::class,
+            MarginReportTableWidget::class,
+        ];
+    }
 
     public string $activeTab = 'by-lot';
 
@@ -182,7 +203,7 @@ class CostReports extends Page implements HasForms, HasTable
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('export_csv')
+                Action::make('export_csv')
                     ->label('Export CSV')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->action(function () {
@@ -198,9 +219,9 @@ class CostReports extends Page implements HasForms, HasTable
     /**
      * Get margin report data (SKU selling price vs COGS).
      *
-     * @return \Illuminate\Support\Collection<int, mixed>
+     * @return Collection<int, mixed>
      */
-    public function getMarginReport(): \Illuminate\Support\Collection
+    public function getMarginReport(): Collection
     {
         return CaseGoodsSku::query()
             ->whereNotNull('cost_per_bottle')
@@ -229,9 +250,9 @@ class CostReports extends Page implements HasForms, HasTable
     /**
      * Get cost breakdown by vintage.
      *
-     * @return \Illuminate\Support\Collection<int, mixed>
+     * @return Collection<int, mixed>
      */
-    public function getCostByVintage(): \Illuminate\Support\Collection
+    public function getCostByVintage(): Collection
     {
         return DB::table('lot_cogs_summaries')
             ->join('lots', 'lot_cogs_summaries.lot_id', '=', 'lots.id')
@@ -261,7 +282,7 @@ class CostReports extends Page implements HasForms, HasTable
     /**
      * Export COGS data as CSV.
      */
-    public function exportCogsCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function exportCogsCsv(): StreamedResponse
     {
         $filename = 'cogs-report-'.now()->format('Y-m-d').'.csv';
 

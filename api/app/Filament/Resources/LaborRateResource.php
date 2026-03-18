@@ -6,9 +6,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LaborRateResource\Pages;
 use App\Models\LaborRate;
+use Filament\Actions\EditAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,9 +18,9 @@ class LaborRateResource extends Resource
 {
     protected static ?string $model = LaborRate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clock';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clock';
 
-    protected static ?string $navigationGroup = 'Accounting';
+    protected static \UnitEnum|string|null $navigationGroup = 'Accounting';
 
     protected static ?int $navigationSort = 2;
 
@@ -28,11 +30,11 @@ class LaborRateResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Labor Rates';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Rate Configuration')
+                Section::make('Rate Configuration')
                     ->schema([
                         Forms\Components\TextInput::make('role')
                             ->required()
@@ -82,7 +84,7 @@ class LaborRateResource extends Resource
                     ->falseLabel('Inactive Only'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

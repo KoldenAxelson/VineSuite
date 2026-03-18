@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * LotCogsSummary — immutable COGS snapshot calculated at bottling completion.
@@ -30,8 +31,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $cost_per_case
  * @property string|null $packaging_cost_per_bottle
  * @property string|null $bottling_labor_cost
- * @property \Illuminate\Support\Carbon $calculated_at
- * @property \Illuminate\Support\Carbon $created_at
+ * @property Carbon $calculated_at
+ * @property Carbon $created_at
  */
 class LotCogsSummary extends Model
 {

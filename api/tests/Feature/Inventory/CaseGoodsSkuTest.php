@@ -7,8 +7,11 @@ use App\Models\Event;
 use App\Models\Lot;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EventLogger;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -28,7 +31,7 @@ function createSkuTestTenant(string $slug = 'sku-winery', string $role = 'winema
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -81,7 +84,7 @@ describe('event_source column', function () {
                 'status' => 'in_progress',
             ]);
 
-            $logger = app(\App\Services\EventLogger::class);
+            $logger = app(EventLogger::class);
             $event = $logger->log(
                 entityType: 'lot',
                 entityId: $lot->id,
@@ -108,7 +111,7 @@ describe('event_source column', function () {
                 'status' => 'in_progress',
             ]);
 
-            $logger = app(\App\Services\EventLogger::class);
+            $logger = app(EventLogger::class);
 
             $event = $logger->log(
                 entityType: 'lot',
@@ -146,9 +149,9 @@ describe('event_source column', function () {
         [$tenant, $token] = createSkuTestTenant('evt-src-inv');
 
         $tenant->run(function () {
-            $logger = app(\App\Services\EventLogger::class);
+            $logger = app(EventLogger::class);
             $userId = User::first()->id;
-            $fakeId = (string) \Illuminate\Support\Str::uuid();
+            $fakeId = (string) Str::uuid();
 
             $stockEvent = $logger->log(
                 entityType: 'sku',
@@ -206,8 +209,8 @@ describe('event_source column', function () {
         [$tenant, $token] = createSkuTestTenant('evt-src-default');
 
         $tenant->run(function () {
-            $logger = app(\App\Services\EventLogger::class);
-            $fakeId = (string) \Illuminate\Support\Str::uuid();
+            $logger = app(EventLogger::class);
+            $fakeId = (string) Str::uuid();
 
             $event = $logger->log(
                 entityType: 'lot',

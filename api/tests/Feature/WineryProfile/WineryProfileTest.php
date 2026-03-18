@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlanTier;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WineryProfile;
@@ -257,7 +258,7 @@ it('demo seeder creates paso robles cellars with all demo users', function () {
     $tenant = Tenant::where('slug', 'paso-robles-cellars')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->name)->toBe('Paso Robles Cellars');
-    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Pro);
+    expect($tenant->plan)->toBe(PlanTier::Pro);
 
     $tenant->run(function () {
         // Verify profile

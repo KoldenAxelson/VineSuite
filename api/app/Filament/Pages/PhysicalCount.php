@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\CaseGoodsSkuResource;
+use App\Filament\Widgets\PhysicalCountStatsWidget;
 use App\Models\PhysicalCount as PhysicalCountModel;
 use App\Models\PhysicalCountLine;
+use Filament\Actions\Action;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
@@ -21,9 +23,9 @@ class PhysicalCount extends Page implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 3;
 
@@ -31,9 +33,20 @@ class PhysicalCount extends Page implements HasForms, HasTable
 
     protected static ?string $title = 'Physical Inventory Count';
 
-    protected static string $view = 'filament.pages.physical-count';
+    protected string $view = 'filament.pages.physical-count';
 
     public ?string $countId = null;
+
+    protected function getHeaderWidgets(): array
+    {
+        if (! $this->countId) {
+            return [];
+        }
+
+        return [
+            PhysicalCountStatsWidget::make(['countId' => $this->countId]),
+        ];
+    }
 
     public function mount(): void
     {
@@ -109,12 +122,11 @@ class PhysicalCount extends Page implements HasForms, HasTable
                     ->label('Location')
                     ->sortable(),
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'in_progress',
-                        'success' => 'completed',
-                        'danger' => 'cancelled',
-                    ])
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'in_progress' => 'warning', 'completed' => 'success', 'cancelled' => 'danger', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->sortable(),
 
@@ -141,7 +153,7 @@ class PhysicalCount extends Page implements HasForms, HasTable
                     ]),
             ])
             ->actions([
-                Tables\Actions\Action::make('view')
+                Action::make('view')
                     ->label('View Lines')
                     ->icon('heroicon-o-eye')
                     ->url(fn (PhysicalCountModel $record): string => route('filament.portal.pages.physical-count').'?count_id='.$record->id),
@@ -225,7 +237,7 @@ class PhysicalCount extends Page implements HasForms, HasTable
             ])
             ->actions([])
             ->headerActions([
-                Tables\Actions\Action::make('back')
+                Action::make('back')
                     ->label('← All Counts')
                     ->url(route('filament.portal.pages.physical-count'))
                     ->color('gray'),

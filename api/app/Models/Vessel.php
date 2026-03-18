@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 /**
  * Production vessel — a container for wine (tank, barrel, flexitank, etc.).
@@ -28,12 +29,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string|null $material Vessel material (stainless, oak, concrete, etc.)
  * @property string|null $location Physical location within the winery
  * @property string $status in_use|empty|cleaning|out_of_service
- * @property \Illuminate\Support\Carbon|null $purchase_date Date of purchase
+ * @property Carbon|null $purchase_date Date of purchase
  * @property string|null $notes Free-text notes
  * @property-read float $current_volume Current volume from active lot_vessel pivot
  * @property-read float $fill_percent Fill percentage (current_volume / capacity)
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Vessel extends Model
 {
@@ -149,7 +150,7 @@ class Vessel extends Model
      */
     public function getCurrentVolumeAttribute(): float
     {
-        /** @var \App\Models\Lot|null $currentPivot */
+        /** @var Lot|null $currentPivot */
         $currentPivot = $this->currentLot->first();
 
         if (! $currentPivot) {

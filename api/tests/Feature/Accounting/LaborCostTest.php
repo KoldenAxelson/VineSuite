@@ -11,6 +11,7 @@ use App\Models\WorkOrder;
 use App\Services\WorkOrderService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -33,7 +34,7 @@ function seedAndGetLaborCostTenant(string $slug = 'labor-winery'): array
     $cellarHandId = null;
 
     $tenant->run(function () use (&$adminId, &$cellarHandId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $admin = User::create([
             'name' => 'Test Admin',

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Press log — records a pressing operation converting must to juice.
@@ -28,10 +29,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $pomace_weight_kg Pomace weight in kg
  * @property string|null $pomace_destination Where pomace goes
  * @property string $performed_by FK to user
- * @property \Illuminate\Support\Carbon $performed_at
+ * @property Carbon $performed_at
  * @property string|null $notes
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class PressLog extends Model
 {

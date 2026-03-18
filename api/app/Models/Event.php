@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -22,12 +23,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $operation_type 'addition', 'transfer', 'rack', 'bottle', 'blend', 'sale'
  * @property array<string, mixed> $payload Operation-specific data (JSONB)
  * @property string|null $performed_by UUID of the user who performed the operation
- * @property \Carbon\Carbon $performed_at Client timestamp (may be from offline device)
- * @property \Carbon\Carbon|null $synced_at Server receipt timestamp (null for locally-created events)
+ * @property Carbon $performed_at Client timestamp (may be from offline device)
+ * @property Carbon|null $synced_at Server receipt timestamp (null for locally-created events)
  * @property string|null $device_id Identifies which client submitted
  * @property string $event_source Module source (production, lab, inventory, accounting, etc.)
  * @property string|null $idempotency_key Prevents duplicate event submission on retry
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $created_at
  */
 class Event extends Model
 {

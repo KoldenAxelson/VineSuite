@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Vessel;
 use App\Models\WorkOrder;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 
@@ -183,7 +184,7 @@ describe('Sync Pull', function () {
         // Create more data clearly after first pull's synced_at
         $tenant->run(function () use ($syncedAt) {
             Lot::factory()->count(1)->create([
-                'updated_at' => \Carbon\Carbon::parse($syncedAt)->addSeconds(5),
+                'updated_at' => Carbon::parse($syncedAt)->addSeconds(5),
             ]);
         });
 

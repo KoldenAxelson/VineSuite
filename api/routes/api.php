@@ -43,6 +43,7 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\TeamInvitationController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Responses\ApiResponse;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -386,7 +387,7 @@ Route::middleware([
 
         // Team list — any authenticated user can view team members
         Route::get('/team', function () {
-            $users = \App\Models\User::select('id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at')
+            $users = User::select('id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at')
                 ->orderBy('name')
                 ->get();
 

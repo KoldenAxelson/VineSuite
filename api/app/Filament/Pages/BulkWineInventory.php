@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\BulkWineStatsWidget;
+use App\Models\Lot;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
@@ -18,9 +20,9 @@ class BulkWineInventory extends Page implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-beaker';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 7;
 
@@ -28,10 +30,17 @@ class BulkWineInventory extends Page implements HasForms, HasTable
 
     protected static ?string $title = 'Bulk Wine Inventory';
 
-    protected static string $view = 'filament.pages.bulk-wine-inventory';
+    protected string $view = 'filament.pages.bulk-wine-inventory';
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            BulkWineStatsWidget::class,
+        ];
+    }
 
     /**
-     * Summary stats displayed above the table.
+     * Summary stats displayed above the table (kept for blade fallback).
      *
      * @return array<string, mixed>
      */
@@ -61,7 +70,7 @@ class BulkWineInventory extends Page implements HasForms, HasTable
     {
         return $table
             ->query(
-                \App\Models\Lot::query()
+                Lot::query()
                     ->leftJoin('lot_vessel', function ($join) {
                         $join->on('lots.id', '=', 'lot_vessel.lot_id')
                             ->whereNull('lot_vessel.emptied_at');
@@ -92,11 +101,11 @@ class BulkWineInventory extends Page implements HasForms, HasTable
                 Tables\Columns\TextColumn::make('vintage')
                     ->sortable(),
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'primary' => 'in_progress',
-                        'success' => 'aging',
-                    ])
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'in_progress' => 'primary', 'aging' => 'success', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state)))
                     ->sortable(),
 

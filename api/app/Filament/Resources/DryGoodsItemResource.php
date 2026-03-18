@@ -7,20 +7,23 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\DryGoodsItemResource\Pages;
 use App\Filament\Resources\DryGoodsItemResource\RelationManagers;
 use App\Models\DryGoodsItem;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 
 class DryGoodsItemResource extends Resource
 {
     protected static ?string $model = DryGoodsItem::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-archive-box';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-archive-box';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 4;
 
@@ -30,11 +33,11 @@ class DryGoodsItemResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Dry Goods';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Item Details')
+                Section::make('Item Details')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -58,7 +61,7 @@ class DryGoodsItemResource extends Resource
                             ->default(true),
                     ]),
 
-                Forms\Components\Section::make('Stock & Cost')
+                Section::make('Stock & Cost')
                     ->schema([
                         Forms\Components\TextInput::make('on_hand')
                             ->numeric()
@@ -75,7 +78,7 @@ class DryGoodsItemResource extends Resource
                             ->prefix('$'),
                     ]),
 
-                Forms\Components\Section::make('Vendor & Notes')
+                Section::make('Vendor & Notes')
                     ->schema([
                         Forms\Components\TextInput::make('vendor_name')
                             ->maxLength(200),
@@ -133,7 +136,7 @@ class DryGoodsItemResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('item_type')
                     ->label('Type')
-                    ->options(fn () => Schema::hasTable('dry_goods_items')
+                    ->options(fn () => DatabaseSchema::hasTable('dry_goods_items')
                         ? array_combine(
                             DryGoodsItem::ITEM_TYPES,
                             array_map(fn ($t) => str_replace('_', ' ', ucfirst($t)), DryGoodsItem::ITEM_TYPES),
@@ -149,8 +152,8 @@ class DryGoodsItemResource extends Resource
                     ->query(fn ($query) => $query->belowReorderPoint()),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

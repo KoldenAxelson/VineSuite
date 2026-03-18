@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 
 /**
@@ -11,7 +12,7 @@ use Illuminate\Http\Request;
  *
  * Includes related lot, vessel, and user info when loaded.
  *
- * @mixin \App\Models\WorkOrder
+ * @mixin WorkOrder
  */
 class WorkOrderResource extends BaseResource
 {

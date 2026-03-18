@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\PlanTier;
 use App\Jobs\CreateTenantJob;
 use App\Models\Tenant;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /*
  * Tenancy tests use DatabaseMigrations (not RefreshDatabase) because
@@ -41,7 +44,7 @@ it('creates a tenant with its own PostgreSQL schema', function () {
     expect($tenant->id)->not->toBeEmpty();
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Basic);
+    expect($tenant->plan)->toBe(PlanTier::Basic);
 
     // Verify PostgreSQL schema was created
     $schemas = DB::select(
@@ -91,7 +94,7 @@ it('prevents cross-tenant data access', function () {
     // Insert a user in tenant A
     $tenantA->run(function () {
         DB::table('users')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'name' => 'Alpha User',
             'email' => 'alpha@example.com',
             'password' => bcrypt('password'),
@@ -127,7 +130,7 @@ it('creates a tenant via CreateTenantJob', function () {
     expect($tenant)->toBeInstanceOf(Tenant::class);
     expect($tenant->name)->toBe('Test Winery');
     expect($tenant->slug)->toBe('test-winery');
-    expect($tenant->plan)->toBe(\App\Enums\PlanTier::Pro);
+    expect($tenant->plan)->toBe(PlanTier::Pro);
 
     // Verify domain was created
     expect($tenant->domains)->toHaveCount(1);
@@ -145,5 +148,5 @@ it('enforces unique slugs', function () {
         'name' => 'Another Winery',
         'slug' => 'test-winery',
         'plan' => 'basic',
-    ]))->toThrow(\Illuminate\Database\QueryException::class);
+    ]))->toThrow(QueryException::class);
 });

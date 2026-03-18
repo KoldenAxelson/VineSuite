@@ -7,9 +7,15 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BottlingRunResource\Pages;
 use App\Models\BottlingRun;
 use App\Services\BottlingService;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -17,19 +23,19 @@ class BottlingRunResource extends Resource
 {
     protected static ?string $model = BottlingRun::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-gift';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-gift';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?int $navigationSort = 7;
 
     protected static ?string $navigationLabel = 'Bottling Runs';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Bottling Run Details')
+                Section::make('Bottling Run Details')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->relationship('lot', 'name')
@@ -91,17 +97,17 @@ class BottlingRunResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('lot.name')
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('bottle_format'),
+                Tables\Columns\TextColumn::make('bottle_format')
+                    ->badge(),
                 Tables\Columns\TextColumn::make('bottles_filled')
                     ->numeric(),
                 Tables\Columns\TextColumn::make('volume_bottled_gallons')
                     ->numeric(),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'planned',
-                        'info' => 'in_progress',
-                        'success' => 'completed',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'planned' => 'warning', 'in_progress' => 'info', 'completed' => 'success', default => 'gray'
+                    }),
                 Tables\Columns\TextColumn::make('sku')
                     ->searchable()
                     ->placeholder('-'),
@@ -134,9 +140,9 @@ class BottlingRunResource extends Resource
                     ->relationship('lot', 'name'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('complete')
+                ViewAction::make(),
+                EditAction::make(),
+                Action::make('complete')
                     ->label('Complete')
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
@@ -149,8 +155,8 @@ class BottlingRunResource extends Resource
                     }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

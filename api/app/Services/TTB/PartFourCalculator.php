@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\TTB;
 
 use App\Models\Event;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Part IV Calculator — Wine Removed from Bond.
@@ -349,10 +350,10 @@ class PartFourCalculator
     /**
      * Aggregate events by wine type using a specified volume field.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Event>  $events
+     * @param  Collection<int, Event>  $events
      * @return array<string, array{gallons: float, event_ids: array<int, string>, needs_review: bool}>
      */
-    private function aggregateByWineType(\Illuminate\Database\Eloquent\Collection $events, string $volumeField): array
+    private function aggregateByWineType(Collection $events, string $volumeField): array
     {
         $grouped = [];
 
@@ -390,10 +391,10 @@ class PartFourCalculator
      * Aggregate sold events by wine type.
      * stock_sold events track case goods, need volume conversion.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Event>  $events
+     * @param  Collection<int, Event>  $events
      * @return array<string, array{gallons: float, event_ids: array<int, string>, needs_review: bool}>
      */
-    private function aggregateSoldByWineType(\Illuminate\Database\Eloquent\Collection $events): array
+    private function aggregateSoldByWineType(Collection $events): array
     {
         $grouped = [];
 

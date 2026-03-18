@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\TTB;
 
 use App\Models\Event;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Part II Calculator — Wine Produced by Fermentation or Other Process.
@@ -137,10 +138,10 @@ class PartTwoCalculator
     /**
      * Aggregate events by wine type, summing volume from the specified payload field.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Event>  $events
+     * @param  Collection<int, Event>  $events
      * @return array<string, array{gallons: float, event_ids: array<int, string>, needs_review: bool}>
      */
-    private function aggregateByWineType(\Illuminate\Database\Eloquent\Collection $events, string $volumeField, string $operationType): array
+    private function aggregateByWineType(Collection $events, string $volumeField, string $operationType): array
     {
         $grouped = [];
 

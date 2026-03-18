@@ -6,9 +6,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\FermentationRoundResource\Pages;
 use App\Models\FermentationRound;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -16,19 +20,19 @@ class FermentationRoundResource extends Resource
 {
     protected static ?string $model = FermentationRound::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-fire';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-fire';
 
-    protected static ?string $navigationGroup = 'Lab';
+    protected static \UnitEnum|string|null $navigationGroup = 'Lab';
 
     protected static ?int $navigationSort = 3;
 
     protected static ?string $navigationLabel = 'Fermentation';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Round Details')
+                Section::make('Round Details')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->relationship('lot', 'name')
@@ -42,7 +46,7 @@ class FermentationRoundResource extends Resource
                                 'malolactic' => 'Malolactic Fermentation',
                             ])
                             ->required()
-                            ->reactive(),
+                            ->live(),
 
                         Forms\Components\TextInput::make('round_number')
                             ->numeric()
@@ -56,12 +60,12 @@ class FermentationRoundResource extends Resource
 
                         Forms\Components\TextInput::make('yeast_strain')
                             ->maxLength(100)
-                            ->visible(fn (Forms\Get $get): bool => $get('fermentation_type') === 'primary'),
+                            ->visible(fn (Get $get): bool => $get('fermentation_type') === 'primary'),
 
                         Forms\Components\TextInput::make('ml_bacteria')
                             ->label('ML Bacteria Strain')
                             ->maxLength(100)
-                            ->visible(fn (Forms\Get $get): bool => $get('fermentation_type') === 'malolactic'),
+                            ->visible(fn (Get $get): bool => $get('fermentation_type') === 'malolactic'),
 
                         Forms\Components\TextInput::make('target_temp')
                             ->label('Target Temp (°F)')
@@ -77,11 +81,11 @@ class FermentationRoundResource extends Resource
                             ->default('active'),
 
                         Forms\Components\DatePicker::make('completion_date')
-                            ->visible(fn (Forms\Get $get): bool => $get('status') === 'completed'),
+                            ->visible(fn (Get $get): bool => $get('status') === 'completed'),
 
                         Forms\Components\DatePicker::make('confirmation_date')
                             ->label('ML Dryness Confirmation')
-                            ->visible(fn (Forms\Get $get): bool => $get('fermentation_type') === 'malolactic'),
+                            ->visible(fn (Get $get): bool => $get('fermentation_type') === 'malolactic'),
 
                         Forms\Components\Textarea::make('notes')
                             ->nullable()
@@ -99,11 +103,11 @@ class FermentationRoundResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\BadgeColumn::make('fermentation_type')
-                    ->colors([
-                        'info' => 'primary',
-                        'warning' => 'malolactic',
-                    ])
+                Tables\Columns\TextColumn::make('fermentation_type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'primary' => 'info', 'malolactic' => 'warning', default => 'gray'
+                    })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'primary' => 'Primary',
                         'malolactic' => 'ML',
@@ -131,12 +135,11 @@ class FermentationRoundResource extends Resource
                     ->label('Target °F')
                     ->placeholder('—'),
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'success' => 'completed',
-                        'warning' => 'active',
-                        'danger' => 'stuck',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'completed' => 'success', 'active' => 'warning', 'stuck' => 'danger', default => 'gray'
+                    }),
 
                 Tables\Columns\TextColumn::make('entries_count')
                     ->counts('entries')
@@ -167,8 +170,8 @@ class FermentationRoundResource extends Resource
                     ->searchable(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ViewAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([]);
     }

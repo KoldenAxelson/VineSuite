@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Vessel;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -27,7 +29,7 @@ function createBulkWineTestTenant(string $slug = 'bw-winery', string $role = 'ad
     ]);
 
     $tenant->run(function () use ($role) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
@@ -117,7 +119,7 @@ function seedBulkWineData(Tenant $tenant): array
 
         // Lot 1 (aging, 500 gal book) → 450 gal in vessel1, 40 gal in vessel2 = 490 vessel (10 gal variance)
         DB::table('lot_vessel')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'lot_id' => $lot1->id,
             'vessel_id' => $vessel1->id,
             'volume_gallons' => 450.0,
@@ -128,7 +130,7 @@ function seedBulkWineData(Tenant $tenant): array
         ]);
 
         DB::table('lot_vessel')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'lot_id' => $lot1->id,
             'vessel_id' => $vessel2->id,
             'volume_gallons' => 40.0,
@@ -140,7 +142,7 @@ function seedBulkWineData(Tenant $tenant): array
 
         // Lot 2 (in_progress, 300 gal book) → 300 gal in vessel3 = 300 vessel (0 variance)
         DB::table('lot_vessel')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'lot_id' => $lot2->id,
             'vessel_id' => $vessel3->id,
             'volume_gallons' => 300.0,
@@ -152,7 +154,7 @@ function seedBulkWineData(Tenant $tenant): array
 
         // An emptied record (should be excluded from current contents)
         DB::table('lot_vessel')->insert([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'id' => Str::uuid()->toString(),
             'lot_id' => $lot1->id,
             'vessel_id' => $vessel3->id,
             'volume_gallons' => 100.0,

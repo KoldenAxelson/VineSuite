@@ -6,15 +6,14 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TransferResource\Pages;
 use App\Models\Transfer;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\ViewAction;
-use Filament\Tables\Columns\BadgeColumn;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -23,15 +22,15 @@ class TransferResource extends Resource
 {
     protected static ?string $model = Transfer::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-arrows-right-left';
 
-    protected static ?string $navigationGroup = 'Production';
+    protected static \UnitEnum|string|null $navigationGroup = 'Production';
 
     protected static ?int $navigationSort = 6;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Transfer Details')
                     ->schema([
@@ -87,7 +86,8 @@ class TransferResource extends Resource
                 TextColumn::make('volume_gallons')
                     ->numeric()
                     ->sortable(),
-                BadgeColumn::make('transfer_type')
+                TextColumn::make('transfer_type')
+                    ->badge()
                     ->sortable(),
                 TextColumn::make('variance_gallons')
                     ->numeric()

@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Services\EventLogger;
 
 /**
  * Event source mapping — maps operation type prefixes to event source categories.
@@ -11,7 +12,7 @@ declare(strict_types=1);
  *
  * The default source (when no prefix matches) is 'production'.
  *
- * @see \App\Services\EventLogger::resolveSource()
+ * @see EventLogger::resolveSource()
  * @see docs/references/event-source-partitioning.md
  */
 return [

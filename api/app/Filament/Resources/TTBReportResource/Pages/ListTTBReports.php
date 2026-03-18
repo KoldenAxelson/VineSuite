@@ -6,6 +6,7 @@ namespace App\Filament\Resources\TTBReportResource\Pages;
 
 use App\Filament\Resources\TTBReportResource;
 use App\Jobs\GenerateMonthlyTTBReportJob;
+use App\Models\Tenant;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -46,9 +47,9 @@ class ListTTBReports extends ListRecords
                         ->helperText('Leave at 0 to auto-detect from previous month.'),
                 ])
                 ->action(function (array $data): void {
-                    /** @var \App\Models\Tenant|null $tenant */
+                    /** @var Tenant|null $tenant */
                     $tenant = tenant();
-                    if (! $tenant instanceof \App\Models\Tenant) {
+                    if (! $tenant instanceof Tenant) {
                         return;
                     }
 

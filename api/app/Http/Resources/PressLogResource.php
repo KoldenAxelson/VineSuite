@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\PressLog;
 use Illuminate\Http\Request;
 
 /**
- * @mixin \App\Models\PressLog
+ * @mixin PressLog
  */
 class PressLogResource extends BaseResource
 {

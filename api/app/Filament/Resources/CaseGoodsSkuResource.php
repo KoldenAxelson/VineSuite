@@ -7,20 +7,25 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CaseGoodsSkuResource\Pages;
 use App\Filament\Resources\CaseGoodsSkuResource\RelationManagers;
 use App\Models\CaseGoodsSku;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 
 class CaseGoodsSkuResource extends Resource
 {
     protected static ?string $model = CaseGoodsSku::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-cube';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-cube';
 
-    protected static ?string $navigationGroup = 'Inventory';
+    protected static \UnitEnum|string|null $navigationGroup = 'Inventory';
 
     protected static ?int $navigationSort = 1;
 
@@ -30,11 +35,11 @@ class CaseGoodsSkuResource extends Resource
 
     protected static ?string $pluralModelLabel = 'SKUs';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Wine Details')
+                Section::make('Wine Details')
                     ->schema([
                         Forms\Components\TextInput::make('wine_name')
                             ->required()
@@ -72,7 +77,7 @@ class CaseGoodsSkuResource extends Resource
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('Pricing & Barcode')
+                Section::make('Pricing & Barcode')
                     ->schema([
                         Forms\Components\TextInput::make('upc_barcode')
                             ->label('UPC Barcode')
@@ -93,7 +98,7 @@ class CaseGoodsSkuResource extends Resource
                     ])
                     ->columns(3),
 
-                Forms\Components\Section::make('Product Info')
+                Section::make('Product Info')
                     ->schema([
                         Forms\Components\Textarea::make('tasting_notes')
                             ->rows(4)
@@ -112,7 +117,7 @@ class CaseGoodsSkuResource extends Resource
                             ->maxSize(10240),
                     ]),
 
-                Forms\Components\Section::make('Traceability')
+                Section::make('Traceability')
                     ->schema([
                         Forms\Components\Select::make('lot_id')
                             ->label('Origin Lot')
@@ -179,7 +184,7 @@ class CaseGoodsSkuResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('vintage')
                     ->options(function (): array {
-                        if (! Schema::hasTable('case_goods_skus')) {
+                        if (! DatabaseSchema::hasTable('case_goods_skus')) {
                             return [];
                         }
 
@@ -193,7 +198,7 @@ class CaseGoodsSkuResource extends Resource
 
                 Tables\Filters\SelectFilter::make('varietal')
                     ->options(function (): array {
-                        if (! Schema::hasTable('case_goods_skus')) {
+                        if (! DatabaseSchema::hasTable('case_goods_skus')) {
                             return [];
                         }
 
@@ -214,12 +219,12 @@ class CaseGoodsSkuResource extends Resource
                     ->label('Active Status'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\ViewAction::make(),
+                EditAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

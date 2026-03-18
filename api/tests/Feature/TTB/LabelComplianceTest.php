@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\TTB\LabelComplianceService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(DatabaseMigrations::class);
 
@@ -29,7 +30,7 @@ function seedAndGetLabelTenant(string $slug = 'label-test'): array
 
     $userId = null;
     $tenant->run(function () use (&$userId) {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'name' => 'Test Admin',

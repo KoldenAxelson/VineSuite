@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Lot;
 use App\Models\LotCostEntry;
 use App\Models\OverheadRate;
+use App\Models\WorkOrder;
 use App\Support\LogContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -129,7 +130,7 @@ class OverheadAllocationService
      */
     private function allocatePerLaborHour(string $rate, Lot $lot): string
     {
-        $totalHours = (string) \App\Models\WorkOrder::where('lot_id', $lot->id)
+        $totalHours = (string) WorkOrder::where('lot_id', $lot->id)
             ->where('status', 'completed')
             ->sum('hours');
 
