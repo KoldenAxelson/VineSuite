@@ -195,6 +195,8 @@ class EventQueueTest {
     }
 
     // ── EventQueue: mark synced ──────────────────────────────────
+    // Note: single + batch tests intentionally overlap. Both paths are used
+    // in production (single in per-event processing, batch in SyncEngine).
 
     @Test
     fun markSyncedRemovesFromPending() {

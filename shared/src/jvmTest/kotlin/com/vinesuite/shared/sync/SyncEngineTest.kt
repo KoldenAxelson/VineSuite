@@ -477,14 +477,20 @@ class SyncEngineTest {
             when {
                 request.url.encodedPath.contains("events/sync") -> {
                     pushCallCount++
-                    // Read the request to determine batch size
+                    // Deserialize the request to get actual event count
                     val bodyText = String(request.body.toByteArray())
-                    val eventCount = "idempotency_key".toRegex().findAll(bodyText).count()
+                    val pushRequest = kotlinx.serialization.json.Json {
+                        ignoreUnknownKeys = true
+                    }.decodeFromString(
+                        com.vinesuite.shared.api.models.SyncPushRequest.serializer(),
+                        bodyText,
+                    )
+                    val eventCount = pushRequest.events.size
 
-                    // Build per-event accepted results
-                    val results = (0 until eventCount).joinToString(",") { i ->
-                        """{"index": $i, "event_id": "srv-$pushCallCount-$i", "status": "accepted", "idempotency_key": "k-$i"}"""
-                    }
+                    // Build per-event accepted results from actual event data
+                    val results = pushRequest.events.mapIndexed { i, event ->
+                        """{"index": $i, "event_id": "srv-$pushCallCount-$i", "status": "accepted", "idempotency_key": "${event.idempotencyKey}"}"""
+                    }.joinToString(",")
 
                     respond(
                         content = """{"data": [$results], "meta": {"accepted": $eventCount}, "errors": []}""",

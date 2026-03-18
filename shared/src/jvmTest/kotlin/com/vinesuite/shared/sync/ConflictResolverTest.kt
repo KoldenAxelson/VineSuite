@@ -4,6 +4,8 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.vinesuite.shared.api.models.SyncPushResult
 import com.vinesuite.shared.database.OutboxEvent
 import com.vinesuite.shared.database.VineSuiteDatabase
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.test.AfterTest
@@ -257,6 +259,29 @@ class ConflictResolverTest {
         assertEquals(2, conflictStore.unresolvedCount())
         val conflicts = conflictStore.getByEntity("vessel", "vessel-1")
         assertEquals(2, conflicts.size)
+    }
+
+    // ── Flow observability ─────────────────────────────────────────
+
+    @Test
+    fun observeUnresolvedEmitsOnChanges() = runTest {
+        // Initially empty
+        val initial = conflictStore.observeUnresolved().first()
+        assertEquals(0, initial.size)
+
+        // Add a conflict — Flow should emit the new list
+        val event = enqueueAndFetch("vessel", "vessel-1", "transfer")
+        conflictResolver.processPushResult(event, failedResult(0))
+
+        val afterInsert = conflictStore.observeUnresolved().first()
+        assertEquals(1, afterInsert.size)
+        assertEquals("vessel-1", afterInsert.first().entity_id)
+
+        // Resolve it — Flow should emit empty list
+        conflictStore.resolve(afterInsert.first().id)
+
+        val afterResolve = conflictStore.observeUnresolved().first()
+        assertEquals(0, afterResolve.size)
     }
 
     // ── Helpers ──────────────────────────────────────────────────

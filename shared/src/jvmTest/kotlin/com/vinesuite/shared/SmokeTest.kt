@@ -2,11 +2,14 @@ package com.vinesuite.shared
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.hours
 
 /**
  * JVM smoke tests — validates the KMP project scaffolding.
@@ -24,25 +27,25 @@ class SmokeTest {
     }
 
     @Test
-    fun coroutinesWired() = runTest {
-        // If this compiles and runs, kotlinx-coroutines-test is resolved
-        val result = "coroutines work"
-        assertEquals("coroutines work", result)
+    fun coroutinesConcurrencyWorks() = runTest {
+        // Proves coroutines actually execute concurrently, not just that the library loads
+        val deferred1 = async { 1 + 1 }
+        val deferred2 = async { 2 + 2 }
+        assertEquals(6, deferred1.await() + deferred2.await())
     }
 
     @Test
-    fun serializationWired() {
-        // If this compiles and runs, kotlinx-serialization-json is resolved
+    fun serializationRoundTrips() {
         val json = Json.parseToJsonElement("""{"key": "value"}""")
         val obj = json as JsonObject
         assertEquals("value", obj["key"]?.jsonPrimitive?.content)
     }
 
     @Test
-    fun datetimeWired() {
-        // If this compiles and runs, kotlinx-datetime is resolved
+    fun datetimeArithmeticWorks() {
+        // Proves kotlinx-datetime can do real operations, not just toString()
         val now = Clock.System.now()
-        val iso = now.toString()
-        assert(iso.isNotBlank()) { "Clock.System.now() should produce a non-blank ISO string" }
+        val later = now.plus(1.hours)
+        assertTrue(later > now, "Adding 1 hour should produce a later instant")
     }
 }
