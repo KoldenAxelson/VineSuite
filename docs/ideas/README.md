@@ -50,6 +50,12 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 |------|---------|--------|
 | `iot-sensor-integration.md` | Vine-to-bottle IoT: LoRaWAN sensors → ChirpStack → MQTT → Laravel → TimescaleDB. CO₂ safety as entry point, 3-wave rollout. | ⏳ Deferred → Phase 8 (3 pre-KMP prep items identified) |
 
+### UX Ideas (2026-03-18)
+
+| File | Summary | Status |
+|------|---------|--------|
+| `persona-based-dashboard.md` | Role-aware tabbed dashboard using stock Filament `getTabs()`. 6 persona tabs (Winemaker, Cellar, Business, Compliance, Inventory, Overview), 8 new widgets, 5 existing widgets reused. Super-admins see all tabs. | 🟡 Triaged → Pre-Task 7 |
+
 ### Technical Debt Ideas (2026-03-17)
 
 From Phase 6 known debt items. These are implementation gaps where the consuming layer exists but the emission path does not.
