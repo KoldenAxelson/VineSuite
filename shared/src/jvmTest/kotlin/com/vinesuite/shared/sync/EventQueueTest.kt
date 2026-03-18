@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -289,6 +290,32 @@ class EventQueueTest {
         // (which filters retry_count > 0 from selectFailed) won't include it.
         // But it IS in getPendingEvents since synced = 0.
         assertEquals(1, eventQueue.getPendingEvents().size)
+    }
+
+    // ── EventQueue: retryFailed ─────────────────────────────────
+
+    @Test
+    fun retryFailedResetsRetryableEventsOnly() {
+        val id1 = eventQueue.enqueue(createTestEvent("lot", "lot-1", "addition"))
+        val id2 = eventQueue.enqueue(createTestEvent("lot", "lot-2", "transfer"))
+        val id3 = eventQueue.enqueue(createTestEvent("lot", "lot-3", "racking"))
+
+        // id1: 3 failures (retryable)
+        repeat(3) { eventQueue.recordFailure(id1, "error") }
+        // id2: 5 failures (permanently failed — should NOT be reset)
+        repeat(5) { eventQueue.recordFailure(id2, "error") }
+        // id3: 0 failures (not failed at all — should NOT be reset)
+
+        val resetCount = eventQueue.retryFailed()
+
+        assertEquals(1, resetCount) // only id1 was retryable
+        // id1 should be reset: retry_count = 0, no last_error
+        val evt1 = database.outboxEventQueries.selectById(id1).executeAsOne()
+        assertEquals(0L, evt1.retry_count)
+        assertNull(evt1.last_error)
+        // id2 should still be permanently failed
+        val evt2 = database.outboxEventQueries.selectById(id2).executeAsOne()
+        assertEquals(5L, evt2.retry_count)
     }
 
     // ── EventQueue: purge ────────────────────────────────────────

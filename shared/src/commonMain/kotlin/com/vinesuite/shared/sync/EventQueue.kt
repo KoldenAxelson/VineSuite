@@ -112,6 +112,23 @@ class EventQueue(
     }
 
     /**
+     * Reset all retryable failed events so they'll be picked up by the
+     * next sync cycle. Returns the number of events reset.
+     *
+     * Only resets events under MAX_RETRY_COUNT — permanently failed
+     * events (5+ retries) are excluded. Use resetRetry(id) for those.
+     */
+    fun retryFailed(): Int {
+        val retryable = getRetryable()
+        database.outboxEventQueries.transaction {
+            retryable.forEach { event ->
+                database.outboxEventQueries.resetRetry(event.id)
+            }
+        }
+        return retryable.size
+    }
+
+    /**
      * Get events that have exceeded the max retry count.
      * These need manual user review — not retried automatically.
      */

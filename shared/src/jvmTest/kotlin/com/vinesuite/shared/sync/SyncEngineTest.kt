@@ -288,10 +288,13 @@ class SyncEngineTest {
             override fun isConnected(): Boolean = false
         }
 
+        val conflictStore = ConflictStore(database, fixedClock)
+        val conflictResolver = ConflictResolver(conflictStore)
         val engine = SyncEngine(
             database = database,
             apiClient = createApiClient(MockEngine { error("Should not be called") }),
             eventQueue = eventQueue,
+            conflictResolver = conflictResolver,
             connectivityMonitor = offlineMonitor,
         )
 
@@ -580,13 +583,107 @@ class SyncEngineTest {
         assertFalse(authManager.isAuthenticated())
     }
 
+    // ── Conflict integration ─────────────────────────────────────
+
+    @Test
+    fun failedDestructiveOpCreatesConflict() = runTest {
+        // Enqueue a destructive transfer event
+        eventQueue.enqueue(createEvent("vessel", "vessel-1", "transfer"))
+
+        val engine = createSyncEngine(MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("events/sync") -> respond(
+                    content = """
+                    {
+                        "data": [{"index": 0, "event_id": null, "status": "failed", "idempotency_key": "k1", "error": "Insufficient volume: requested 300 gallons, only 150 available"}],
+                        "meta": {"accepted": 0, "failed": 1},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                request.url.encodedPath.contains("sync/pull") -> respond(
+                    content = """
+                    {
+                        "data": {"lots": [], "vessels": [], "work_orders": [], "barrels": [], "raw_materials": []},
+                        "meta": {"synced_at": "2024-10-15T14:00:00Z", "has_more": false},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> error("Unexpected")
+            }
+        })
+
+        val result = engine.sync()
+
+        assertEquals(SyncResultStatus.SUCCESS, result.status)
+        assertEquals(1, result.push?.failed)
+
+        // A conflict should have been created for the destructive transfer
+        val conflicts = database.localConflictQueries.selectUnresolved().executeAsList()
+        assertEquals(1, conflicts.size)
+        assertEquals("vessel", conflicts.first().entity_type)
+        assertEquals("vessel-1", conflicts.first().entity_id)
+        assertEquals("transfer", conflicts.first().operation_type)
+        assertTrue(conflicts.first().error_message.contains("Insufficient volume"))
+    }
+
+    @Test
+    fun failedAdditiveOpDoesNotCreateConflict() = runTest {
+        // Enqueue an additive event
+        eventQueue.enqueue(createEvent("lot", "lot-1", "addition"))
+
+        val engine = createSyncEngine(MockEngine { request ->
+            when {
+                request.url.encodedPath.contains("events/sync") -> respond(
+                    content = """
+                    {
+                        "data": [{"index": 0, "event_id": null, "status": "failed", "idempotency_key": "k1", "error": "Validation error"}],
+                        "meta": {"accepted": 0, "failed": 1},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                request.url.encodedPath.contains("sync/pull") -> respond(
+                    content = """
+                    {
+                        "data": {"lots": [], "vessels": [], "work_orders": [], "barrels": [], "raw_materials": []},
+                        "meta": {"synced_at": "2024-10-15T14:00:00Z", "has_more": false},
+                        "errors": []
+                    }
+                    """,
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> error("Unexpected")
+            }
+        })
+
+        val result = engine.sync()
+
+        // Additive failure should NOT create a conflict
+        val conflicts = database.localConflictQueries.selectUnresolved().executeAsList()
+        assertEquals(0, conflicts.size)
+        // But the event should still be marked as failed
+        assertEquals(1, result.push?.failed)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────
 
     private fun createSyncEngine(mockEngine: MockEngine): SyncEngine {
+        val conflictStore = ConflictStore(database, fixedClock)
+        val conflictResolver = ConflictResolver(conflictStore)
         return SyncEngine(
             database = database,
             apiClient = createApiClient(mockEngine),
             eventQueue = eventQueue,
+            conflictResolver = conflictResolver,
             connectivityMonitor = JvmConnectivityMonitor(),
         )
     }

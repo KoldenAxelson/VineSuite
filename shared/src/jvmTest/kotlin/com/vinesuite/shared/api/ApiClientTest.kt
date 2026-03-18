@@ -113,7 +113,16 @@ class ApiClientTest {
     }
 
     @Test
-    fun loginHandlesNetworkError() = runTest {
+    fun loginNetworkErrorDoesNotClearExistingAuth() = runTest {
+        // Pre-authenticate — simulates a user who is already logged in
+        // and attempts a re-login (e.g., switching accounts) that fails
+        authManager.storeAuth(
+            token = "existing-token",
+            user = com.vinesuite.shared.api.models.UserInfo("u1", "Jane", "j@v.com", "winemaker"),
+            tenantId = "tenant-abc",
+        )
+        assertTrue(authManager.isAuthenticated())
+
         val client = createApiClient(MockEngine {
             throw java.net.ConnectException("Connection refused")
         })
@@ -125,8 +134,11 @@ class ApiClientTest {
             tenantId = "tenant-abc",
         )
 
+        // Login failed due to network — but existing auth should be preserved
+        // (only 401 should clear auth, not network errors)
         assertTrue(result.isFailure)
-        assertFalse(authManager.isAuthenticated())
+        assertTrue(authManager.isAuthenticated())
+        assertEquals("existing-token", authManager.getBearerToken())
     }
 
     // ── Auth state ───────────────────────────────────────────────

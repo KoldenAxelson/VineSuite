@@ -31,6 +31,7 @@ class SyncEngine(
     private val database: VineSuiteDatabase,
     private val apiClient: ApiClient,
     private val eventQueue: EventQueue,
+    private val conflictResolver: ConflictResolver,
     private val connectivityMonitor: ConnectivityMonitor,
 ) {
     companion object {
@@ -128,6 +129,8 @@ class SyncEngine(
                             }
                             "failed" -> {
                                 eventQueue.recordFailure(outboxEvent.id, pushResult.error ?: "Unknown server error")
+                                // Destructive ops → create user-visible conflict
+                                conflictResolver.processPushResult(outboxEvent, pushResult)
                                 totalFailed++
                             }
                         }

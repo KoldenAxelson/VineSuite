@@ -101,11 +101,16 @@ kover {
 }
 
 // ── SQLDelight ───────────────────────────────────────────────────
-// Minimal config — .sq files added in Sub-Task 2.
 sqldelight {
     databases {
         create("VineSuiteDatabase") {
             packageName.set("com.vinesuite.shared.database")
+            // Current schema is version 1. When schema changes are needed:
+            // 1. Create shared/src/commonMain/sqldelight/migrations/{N}.sqm
+            // 2. Bump this version number
+            // SQLDelight will auto-generate migration code.
+            version = 1
+            verifyMigrations.set(true)
         }
     }
 }
