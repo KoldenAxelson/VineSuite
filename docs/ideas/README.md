@@ -31,6 +31,12 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 | `grower-tools.md` | Standalone tools for grape growers with cross-tenant data flow | ⏳ Deferred → Phase 8+. See Task 17 "Ideas to Evaluate". |
 | `custom-crush-ap-portal.md` | Full AP holder support with cross-tenant facility management | ⏳ Deferred → Phase 8+. See Task 21 "Ideas to Evaluate". |
 
+### Infrastructure Ideas (2026-03-17)
+
+| File | Summary | Status |
+|------|---------|--------|
+| `iot-sensor-integration.md` | Vine-to-bottle IoT: LoRaWAN sensors → ChirpStack → MQTT → Laravel → TimescaleDB. CO₂ safety as entry point, 3-wave rollout. | ⏳ Deferred → Phase 8 (3 pre-KMP prep items identified) |
+
 ### Technical Debt Ideas (2026-03-17)
 
 From Phase 6 known debt items. These are implementation gaps where the consuming layer exists but the emission path does not.

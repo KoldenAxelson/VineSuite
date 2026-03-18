@@ -21,7 +21,7 @@ services:
       - vinesuite
 
   postgres:
-    image: postgres:16
+    image: timescale/timescaledb:latest-pg16
     ports:
       - "5432:5432"
     environment:
@@ -39,7 +39,7 @@ services:
       - vinesuite
 
   postgres-test:
-    image: postgres:16
+    image: timescale/timescaledb:latest-pg16
     ports:
       - "5433:5432"
     environment:

@@ -44,4 +44,5 @@ return [
     // Future modules — uncomment and extend as needed:
     // 'dtc' => ['order_', 'club_', 'shipment_'],
     // 'pos' => ['pos_', 'terminal_'],
+    // 'iot' => ['sensor_', 'device_', 'alert_'],
 ];

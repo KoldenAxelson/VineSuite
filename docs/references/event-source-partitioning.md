@@ -27,7 +27,9 @@ CREATE INDEX idx_events_source ON events (event_source);
 | `lab` | lab_analysis, fermentation_*, sensory_note | 3 |
 | `inventory` | stock_*, purchase_*, equipment_*, dry_goods_*, raw_material_* | 4 |
 | `accounting` | cost_*, cogs_* | 5 |
+| `compliance` | ttb_*, license_*, compliance_* | 6 |
 | `sales` | orders, fulfillment, club shipments | Future |
+| `iot` | sensor_*, device_*, alert_* | Future (Phase 8) |
 | `system` | scheduled jobs, automated alerts, corrections | Future |
 
 ---
