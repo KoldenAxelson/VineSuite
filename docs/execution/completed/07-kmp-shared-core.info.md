@@ -61,3 +61,37 @@
 - Known gaps: Schema migration tests deferred until we actually need a migration (Sub-Task 2 is the initial schema).
 
 ---
+
+## Sub-Task 3: Event Queue (Outbox Pattern)
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **`SyncEvent` uses `JsonObject` for payload, not a generic `Map`**: Server expects `payload` as a JSON object. Using kotlinx-serialization's `JsonObject` gives us type-safe JSON construction via `buildJsonObject {}` and round-trips cleanly through the outbox (stored as TEXT, deserialized back). No need for a separate serializer per event type.
+- **`EventFactory` accepts injectable `Clock`**: Enables deterministic timestamps in tests via a fixed clock. Production code uses `Clock.System`. Same pattern recommended by kotlinx-datetime docs.
+- **`kotlin.uuid.Uuid` for idempotency keys**: Kotlin 2.0 ships `kotlin.uuid` in stdlib (experimental). Avoids pulling in a third-party UUID library. The `@OptIn(ExperimentalUuidApi::class)` is scoped to the factory only.
+- **`EventQueue.markSyncedBatch` uses a transaction loop instead of `IN` clause**: SQLDelight's `WHERE id IN ?` with `Collection<String>` had codegen issues in some versions. A transaction wrapping individual `markSynced` calls is equally atomic and avoids the risk. Performance is fine for batch sizes ≤ 100.
+- **`DEFAULT_BATCH_SIZE = 50`**: Server accepts max 100 events per sync request. 50 is conservative — leaves headroom and keeps individual sync cycles fast.
+- **`toSyncEvent()` on EventQueue, not on OutboxEvent**: OutboxEvent is a SQLDelight-generated data class (can't add methods). The conversion lives on EventQueue since it owns the serialization context.
+
+### Deviations from Spec
+- **`performed_by` included in `SyncEvent`**: Spec's data class didn't list it, but the server's `EventLogger::log()` requires `performed_by` (the user UUID). Added to SyncEvent so the server can attribute the event.
+- **No separate `retryFailed()` method**: Spec listed `EventQueue.retryFailed()` as re-queuing failed events. Instead, failed events remain in the outbox with `synced = 0` and are picked up by `getPendingEvents()` naturally. The retry count tracks how many times they've failed. Simpler and avoids event duplication.
+
+### Patterns Established
+- **Fixed clock in tests**: `EventFactory(clock = fixedClock)` pattern for deterministic timestamp testing. All future sync tests should use this.
+- **`buildJsonObject {}` for test payloads**: Clean DSL for building event payloads in tests without string concatenation.
+
+### Test Summary
+- `src/jvmTest/.../sync/EventQueueTest.kt` — 20 tests covering:
+  - EventFactory: unique idempotency keys, user/device propagation, clock injection, timestamp override
+  - Enqueue: writes to outbox, preserves all fields, maintains FIFO order
+  - Pending: count reflects unsynced, batch retrieval respects limits
+  - Sync: markSynced removes from pending, markSyncedBatch handles multiple
+  - Retry: failure increments count, failed events stay in pending, retryable vs permanently failed distinction, resetRetry allows reprocessing
+  - Purge: deletes old synced events, preserves unsynced
+  - Round-trip: OutboxEvent → SyncEvent reconstruction preserves all fields including payload
+  - Bulk: 50-event offline scenario with batched sync
+- Known gaps: Idempotency deduplication is server-side (tested in PHP). KMP just ensures unique keys are generated.
+
+---
