@@ -1,0 +1,51 @@
+-- LocalVessel: offline mirror of server vessels table.
+
+CREATE TABLE LocalVessel (
+    id                TEXT NOT NULL PRIMARY KEY,
+    name              TEXT NOT NULL,
+    type              TEXT NOT NULL,
+    capacity_gallons  REAL NOT NULL DEFAULT 0.0,
+    material          TEXT,
+    location          TEXT,
+    status            TEXT NOT NULL DEFAULT 'empty',
+    current_lot_id    TEXT,
+    current_volume    REAL NOT NULL DEFAULT 0.0,
+    updated_at        TEXT NOT NULL
+);
+
+CREATE INDEX idx_local_vessel_type ON LocalVessel(type);
+CREATE INDEX idx_local_vessel_status ON LocalVessel(status);
+CREATE INDEX idx_local_vessel_location ON LocalVessel(location);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalVessel ORDER BY name ASC;
+
+selectById:
+SELECT * FROM LocalVessel WHERE id = ?;
+
+selectByStatus:
+SELECT * FROM LocalVessel WHERE status = ? ORDER BY name ASC;
+
+selectByType:
+SELECT * FROM LocalVessel WHERE type = ? ORDER BY name ASC;
+
+selectAvailable:
+SELECT * FROM LocalVessel WHERE status = 'empty' ORDER BY name ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalVessel(id, name, type, capacity_gallons, material, location, status, current_lot_id, current_volume, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateStatus:
+UPDATE LocalVessel SET status = ?, updated_at = ? WHERE id = ?;
+
+updateVolume:
+UPDATE LocalVessel SET current_volume = ?, current_lot_id = ?, updated_at = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM LocalVessel WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalVessel;

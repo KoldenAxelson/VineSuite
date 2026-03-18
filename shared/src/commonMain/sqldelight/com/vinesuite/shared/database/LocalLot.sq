@@ -1,0 +1,48 @@
+-- LocalLot: offline mirror of server lots table.
+-- Optimized for cellar app read patterns.
+
+CREATE TABLE LocalLot (
+    id              TEXT NOT NULL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    variety         TEXT NOT NULL,
+    vintage         INTEGER NOT NULL,
+    source_type     TEXT NOT NULL DEFAULT 'estate',
+    volume_gallons  REAL NOT NULL DEFAULT 0.0,
+    status          TEXT NOT NULL DEFAULT 'in_progress',
+    parent_lot_id   TEXT,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX idx_local_lot_variety ON LocalLot(variety);
+CREATE INDEX idx_local_lot_vintage ON LocalLot(vintage);
+CREATE INDEX idx_local_lot_status ON LocalLot(status);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalLot ORDER BY updated_at DESC;
+
+selectById:
+SELECT * FROM LocalLot WHERE id = ?;
+
+selectByStatus:
+SELECT * FROM LocalLot WHERE status = ? ORDER BY name ASC;
+
+selectByVarietyAndVintage:
+SELECT * FROM LocalLot WHERE variety = ? AND vintage = ? ORDER BY name ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalLot(id, name, variety, vintage, source_type, volume_gallons, status, parent_lot_id, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateStatus:
+UPDATE LocalLot SET status = ?, updated_at = ? WHERE id = ?;
+
+updateVolume:
+UPDATE LocalLot SET volume_gallons = ?, updated_at = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM LocalLot WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalLot;

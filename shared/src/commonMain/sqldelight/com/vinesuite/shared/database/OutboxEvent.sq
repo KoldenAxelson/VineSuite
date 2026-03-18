@@ -1,0 +1,71 @@
+-- OutboxEvent: local event outbox for offline sync.
+-- Every user operation writes here first, then syncs to server.
+-- Idempotency key prevents duplicate processing on retry.
+
+CREATE TABLE OutboxEvent (
+    id              TEXT NOT NULL PRIMARY KEY,
+    entity_type     TEXT NOT NULL,
+    entity_id       TEXT NOT NULL,
+    operation_type  TEXT NOT NULL,
+    payload         TEXT NOT NULL,
+    performed_by    TEXT NOT NULL,
+    performed_at    TEXT NOT NULL,
+    device_id       TEXT,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    synced          INTEGER NOT NULL DEFAULT 0,
+    retry_count     INTEGER NOT NULL DEFAULT 0,
+    last_error      TEXT,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX idx_outbox_synced ON OutboxEvent(synced);
+CREATE INDEX idx_outbox_created ON OutboxEvent(created_at);
+CREATE INDEX idx_outbox_entity ON OutboxEvent(entity_type, entity_id);
+
+-- Queries
+
+selectAll:
+SELECT * FROM OutboxEvent ORDER BY performed_at ASC;
+
+selectById:
+SELECT * FROM OutboxEvent WHERE id = ?;
+
+selectUnsynced:
+SELECT * FROM OutboxEvent WHERE synced = 0 ORDER BY performed_at ASC;
+
+selectUnsyncedBatch:
+SELECT * FROM OutboxEvent WHERE synced = 0 ORDER BY performed_at ASC LIMIT ?;
+
+selectFailed:
+SELECT * FROM OutboxEvent WHERE synced = 0 AND retry_count > 0 ORDER BY performed_at ASC;
+
+selectPermanentlyFailed:
+SELECT * FROM OutboxEvent WHERE synced = 0 AND retry_count >= 5 ORDER BY performed_at ASC;
+
+countUnsynced:
+SELECT COUNT(*) FROM OutboxEvent WHERE synced = 0;
+
+insert:
+INSERT INTO OutboxEvent(id, entity_type, entity_id, operation_type, payload, performed_by, performed_at, device_id, idempotency_key, synced, retry_count, last_error, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, ?);
+
+markSynced:
+UPDATE OutboxEvent SET synced = 1 WHERE id = ?;
+
+markSyncedBatch:
+UPDATE OutboxEvent SET synced = 1 WHERE id IN ?;
+
+incrementRetry:
+UPDATE OutboxEvent SET retry_count = retry_count + 1, last_error = ? WHERE id = ?;
+
+resetRetry:
+UPDATE OutboxEvent SET retry_count = 0, last_error = NULL WHERE id = ?;
+
+deleteOlderThan:
+DELETE FROM OutboxEvent WHERE synced = 1 AND created_at < ?;
+
+deleteById:
+DELETE FROM OutboxEvent WHERE id = ?;
+
+deleteAll:
+DELETE FROM OutboxEvent;

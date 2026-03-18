@@ -1,0 +1,63 @@
+-- LocalWorkOrder: offline mirror of server work_orders table.
+-- Cellar workers view and complete work orders on-device.
+
+CREATE TABLE LocalWorkOrder (
+    id              TEXT NOT NULL PRIMARY KEY,
+    operation_type  TEXT NOT NULL,
+    lot_id          TEXT,
+    vessel_id       TEXT,
+    assigned_to     TEXT,
+    due_date        TEXT,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    priority        TEXT NOT NULL DEFAULT 'normal',
+    notes           TEXT,
+    completed_at    TEXT,
+    completed_by    TEXT,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX idx_local_work_order_status ON LocalWorkOrder(status);
+CREATE INDEX idx_local_work_order_priority ON LocalWorkOrder(priority);
+CREATE INDEX idx_local_work_order_due_date ON LocalWorkOrder(due_date);
+CREATE INDEX idx_local_work_order_assigned ON LocalWorkOrder(assigned_to);
+CREATE INDEX idx_local_work_order_status_due ON LocalWorkOrder(status, due_date);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalWorkOrder ORDER BY due_date ASC;
+
+selectById:
+SELECT * FROM LocalWorkOrder WHERE id = ?;
+
+selectByStatus:
+SELECT * FROM LocalWorkOrder WHERE status = ? ORDER BY due_date ASC;
+
+selectPending:
+SELECT * FROM LocalWorkOrder
+WHERE status IN ('pending', 'in_progress')
+ORDER BY
+    CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 END,
+    due_date ASC;
+
+selectByAssignee:
+SELECT * FROM LocalWorkOrder WHERE assigned_to = ? ORDER BY due_date ASC;
+
+selectByLot:
+SELECT * FROM LocalWorkOrder WHERE lot_id = ? ORDER BY due_date ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalWorkOrder(id, operation_type, lot_id, vessel_id, assigned_to, due_date, status, priority, notes, completed_at, completed_by, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateStatus:
+UPDATE LocalWorkOrder SET status = ?, updated_at = ? WHERE id = ?;
+
+markCompleted:
+UPDATE LocalWorkOrder SET status = 'completed', completed_at = ?, completed_by = ?, updated_at = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM LocalWorkOrder WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalWorkOrder;

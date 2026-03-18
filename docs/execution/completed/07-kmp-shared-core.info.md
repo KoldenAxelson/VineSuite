@@ -33,3 +33,31 @@
 - Known gaps: Ktor client and SQLDelight not smoke-tested yet (no mock server or .sq files). Covered in Sub-Tasks 2-4.
 
 ---
+
+## Sub-Task 2: SQLDelight Database Schema
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **`INSERT OR REPLACE` for all entity tables**: Local tables are state mirrors from the server. On pull-sync, the latest server state overwrites the local row entirely. This avoids merge logic for read-only mirror data. OutboxEvent uses plain `INSERT` (events are append-only, never overwritten).
+- **`current_lot_id` and `current_volume` on LocalVessel**: Not in the server vessel model directly (it's a pivot table relationship), but the KMP spec calls for these as denormalized fields for offline convenience. The sync pull endpoint will populate these from the lot-vessel pivot.
+- **`forest_origin` added to LocalBarrel**: Server model has this field; task spec omitted it. Added for schema parity — prevents data loss on sync round-trips.
+- **SyncState as key-value store**: Simple `key TEXT PRIMARY KEY, value TEXT` table with `INSERT OR REPLACE` upsert. No schema changes needed as new sync metadata keys are added.
+- **Batch queries for OutboxEvent**: Added `selectUnsyncedBatch(limit)` for controlled sync push sizes, `selectPermanentlyFailed` for events hitting the 5-retry ceiling, `countUnsynced` for the UI sync indicator.
+- **Foreign key on LocalBarrel → LocalVessel with CASCADE DELETE**: Mirrors server relationship. If a vessel is removed during sync pull, its barrel detail row is cleaned up automatically.
+
+### Deviations from Spec
+- **Added `LocalUserProfile` table**: Spec listed it in the data models section but not in the `.sq` files list. Added because the API client (Sub-Task 4) needs offline user/role context for permission checks.
+- **Added `forest_origin` to LocalBarrel**: Present in server model but absent from task spec's data model list.
+- **`markSyncedBatch` uses `IN` clause**: SQLDelight generates a `Collection<String>` parameter for `WHERE id IN ?` — more efficient than marking one-by-one in a loop.
+
+### Patterns Established
+- **expect/actual `DatabaseDriverFactory`**: Platform-specific driver creation. JVM uses `JdbcSqliteDriver.IN_MEMORY` for tests, iOS uses `NativeSqliteDriver`, Android uses `AndroidSqliteDriver(context)`. All sub-tasks that touch the database use this factory.
+- **`DatabaseFactory.create(driverFactory)`**: Single entry point for database instantiation across all platforms.
+- **ISO 8601 strings for timestamps**: All `_at` columns are `TEXT` storing ISO 8601. No SQLite date functions needed — comparison and ordering work via string sort on ISO format. Timezone handling stays in Kotlin code.
+
+### Test Summary
+- `src/jvmTest/.../LocalDatabaseTest.kt` — 25 tests covering all 8 tables: insert, select by ID, select filtered, update status/volume, delete, batch operations, priority ordering, retry counting, upsert semantics, cross-table deleteAll
+- Known gaps: Schema migration tests deferred until we actually need a migration (Sub-Task 2 is the initial schema).
+
+---

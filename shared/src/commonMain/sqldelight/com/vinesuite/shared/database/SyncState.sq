@@ -1,0 +1,24 @@
+-- SyncState: key-value store for sync metadata.
+-- Stores: last_sync_timestamp, device_id, auth state, etc.
+
+CREATE TABLE SyncState (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Queries
+
+selectByKey:
+SELECT value FROM SyncState WHERE key = ?;
+
+selectAll:
+SELECT * FROM SyncState ORDER BY key ASC;
+
+upsert:
+INSERT OR REPLACE INTO SyncState(key, value) VALUES (?, ?);
+
+deleteByKey:
+DELETE FROM SyncState WHERE key = ?;
+
+deleteAll:
+DELETE FROM SyncState;

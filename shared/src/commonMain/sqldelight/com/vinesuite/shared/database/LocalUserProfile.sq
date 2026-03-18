@@ -1,0 +1,34 @@
+-- LocalUserProfile: cached user profile for offline auth context.
+-- Permissions stored as JSON text for flexible RBAC.
+
+CREATE TABLE LocalUserProfile (
+    id          TEXT NOT NULL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    email       TEXT NOT NULL,
+    role        TEXT NOT NULL,
+    permissions TEXT NOT NULL DEFAULT '[]'
+);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalUserProfile ORDER BY name ASC;
+
+selectById:
+SELECT * FROM LocalUserProfile WHERE id = ?;
+
+selectByEmail:
+SELECT * FROM LocalUserProfile WHERE email = ?;
+
+selectByRole:
+SELECT * FROM LocalUserProfile WHERE role = ? ORDER BY name ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalUserProfile(id, name, email, role, permissions)
+VALUES (?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM LocalUserProfile WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalUserProfile;

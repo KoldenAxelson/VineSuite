@@ -1,0 +1,36 @@
+-- LocalAdditionProduct: offline mirror of server raw_materials table.
+-- Subset of fields relevant to cellar additions workflow.
+
+CREATE TABLE LocalAdditionProduct (
+    id            TEXT NOT NULL PRIMARY KEY,
+    name          TEXT NOT NULL,
+    category      TEXT NOT NULL,
+    default_rate  REAL,
+    default_unit  TEXT NOT NULL DEFAULT 'g'
+);
+
+CREATE INDEX idx_local_addition_product_category ON LocalAdditionProduct(category);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalAdditionProduct ORDER BY name ASC;
+
+selectById:
+SELECT * FROM LocalAdditionProduct WHERE id = ?;
+
+selectByCategory:
+SELECT * FROM LocalAdditionProduct WHERE category = ? ORDER BY name ASC;
+
+search:
+SELECT * FROM LocalAdditionProduct WHERE name LIKE '%' || ? || '%' ORDER BY name ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalAdditionProduct(id, name, category, default_rate, default_unit)
+VALUES (?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM LocalAdditionProduct WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalAdditionProduct;

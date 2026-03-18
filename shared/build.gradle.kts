@@ -10,6 +10,12 @@ kotlin {
     // Default hierarchy: commonMain → appleMain → iosMain, etc.
     applyDefaultHierarchyTemplate()
 
+    // Suppress beta warning for expect/actual classes (KT-61573)
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     // ── Targets ──────────────────────────────────────────────────
     jvm()
 

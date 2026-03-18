@@ -1,0 +1,48 @@
+-- LocalBarrel: offline mirror of server barrels table.
+-- 1:1 with a vessel of type 'barrel'.
+
+CREATE TABLE LocalBarrel (
+    id              TEXT NOT NULL PRIMARY KEY,
+    vessel_id       TEXT NOT NULL,
+    cooperage       TEXT,
+    toast_level     TEXT,
+    oak_type        TEXT,
+    forest_origin   TEXT,
+    volume_gallons  REAL NOT NULL DEFAULT 59.43,
+    years_used      INTEGER NOT NULL DEFAULT 0,
+    qr_code         TEXT,
+    updated_at      TEXT NOT NULL,
+    FOREIGN KEY (vessel_id) REFERENCES LocalVessel(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_local_barrel_vessel ON LocalBarrel(vessel_id);
+CREATE INDEX idx_local_barrel_cooperage ON LocalBarrel(cooperage);
+CREATE INDEX idx_local_barrel_oak_type ON LocalBarrel(oak_type);
+CREATE INDEX idx_local_barrel_qr_code ON LocalBarrel(qr_code);
+
+-- Queries
+
+selectAll:
+SELECT * FROM LocalBarrel ORDER BY cooperage ASC;
+
+selectById:
+SELECT * FROM LocalBarrel WHERE id = ?;
+
+selectByVesselId:
+SELECT * FROM LocalBarrel WHERE vessel_id = ?;
+
+selectByQrCode:
+SELECT * FROM LocalBarrel WHERE qr_code = ?;
+
+selectByOakType:
+SELECT * FROM LocalBarrel WHERE oak_type = ? ORDER BY cooperage ASC;
+
+insert:
+INSERT OR REPLACE INTO LocalBarrel(id, vessel_id, cooperage, toast_level, oak_type, forest_origin, volume_gallons, years_used, qr_code, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM LocalBarrel WHERE id = ?;
+
+deleteAll:
+DELETE FROM LocalBarrel;
