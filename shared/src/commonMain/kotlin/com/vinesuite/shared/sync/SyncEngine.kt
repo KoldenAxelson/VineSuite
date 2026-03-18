@@ -11,6 +11,8 @@ import com.vinesuite.shared.database.VineSuiteDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Core synchronization engine — manages the full sync cycle:
@@ -33,10 +35,14 @@ class SyncEngine(
     private val eventQueue: EventQueue,
     private val conflictResolver: ConflictResolver,
     private val connectivityMonitor: ConnectivityMonitor,
+    private val logger: com.vinesuite.shared.util.Logger = com.vinesuite.shared.util.NoOpLogger,
 ) {
     companion object {
         const val SYNC_STATE_LAST_SYNC = "last_sync_timestamp"
+        private const val TAG = "VineSuite.SyncEngine"
     }
+
+    private val syncMutex = Mutex()
 
     private val _state = MutableStateFlow(SyncState.IDLE)
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -49,16 +55,27 @@ class SyncEngine(
      *
      * Returns a [SyncResult] summarizing what happened.
      * Never throws — errors are captured in the result.
+     * Thread-safe: concurrent calls return ALREADY_RUNNING.
      */
     suspend fun sync(): SyncResult {
-        if (_state.value == SyncState.PUSHING || _state.value == SyncState.PULLING) {
+        if (!syncMutex.tryLock()) {
             return SyncResult(status = SyncResultStatus.ALREADY_RUNNING)
         }
+        try {
+            return doSync()
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private suspend fun doSync(): SyncResult {
 
         if (!connectivityMonitor.isConnected()) {
+            logger.debug(TAG, "Sync skipped: offline")
             return SyncResult(status = SyncResultStatus.OFFLINE)
         }
 
+        logger.info(TAG, "Sync started")
         _lastError.value = null
         var pushResult: PushResult? = null
         var pullResult: PullResult? = null
@@ -67,9 +84,11 @@ class SyncEngine(
         try {
             _state.value = SyncState.PUSHING
             pushResult = pushEvents()
+            logger.info(TAG, "Push complete: ${pushResult.accepted} accepted, ${pushResult.skipped} skipped, ${pushResult.failed} failed")
         } catch (e: Exception) {
             _state.value = SyncState.ERROR
             _lastError.value = "Push failed: ${e.message}"
+            logger.error(TAG, "Push failed: ${e.message}", e)
             return SyncResult(
                 status = SyncResultStatus.PUSH_FAILED,
                 push = PushResult(error = e.message),
@@ -80,10 +99,11 @@ class SyncEngine(
         try {
             _state.value = SyncState.PULLING
             pullResult = pullState()
+            logger.info(TAG, "Pull complete: ${pullResult.entitiesUpdated} entities updated")
         } catch (e: Exception) {
             _state.value = SyncState.ERROR
             _lastError.value = "Pull failed: ${e.message}"
-            // Push succeeded — don't lose that. Report partial success.
+            logger.error(TAG, "Pull failed: ${e.message}", e)
             return SyncResult(
                 status = SyncResultStatus.PULL_FAILED,
                 push = pushResult,
@@ -92,6 +112,7 @@ class SyncEngine(
         }
 
         _state.value = SyncState.IDLE
+        logger.info(TAG, "Sync complete")
         return SyncResult(
             status = SyncResultStatus.SUCCESS,
             push = pushResult,

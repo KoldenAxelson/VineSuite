@@ -598,6 +598,22 @@ class LocalDatabaseTest {
         assertNull(database.localBarrelQueries.selectById("b-1").executeAsOneOrNull())
     }
 
+    @Test
+    fun barrelInsertWithNonExistentVesselFails() {
+        var threw = false
+        try {
+            database.localBarrelQueries.insert(
+                id = "b-orphan", vessel_id = "no-such-vessel", cooperage = "Test",
+                toast_level = "medium", oak_type = "french", forest_origin = null,
+                volume_gallons = 59.43, years_used = 0, qr_code = null,
+                updated_at = "2024-10-01T10:00:00Z"
+            )
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue(threw, "Insert with non-existent vessel_id should fail with FK enforcement")
+    }
+
     // ── Edge cases: null handling ────────────────────────────────
 
     @Test

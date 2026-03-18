@@ -10,6 +10,7 @@ import com.vinesuite.shared.api.models.SyncPushRequest
 import com.vinesuite.shared.api.models.SyncPushResult
 import com.vinesuite.shared.models.SyncEvent
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
@@ -53,6 +54,11 @@ class ApiClient(
     private val client: HttpClient = httpClient ?: HttpClient {
         install(ContentNegotiation) {
             json(this@ApiClient.json)
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 30_000
+            connectTimeoutMillis = 10_000
+            socketTimeoutMillis = 30_000
         }
         defaultRequest {
             contentType(ContentType.Application.Json)

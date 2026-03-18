@@ -92,10 +92,31 @@ android {
 
 // ── Kover (coverage) ─────────────────────────────────────────────
 // Scope coverage to JVM only — Android target requires SDK to instrument.
+// Exclude SQLDelight-generated classes and kotlinx-serialization companions
+// so coverage % reflects hand-written code.
 kover {
     currentProject {
         createVariant("jvmOnly") {
             add("jvm")
+        }
+    }
+    reports {
+        filters {
+            excludes {
+                // SQLDelight generated query wrappers, adapters, driver impls
+                classes(
+                    "*.database.*Queries",
+                    "*.database.*Queries\$*",
+                    "*.database.*Impl",
+                    "*.database.*Impl\$*",
+                    "*.database.*Adapter",
+                    "*.database.*Adapter\$*",
+                    "*.database.VineSuiteDatabase",
+                    "*.database.VineSuiteDatabase\$*",
+                )
+                // kotlinx-serialization generated companions
+                classes("*\$\$serializer", "*\$Companion")
+            }
         }
     }
 }

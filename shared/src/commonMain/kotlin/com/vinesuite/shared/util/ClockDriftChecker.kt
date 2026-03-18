@@ -28,10 +28,12 @@ class ClockDriftChecker(
     private val referenceTimeSource: ReferenceTimeSource,
     private val deviceClock: Clock = Clock.System,
     private val timeoutDuration: Duration = 5.seconds,
+    private val logger: Logger = NoOpLogger,
 ) {
     companion object {
         /** Drift threshold in seconds. Warn if exceeded. */
         const val DRIFT_THRESHOLD_SECONDS = 30L
+        private const val TAG = "VineSuite.ClockDrift"
     }
 
     /**
@@ -53,12 +55,14 @@ class ClockDriftChecker(
         val driftSeconds = abs((deviceTime - referenceTime).inWholeSeconds)
 
         return if (driftSeconds > DRIFT_THRESHOLD_SECONDS) {
+            logger.warn(TAG, "Clock drift detected: ${driftSeconds}s (device=$deviceTime, reference=$referenceTime)")
             DriftResult.Drifted(
                 driftSeconds = driftSeconds,
                 deviceTime = deviceTime,
                 referenceTime = referenceTime,
             )
         } else {
+            logger.debug(TAG, "Clock drift OK: ${driftSeconds}s")
             DriftResult.Ok(driftSeconds = driftSeconds)
         }
     }
