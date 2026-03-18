@@ -95,3 +95,37 @@
 - Known gaps: Idempotency deduplication is server-side (tested in PHP). KMP just ensures unique keys are generated.
 
 ---
+
+## Sub-Task 4: Ktor API Client
+**Completed:** 2026-03-18
+**Status:** Pending user validation
+
+### Key Decisions
+- **`ApiClient` accepts optional `HttpClient` for testing**: Constructor takes a pre-configured Ktor `HttpClient`. Production builds use the default (OkHttp on JVM/Android, Darwin on iOS). Tests inject `MockEngine`. Clean seam, no test-only code in production path.
+- **All methods return `Result<T>`**: No exceptions thrown from public API. Network errors, deserialization errors, HTTP errors all wrapped in `Result.failure`. Callers use `getOrNull()` / `exceptionOrNull()`. Matches Kotlin idiom.
+- **`ApiException` carries status code + server errors**: Structured error type with HTTP status and the server's error list. Enables callers to distinguish 401 (clear auth, redirect to login) from 422 (show validation errors) from 500 (retry later).
+- **Auto-clear auth on 401**: Any API call that receives HTTP 401 automatically calls `authManager.clearAuth()`. The UI layer can observe `isAuthenticated()` to redirect to login. Prevents stale token loops.
+- **`SyncPullResponse` uses embedded ref DTOs**: Server nests related objects (e.g., `current_lot` inside vessel, `assigned_to` inside work order). DTOs mirror this exactly: `EmbeddedLotRef`, `EmbeddedVesselRef`, `EmbeddedUserRef`. The SyncEngine (Sub-Task 5) will flatten these into the local SQLite tables.
+- **`ignoreUnknownKeys = true` in JSON config**: Server may add new fields in future versions. Client won't break on unrecognized JSON keys.
+- **`X-Tenant-ID` header on all authenticated requests**: Multi-tenant API requires tenant context. Stored by `AuthManager` at login time, injected via `authHeaders()` helper.
+- **iOS `SecureStorage` uses `NSUserDefaults` with Keychain TODO**: Full Keychain Services integration deferred to the Cellar App phase. `NSUserDefaults` is sufficient for the shared core's test/dev cycle. TODO is documented in code.
+
+### Deviations from Spec
+- **Token refresh not implemented**: Spec mentions "re-auth or redirect to login" on 401. Implemented the simpler path: 401 → clear auth → UI redirects to login. Token refresh (silent re-authentication) is a UX enhancement for the Cellar App phase.
+- **No separate `endpoints/` package**: Spec listed `api/endpoints/` for endpoint-specific methods. All methods live directly on `ApiClient` since there are only 4 endpoints (login, logout, pushEvents, pullState). Extracting into separate files would add indirection without benefit at this scale.
+- **`performed_by` kept on `SyncEvent`**: The server's `EventProcessor` receives `performed_by` from the authenticated user's token, but we still send it in the payload for completeness and future flexibility.
+
+### Patterns Established
+- **`MockEngine` for API tests**: All Ktor HTTP tests use `MockEngine` with inline response handlers. Tests validate request path, headers, body structure AND response deserialization in one pass. No network calls.
+- **`SecureStorage` expect/actual**: Platform-specific key-value storage for sensitive data. JVM = in-memory map (tests), Android = EncryptedSharedPreferences (AES-256), iOS = NSUserDefaults (Keychain TODO).
+- **API envelope unwrapping**: `handleEnvelope()` private method standardizes the `{ data, meta, errors }` → `Result<T>` conversion. All endpoints use the same unwrap logic.
+
+### Test Summary
+- `src/jvmTest/.../api/ApiClientTest.kt` — 14 tests covering:
+  - Login: success stores token + user + tenant, invalid credentials returns failure, network error handled gracefully
+  - Auth state: logout clears everything, 401 auto-clears auth, cached user round-trips
+  - Push: sends batch with correct auth/tenant headers, handles accepted/skipped/failed statuses, partial failure per-event
+  - Pull: returns entities + synced_at meta, passes `since` parameter, handles `has_more` pagination flag, server error returns failure
+- Known gaps: Individual entity GET endpoints (lots, vessels, etc.) not implemented — sync pull covers the mobile use case. Can add if needed for targeted queries.
+
+---
