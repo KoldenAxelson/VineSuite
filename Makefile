@@ -101,7 +101,7 @@ GRADLEW := cd shared && ./gradlew
 shared-deps:                 ## Verify Java 17+ and Gradle wrapper are available
 	@echo "── Java ──"
 	@java --version 2>&1 | head -1
-	@JAVA_MAJOR=$$(java --version 2>&1 | head -1 | sed -E 's/.*"?([0-9]+)\..*/\1/' | head -1); \
+	@JAVA_MAJOR=$$(java --version 2>&1 | head -1 | sed -E 's/[^0-9]*([0-9]+)\..*/\1/'); \
 	if [ "$$JAVA_MAJOR" -lt 17 ] 2>/dev/null; then \
 		echo "ERROR: Java 17+ required (found Java $$JAVA_MAJOR)"; exit 1; \
 	else \

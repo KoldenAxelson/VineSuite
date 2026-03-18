@@ -1,0 +1,14 @@
+# Gradle
+build/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Kotlin/Native
+.cinterop/
+
+# OS
+.DS_Store
