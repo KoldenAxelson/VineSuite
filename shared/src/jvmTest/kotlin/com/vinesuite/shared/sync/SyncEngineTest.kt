@@ -11,10 +11,14 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -695,10 +699,22 @@ class SyncEngineTest {
     }
 
     private fun createApiClient(mockEngine: MockEngine): ApiClient {
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) {
+                json(kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                    encodeDefaults = true
+                })
+            }
+            defaultRequest {
+                contentType(ContentType.Application.Json)
+            }
+        }
         return ApiClient(
             baseUrl = "https://api.vinesuite.com/api/v1",
             authManager = authManager,
-            httpClient = HttpClient(mockEngine),
+            httpClient = httpClient,
         )
     }
 

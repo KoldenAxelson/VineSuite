@@ -5,11 +5,16 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -589,7 +594,18 @@ class ApiClientTest {
     // ── Helpers ──────────────────────────────────────────────────
 
     private fun createApiClient(engine: MockEngine): ApiClient {
-        val httpClient = HttpClient(engine)
+        val httpClient = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                    encodeDefaults = true
+                })
+            }
+            defaultRequest {
+                contentType(ContentType.Application.Json)
+            }
+        }
         return ApiClient(
             baseUrl = "https://api.vinesuite.com/api/v1",
             authManager = authManager,

@@ -1,15 +1,19 @@
 package com.vinesuite.shared.api
 
-import com.vinesuite.shared.api.models.ApiEnvelope
 import com.vinesuite.shared.api.models.ApiError
+import com.vinesuite.shared.api.models.EmptyApiResponse
+import com.vinesuite.shared.api.models.LoginApiResponse
 import com.vinesuite.shared.api.models.LoginRequest
 import com.vinesuite.shared.api.models.LoginResponse
+import com.vinesuite.shared.api.models.SyncPullApiResponse
 import com.vinesuite.shared.api.models.SyncPullMeta
 import com.vinesuite.shared.api.models.SyncPullResponse
+import com.vinesuite.shared.api.models.SyncPushApiResponse
 import com.vinesuite.shared.api.models.SyncPushRequest
 import com.vinesuite.shared.api.models.SyncPushResult
 import com.vinesuite.shared.models.SyncEvent
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
@@ -18,7 +22,6 @@ import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -31,14 +34,11 @@ import kotlinx.serialization.json.jsonPrimitive
  * JSON serialization, and typed Result returns.
  *
  * All public methods return [Result] — never throw on network/HTTP errors.
- * Callers handle success/failure via Result.getOrNull() / Result.exceptionOrNull().
  *
- * Response parsing uses bodyAsText() + manual Json.decodeFromString rather
- * than Ktor's ContentNegotiation for responses. This avoids generic type
- * erasure issues with kotlinx-serialization and gives us full control
- * over the two-step envelope unwrapping.
- *
- * ContentNegotiation is still used for request body serialization.
+ * Uses concrete response classes per endpoint (LoginApiResponse,
+ * SyncPushApiResponse, etc.) instead of a generic envelope. This gives
+ * kotlinx-serialization full type info and works cleanly through Ktor's
+ * entire ContentNegotiation plugin pipeline.
  */
 class ApiClient(
     private val baseUrl: String,
@@ -76,11 +76,10 @@ class ApiClient(
     ): Result<LoginResponse> = apiCall {
         val response = client.post("$baseUrl/auth/login") {
             header("X-Tenant-ID", tenantId)
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(LoginRequest.serializer(), LoginRequest(email, password, clientType, deviceName)))
+            setBody(LoginRequest(email, password, clientType, deviceName))
         }
-        val envelope = parseEnvelope(response.bodyAsText())
-        val result = decodeData<LoginResponse>(response.status, envelope)
+        val envelope = response.body<LoginApiResponse>()
+        val result = unwrap(response.status, envelope.errors, envelope.data)
         result.getOrNull()?.let { login ->
             authManager.storeAuth(login.token, login.user, tenantId)
         }
@@ -100,11 +99,10 @@ class ApiClient(
     suspend fun pushEvents(events: List<SyncEvent>): Result<List<SyncPushResult>> = apiCall {
         val response = client.post("$baseUrl/events/sync") {
             authHeaders()
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(SyncPushRequest.serializer(), SyncPushRequest(events)))
+            setBody(SyncPushRequest(events))
         }
-        val envelope = parseEnvelope(response.bodyAsText())
-        decodeData<List<SyncPushResult>>(response.status, envelope)
+        val envelope = response.body<SyncPushApiResponse>()
+        unwrap(response.status, envelope.errors, envelope.data)
     }
 
     // ── Sync Pull ────────────────────────────────────────────────
@@ -114,7 +112,7 @@ class ApiClient(
             authHeaders()
             since?.let { parameter("since", it) }
         }
-        val envelope = parseEnvelope(response.bodyAsText())
+        val envelope = response.body<SyncPullApiResponse>()
 
         if (response.status != HttpStatusCode.OK || envelope.errors.isNotEmpty()) {
             return@apiCall Result.failure(
@@ -122,9 +120,7 @@ class ApiClient(
             )
         }
 
-        val data = envelope.data?.let {
-            json.decodeFromJsonElement(SyncPullResponse.serializer(), it)
-        } ?: return@apiCall Result.failure(
+        val data = envelope.data ?: return@apiCall Result.failure(
             ApiException(statusCode = response.status.value, errors = listOf(ApiError("Empty pull response")))
         )
 
@@ -139,24 +135,21 @@ class ApiClient(
 
     // ── Internal helpers ─────────────────────────────────────────
 
-    private fun parseEnvelope(body: String): ApiEnvelope {
-        return json.decodeFromString(ApiEnvelope.serializer(), body)
-    }
-
-    private inline fun <reified T> decodeData(status: HttpStatusCode, envelope: ApiEnvelope): Result<T> {
+    /**
+     * Unwrap a concrete envelope's data field into a Result.
+     * Checks for 401 and error lists before returning the data.
+     */
+    private fun <T> unwrap(status: HttpStatusCode, errors: List<ApiError>, data: T?): Result<T> {
         if (status == HttpStatusCode.Unauthorized) {
-            return Result.failure(ApiException(statusCode = 401, errors = envelope.errors))
+            return Result.failure(ApiException(statusCode = 401, errors = errors))
         }
-        if (envelope.errors.isNotEmpty()) {
-            return Result.failure(ApiException(statusCode = status.value, errors = envelope.errors))
+        if (errors.isNotEmpty()) {
+            return Result.failure(ApiException(statusCode = status.value, errors = errors))
         }
-        val dataElement = envelope.data
-            ?: return Result.failure(ApiException(statusCode = status.value, errors = listOf(ApiError("No data in response"))))
-        return try {
-            Result.success(json.decodeFromJsonElement(kotlinx.serialization.serializer<T>(), dataElement))
-        } catch (e: Exception) {
-            Result.failure(ApiException(statusCode = status.value, errors = listOf(ApiError("Parse error: ${e.message}"))))
-        }
+        data ?: return Result.failure(
+            ApiException(statusCode = status.value, errors = listOf(ApiError("No data in response")))
+        )
+        return Result.success(data)
     }
 
     private suspend fun <T> apiCall(block: suspend () -> Result<T>): Result<T> {
