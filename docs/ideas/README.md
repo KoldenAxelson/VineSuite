@@ -36,6 +36,13 @@ From the winery SaaS market research gap analysis. Start with `research-gap-anal
 | File | Summary | Status |
 |------|---------|--------|
 | `multi-vertical-cellar-suite.md` | Single codebase serving wine, beer, spirits, cider via `business_type` tenant field. CellarSuite rebrand. TAM: ~24,500 US craft beverage producers. | ⏳ Deferred → Phase 9+ (architecture already supports it) |
+| `public-api-platform-strategy.md` | Public API as AI-era discovery surface. OpenAPI spec, Zapier/Make listings, developer portal, sandbox. API is the SEO flywheel for AI agents and developers. | ⏳ Deferred → Phase 8 (expands strategic framing for Task 23) |
+
+### Integration Ideas (2026-03-17)
+
+| File | Summary | Status |
+|------|---------|--------|
+| `toast-pos-integration.md` | Bidirectional Toast POS integration for winery-restaurant hybrids. Inbound order webhooks → event log, outbound inventory → menu sync. | ⏳ Deferred → Phase 10 (Task 16 or standalone) |
 
 ### Infrastructure Ideas (2026-03-17)
 
