@@ -20,7 +20,7 @@
 
 - **Gradle root at `shared/`:** KMP module is its own Gradle project, not nested under the PHP/Laravel project. Avoids polluting the Laravel build with Gradle infrastructure.
 - **Kotlin 2.0.21 + SQLDelight 2.0.2 + Ktor 2.3.12:** Pinned via version catalog. Ktor 2.x chosen over 3.x for stability. SQLDelight 2.x for native Kotlin 2.0 support.
-- **`bodyAsText()` + manual JSON parsing:** Ktor's ContentNegotiation had generic type erasure issues with the API envelope. Bypassed by reading raw response text and parsing with our own `Json` instance. More reliable across KMP targets.
+- **Concrete response classes per endpoint:** Ktor's ContentNegotiation has generic type erasure issues with `ApiEnvelope<T>`. Solved by creating concrete response types (`LoginApiResponse`, `SyncPushApiResponse`, `SyncPullApiResponse`) with the `data` field typed per endpoint. Responses go through Ktor's full plugin pipeline via `response.body<T>()` — no manual parsing.
 - **`ConnectivityMonitor` as interface, not expect/actual:** Enables test fakes via anonymous objects. Platform implementations (`JvmConnectivityMonitor`, `AndroidConnectivityMonitor`, `IosConnectivityMonitor`) implement the interface.
 - **Server time as NTP proxy:** Instead of raw NTP (requires platform-specific UDP sockets), the clock drift checker uses VineSuite API server time as the reference. Server is NTP-synced, so accuracy is equivalent.
 - **PRAGMA foreign_keys = ON:** SQLite doesn't enforce FKs by default. Enabled explicitly in the JVM driver factory and tests.

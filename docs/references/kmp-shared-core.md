@@ -173,7 +173,7 @@ SyncEvent(
 
 ### Response parsing
 
-Responses bypass Ktor ContentNegotiation. Raw text is read via `bodyAsText()`, then parsed with our own `Json` instance in two steps: first the envelope (`{data, meta, errors}`), then the typed `data` field. This avoids generic type erasure issues with kotlinx-serialization.
+Each endpoint has a concrete response class (`LoginApiResponse`, `SyncPushApiResponse`, `SyncPullApiResponse`, `EmptyApiResponse`) that matches the server's `{ data, meta, errors }` envelope with the `data` field typed to the specific response. Responses are deserialized through Ktor's ContentNegotiation pipeline via `response.body<LoginApiResponse>()` — no manual JSON parsing, no generic type erasure workarounds. Adding a new endpoint means creating one new response class (three lines) alongside the method on `ApiClient`.
 
 ### SecureStorage (token persistence)
 
